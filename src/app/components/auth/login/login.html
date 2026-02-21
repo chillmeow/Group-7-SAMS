@@ -1,0 +1,36 @@
+<div class="page">
+  <div class="left-panel">
+    <div class="overlay">
+      <img src="/assets/images/USTP_logo.png" class="logo" />
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="decor-bars">
+      <span class="bar bar1"></span>
+      <span class="bar bar2"></span>
+      <span class="bar bar3"></span>
+    </div>
+
+    <div class="login-card">
+      <h1>SAMS</h1>
+      <p>Student Attendance Monitoring System</p>
+
+      <div class="input-group">
+        <i class="fa-solid fa-user"></i>
+        <input type="text" id="username" [(ngModel)]="username" required />
+        <label for="username">Username</label>
+      </div>
+
+      <div class="input-group">
+        <i class="fa-solid fa-lock"></i>
+        <input type="password" id="password" [(ngModel)]="password" required />
+        <label for="password">Password</label>
+      </div>
+
+      <label class="remember"> <input type="checkbox" />Remember me </label>
+
+      <button class="login-btn" (click)="login()">Login</button>
+    </div>
+  </div>
+</div>

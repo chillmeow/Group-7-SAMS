@@ -1,0 +1,233 @@
+/* =========================
+   OUTER BACKGROUND
+========================= */
+.wrapper {
+  height: 100vh;
+  background: #2f3d84;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* =========================
+   LIGHT FRAME
+========================= */
+.outer-container {
+  width: 96%;
+  height: 96%;
+  background: #d7dbec;
+  border-radius: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* =========================
+   MAIN PANEL
+========================= */
+.main-panel {
+  width: 96%;
+  height: 94%;
+  background: #cfd3e6;
+  border-radius: 28px;
+  padding: 28px;
+  display: flex;
+  gap: 28px;
+  overflow: hidden;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+.sidebar {
+  width: 250px;
+  display: flex;
+}
+
+/* Sidebar Card */
+.menu-card {
+  flex: 1;
+  background: #e6e6ea;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 20px;
+}
+
+/* =========================
+   LOGO AREA (FULL UNDERLINE)
+========================= */
+.logo-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px 12px 22px;
+  position: relative;
+}
+
+/* Decorative yellow bars */
+.yellow-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  margin-left: 20px;
+}
+
+.yellow-bars span {
+  height: 3px;
+  background: #f4b400;
+  border-radius: 2px;
+  display: block;
+}
+
+.bar-top {
+  width: 15px;
+}
+.bar-middle {
+  width: 24px;
+}
+.bar-bottom {
+  width: 15px;
+  margin-left: 9px;
+}
+
+/* SAMS text */
+.sams-text {
+  font-family: 'Zen Dots', cursive;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2f3d84;
+  margin: 0;
+  margin-left: 10px;
+}
+
+/* Underline covering bars + text */
+.logo-area::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: 0;
+  width: 190px;
+  height: 2px;
+  margin-left: 5px;
+  background: #8c92b6;
+  border-radius: 2px;
+}
+
+/* =========================
+   MENU
+========================= */
+.menu {
+  list-style: none;
+  padding: 8px 0 0 0;
+  margin: 0;
+}
+
+.menu li {
+  font-size: 15px;
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid #d4d6e2;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.menu li:last-child {
+  border-bottom: none;
+}
+
+.menu li:hover {
+  background: #dddddf;
+  padding-left: 28px;
+}
+
+.logout {
+  color: #d63b3b;
+}
+
+/*=========================
+   USTP LOGO 
+========================= */
+.ustp-logo {
+  margin-top: auto;
+  padding: 25px 0 20px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ustp-logo img {
+  width: 75px;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.95;
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+.content {
+  flex: 1;
+  padding: 10px 20px;
+}
+
+/* =========================
+   WELCOME BAR
+========================= */
+.welcome-bar {
+  background: #f4b400;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-size: 22px;
+  font-weight: 600;
+  font-style: italic;
+  width: 1, 000px;
+}
+
+/* Divider line */
+.line-divider {
+  height: 2px;
+  background: #8c92b6;
+  width: 1, 000px;
+  margin: 14px 0 40px 0;
+  border-radius: 2px;
+}
+
+/* =========================
+   CARDS GRID
+========================= */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, 300px);
+  justify-content: center;
+  gap: 60px 100px;
+}
+
+/* =========================
+   CARD STYLE
+========================= */
+.card {
+  background: #434f9c;
+  color: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 300px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.center-card {
+  grid-column: span 2;
+  justify-self: center;
+}

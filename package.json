@@ -1,0 +1,56 @@
+{
+  "name": "sams",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "server": "json-server --watch db.json --port 3000",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "serve:ssr:SAMS": "node dist/SAMS/server/server.mjs"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "dependencies": {
+    "@angular/animations": "^21.1.4",
+    "@angular/cdk": "^21.1.5",
+    "@angular/common": "^21.1.0",
+    "@angular/compiler": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "@angular/forms": "^21.1.0",
+    "@angular/material": "^21.1.5",
+    "@angular/platform-browser": "^21.1.0",
+    "@angular/platform-server": "^21.1.0",
+    "@angular/router": "^21.1.0",
+    "@angular/ssr": "^21.1.2",
+    "@fontsource/poppins": "^5.2.7",
+    "@fortawesome/fontawesome-free": "^7.2.0",
+    "express": "^5.1.0",
+    "json-server": "^1.0.0-beta.9",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.1.2",
+    "@angular/cli": "^21.1.2",
+    "@angular/compiler-cli": "^21.1.0",
+    "@types/express": "^5.0.1",
+    "@types/node": "^20.17.19",
+    "jsdom": "^27.1.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

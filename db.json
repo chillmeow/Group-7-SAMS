@@ -1,0 +1,38 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "student",
+      "password": 123,
+      "role": "student"
+    },
+    {
+      "id": 2,
+      "username": "instructor",
+      "password": 123,
+      "role": "instructor"
+    },
+    {
+      "id": 3,
+      "username": "parent",
+      "password": "123",
+      "role": "parent"
+    }
+  ],
+
+  "attendance": [],
+
+  "subjects": [
+    { "id": 1, "name": "Math" },
+    { "id": 2, "name": "Science" },
+    { "id": 3, "name": "English" }
+  ],
+
+  "sections": [{ "id": 1 }, { "id": 2 }, { "id": 3 }],
+
+  "students": [{ "id": 1 }, { "id": 2 }, { "id": 3 }, { "id": 4 }, { "id": 5 }],
+
+  "classesToday": [{ "id": 1 }],
+
+  "pendingAttendance": []
+}
