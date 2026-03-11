@@ -1,0 +1,94 @@
+.sidebar {
+  width: 270px;
+  background: #1a1851;
+  color: white;
+  height: 100vh;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* LOGO CONTAINER */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* LOGO IMAGE */
+.logo img {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* TEXT WRAPPER */
+.text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* SAMS TITLE */
+.title {
+  font-family: 'Zen Dots', cursive;
+  font-size: 30px;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: 1px;
+}
+
+/* SUBTITLE */
+.sub-title {
+  margin: -4px 0 0 0;
+  font-size: 13px;
+  color: #fcb316;
+  line-height: 1.2;
+}
+
+/* LINE */
+.line {
+  border: none;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 20px -20px;
+}
+
+.portal-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+}
+
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: 0.2s ease;
+  font-size: 15px;
+}
+
+nav a.active,
+nav a:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+nav a i {
+  font-size: 16px;
+  width: 18px;
+}

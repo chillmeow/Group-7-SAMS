@@ -1,0 +1,267 @@
+<div class="offerings-page">
+  <div class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Academic Scheduling</span>
+      <h1>Class Offerings</h1>
+      <p>Manage subject assignments, section schedules, and room allocations.</p>
+    </div>
+
+    <button class="primary-btn" (click)="openAdd()">
+      <i class="pi pi-plus"></i>
+      <span>Add Offering</span>
+    </button>
+  </div>
+
+  <div class="overview-grid">
+    <div class="overview-card blue">
+      <div>
+        <span class="label">Total Offerings</span>
+        <h2>{{ offerings.length }}</h2>
+        <small>Registered class schedules</small>
+      </div>
+      <i class="pi pi-calendar"></i>
+    </div>
+
+    <div class="overview-card green">
+      <div>
+        <span class="label">Active Offerings</span>
+        <h2>{{ getActiveCount() }}</h2>
+        <small>Currently running classes</small>
+      </div>
+      <i class="pi pi-check-circle"></i>
+    </div>
+
+    <div class="overview-card orange">
+      <div>
+        <span class="label">Sections Covered</span>
+        <h2>{{ getUniqueSectionsCount() }}</h2>
+        <small>Unique section assignments</small>
+      </div>
+      <i class="pi pi-sitemap"></i>
+    </div>
+  </div>
+
+  <div class="toolbar-card">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        placeholder="Search by subject, teacher, section, room, or schedule..."
+        [(ngModel)]="search"
+      />
+    </div>
+
+    <div class="toolbar-actions">
+      <select [(ngModel)]="selectedStatus" class="filter-select">
+        <option value="All">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+
+      <button class="ghost-btn" (click)="loadOfferings()">
+        <i class="pi pi-refresh"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="board-section">
+    <div class="section-title">
+      <div>
+        <h3>Schedule Board</h3>
+        <p>{{ filteredOfferings().length }} offering card(s) displayed</p>
+      </div>
+    </div>
+
+    <div class="board-grid" *ngIf="filteredOfferings().length > 0; else emptyState">
+      <div
+        class="offering-card"
+        *ngFor="let offering of filteredOfferings(); let i = index"
+        [ngClass]="getCardAccent(i)"
+      >
+        <div class="accent-bar"></div>
+
+        <div class="card-top">
+          <span class="subject-chip">{{ offering.section }}</span>
+
+          <span
+            class="status-chip"
+            [ngClass]="offering.status === 'Active' ? 'active' : 'inactive'"
+          >
+            {{ offering.status }}
+          </span>
+        </div>
+
+        <div class="card-body">
+          <h4>{{ offering.subject }}</h4>
+          <p>{{ offering.teacher }}</p>
+        </div>
+
+        <div class="info-list">
+          <div class="info-item">
+            <i class="pi pi-map-marker"></i>
+            <span>{{ offering.room }}</span>
+          </div>
+
+          <div class="info-item">
+            <i class="pi pi-clock"></i>
+            <span>{{ offering.schedule }}</span>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button class="soft-btn edit" (click)="openEdit(offering)">
+            <i class="pi pi-pencil"></i>
+            <span>Edit</span>
+          </button>
+
+          <button class="soft-btn delete" (click)="deleteOffering(offering)">
+            <i class="pi pi-trash"></i>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #emptyState>
+      <div class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <h4>No Class Offerings Yet</h4>
+        <p>Create a class offering to connect subjects, teachers, and sections.</p>
+        <button class="primary-btn" (click)="openAdd()">Add First Offering</button>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <h3>Offering List</h3>
+        <p>Compact view for quick academic schedule management</p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Teacher</th>
+            <th>Section</th>
+            <th>Room</th>
+            <th>Schedule</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let offering of filteredOfferings()">
+            <td>
+              <div class="subject-cell">
+                <strong>{{ offering.subject }}</strong>
+                <small>Class offering entry</small>
+              </div>
+            </td>
+
+            <td>{{ offering.teacher }}</td>
+            <td>{{ offering.section }}</td>
+            <td>{{ offering.room }}</td>
+            <td>{{ offering.schedule }}</td>
+
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="offering.status === 'Active' ? 'active' : 'inactive'"
+              >
+                {{ offering.status }}
+              </span>
+            </td>
+
+            <td class="actions">
+              <button class="icon-btn edit" (click)="openEdit(offering)">
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <button class="icon-btn delete" (click)="deleteOffering(offering)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+
+          <tr *ngIf="filteredOfferings().length === 0">
+            <td colspan="7">
+              <div class="empty-row">No class offering records available.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Edit Class Offering' : 'Add Class Offering' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update the selected class offering information.'
+                : 'Enter the required class offering details below.'
+            }}
+          </p>
+        </div>
+
+        <button class="close-btn" (click)="showModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" placeholder="Enter subject name" [(ngModel)]="form.subject" />
+          </div>
+
+          <div class="form-group">
+            <label>Teacher</label>
+            <input type="text" placeholder="Enter teacher name" [(ngModel)]="form.teacher" />
+          </div>
+
+          <div class="form-group">
+            <label>Section</label>
+            <input type="text" placeholder="Enter section" [(ngModel)]="form.section" />
+          </div>
+
+          <div class="form-group">
+            <label>Room</label>
+            <input type="text" placeholder="Enter room" [(ngModel)]="form.room" />
+          </div>
+
+          <div class="form-group full">
+            <label>Schedule</label>
+            <input type="text" placeholder="Enter schedule" [(ngModel)]="form.schedule" />
+          </div>
+
+          <div class="form-group full">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
+        <button class="primary-btn" (click)="saveOffering()">
+          {{ editing ? 'Update Offering' : 'Save Offering' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

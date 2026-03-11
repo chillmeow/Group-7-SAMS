@@ -1,0 +1,211 @@
+<div class="teachers-page">
+  <div class="page-header">
+    <div>
+      <h1>Teachers</h1>
+      <p>Manage faculty records, departments, and teacher account status.</p>
+    </div>
+
+    <button class="primary-btn" (click)="openAdd()">
+      <i class="pi pi-plus"></i>
+      <span>Add Teacher</span>
+    </button>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Total Teachers</span>
+        <h2>{{ teachers.length }}</h2>
+        <small>Registered faculty records</small>
+      </div>
+      <div class="summary-icon blue">
+        <i class="pi pi-briefcase"></i>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Active Teachers</span>
+        <h2>{{ teachers.filter(t => t.status === 'Active').length }}</h2>
+        <small>Currently active faculty</small>
+      </div>
+      <div class="summary-icon green">
+        <i class="pi pi-check-circle"></i>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Inactive Teachers</span>
+        <h2>{{ teachers.filter(t => t.status === 'Inactive').length }}</h2>
+        <small>Needs review or update</small>
+      </div>
+      <div class="summary-icon red">
+        <i class="pi pi-times-circle"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Search by teacher name, department, or email..."
+          [(ngModel)]="search"
+        />
+      </div>
+
+      <div class="toolbar-right">
+        <button class="ghost-btn" (click)="loadTeachers()">
+          <i class="pi pi-refresh"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header-row">
+        <div>
+          <h3>Teacher List</h3>
+          <p>{{ filteredTeachers().length }} record(s) found</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee No</th>
+              <th>Full Name</th>
+              <th>Department</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let t of filteredTeachers()">
+              <td>
+                <span class="employee-no">{{ t.employeeNo }}</span>
+              </td>
+
+              <td>
+                <div class="teacher-name-cell">
+                  <div class="avatar">{{ t.firstName.charAt(0) }}{{ t.lastName.charAt(0) }}</div>
+                  <div>
+                    <strong>{{ t.firstName }} {{ t.lastName }}</strong>
+                    <small>Faculty Record</small>
+                  </div>
+                </div>
+              </td>
+
+              <td>{{ t.department }}</td>
+              <td>{{ t.email }}</td>
+
+              <td>
+                <span
+                  class="status-badge"
+                  [ngClass]="{
+                    active: t.status === 'Active',
+                    inactive: t.status === 'Inactive',
+                  }"
+                >
+                  {{ t.status }}
+                </span>
+              </td>
+
+              <td class="actions">
+                <button class="icon-btn edit" (click)="openEdit(t)" title="Edit">
+                  <i class="pi pi-pencil"></i>
+                </button>
+
+                <button class="icon-btn delete" (click)="deleteTeacher(t)" title="Delete">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="filteredTeachers().length === 0">
+              <td colspan="6">
+                <div class="empty-state">
+                  <i class="pi pi-inbox"></i>
+                  <h4>No teachers found</h4>
+                  <p>Try adjusting your search or add a new teacher record.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Edit Teacher' : 'Add Teacher' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update the selected teacher information.'
+                : 'Enter the required teacher details below.'
+            }}
+          </p>
+        </div>
+
+        <button class="close-btn" (click)="showModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Employee Number</label>
+            <input type="text" placeholder="Enter employee number" [(ngModel)]="form.employeeNo" />
+          </div>
+
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" placeholder="Enter first name" [(ngModel)]="form.firstName" />
+          </div>
+
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" placeholder="Enter last name" [(ngModel)]="form.lastName" />
+          </div>
+
+          <div class="form-group">
+            <label>Department</label>
+            <input type="text" placeholder="Enter department" [(ngModel)]="form.department" />
+          </div>
+
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" placeholder="Enter email address" [(ngModel)]="form.email" />
+          </div>
+
+          <div class="form-group full">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
+        <button class="primary-btn" (click)="saveTeacher()">
+          {{ editing ? 'Update Teacher' : 'Save Teacher' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
