@@ -1,0 +1,59 @@
+<div class="page">
+  <div class="left-panel">
+    <div class="overlay">
+      <div class="logo-glass">
+        <img src="/assets/images/USTP_logo.png" class="logo" />
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="decor-bars">
+      <span class="bar bar1"></span>
+      <span class="bar bar2"></span>
+      <span class="bar bar3"></span>
+    </div>
+
+    <div class="login-card">
+      <h1>SAMS</h1>
+      <p>Student Attendance Monitoring System</p>
+
+      <!-- EMAIL -->
+      <div class="input-group">
+        <i class="pi pi-envelope left-icon"></i>
+        <input type="email" id="email" [(ngModel)]="email" required />
+        <label for="email">Email</label>
+      </div>
+
+      <!-- PASSWORD -->
+      <div class="input-group">
+        <i class="pi pi-lock left-icon"></i>
+
+        <input
+          [type]="showPassword ? 'text' : 'password'"
+          id="password"
+          [(ngModel)]="password"
+          required
+        />
+        <label for="password">Password</label>
+
+        <!-- EYE TOGGLE -->
+        <i
+          class="pi toggle-password"
+          [ngClass]="showPassword ? 'pi-eye-slash' : 'pi-eye'"
+          (click)="togglePassword()"
+        ></i>
+      </div>
+
+      <label class="remember">
+        <input type="checkbox" />
+        Remember me
+      </label>
+
+      <button class="login-btn" (click)="login()" [disabled]="isLoading">
+        <span *ngIf="!isLoading">Login</span>
+        <span *ngIf="isLoading">Logging in...</span>
+      </button>
+    </div>
+  </div>
+</div>

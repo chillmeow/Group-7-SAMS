@@ -1,0 +1,243 @@
+<div class="subjects-page">
+  <div class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Academic Management</span>
+      <h1>Subjects</h1>
+      <p>Maintain the official list of subjects offered in the system.</p>
+    </div>
+
+    <button class="primary-btn" (click)="openAdd()">
+      <i class="pi pi-plus"></i>
+      <span>Add Subject</span>
+    </button>
+  </div>
+
+  <div class="overview-grid">
+    <div class="overview-card blue">
+      <div>
+        <span class="label">Total Subjects</span>
+        <h2>{{ subjects.length }}</h2>
+        <small>Registered subject records</small>
+      </div>
+      <i class="pi pi-book"></i>
+    </div>
+
+    <div class="overview-card green">
+      <div>
+        <span class="label">Active Subjects</span>
+        <h2>{{ getActiveCount() }}</h2>
+        <small>Currently available</small>
+      </div>
+      <i class="pi pi-check-circle"></i>
+    </div>
+
+    <div class="overview-card orange">
+      <div>
+        <span class="label">Average Units</span>
+        <h2>{{ getAverageUnits() }}</h2>
+        <small>Across all subjects</small>
+      </div>
+      <i class="pi pi-chart-bar"></i>
+    </div>
+  </div>
+
+  <div class="toolbar-card">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input type="text" placeholder="Search by subject code or name..." [(ngModel)]="search" />
+    </div>
+
+    <div class="toolbar-actions">
+      <select [(ngModel)]="selectedStatus" class="filter-select">
+        <option value="All">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+
+      <button class="ghost-btn" (click)="loadSubjects()">
+        <i class="pi pi-refresh"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="catalog-section">
+    <div class="section-title">
+      <div>
+        <h3>Subject Catalog</h3>
+        <p>{{ filteredSubjects().length }} subject card(s) displayed</p>
+      </div>
+    </div>
+
+    <div class="catalog-grid" *ngIf="filteredSubjects().length > 0; else emptyCatalog">
+      <div
+        class="subject-card"
+        *ngFor="let subject of filteredSubjects(); let i = index"
+        [ngClass]="getCardAccent(i)"
+      >
+        <div class="accent-bar"></div>
+
+        <div class="card-top">
+          <div class="subject-badge">{{ subject.subjectCode }}</div>
+
+          <span class="status-chip" [ngClass]="subject.status === 'Active' ? 'active' : 'inactive'">
+            {{ subject.status }}
+          </span>
+        </div>
+
+        <div class="card-body">
+          <h4>{{ subject.subjectName }}</h4>
+          <p>Structured academic course entry for curriculum planning and class offerings.</p>
+        </div>
+
+        <div class="card-meta">
+          <div class="meta-pill">
+            <i class="pi pi-star"></i>
+            <span>{{ subject.units }} Units</span>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button class="soft-btn edit" (click)="openEdit(subject)">
+            <i class="pi pi-pencil"></i>
+            <span>Edit</span>
+          </button>
+
+          <button class="soft-btn delete" (click)="deleteSubject(subject)">
+            <i class="pi pi-trash"></i>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #emptyCatalog>
+      <div class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <h4>No subjects found</h4>
+        <p>Try changing the filters or add a new subject record.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <h3>Subject List</h3>
+        <p>Compact table view for quick management</p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Subject Code</th>
+            <th>Subject Name</th>
+            <th>Units</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let subject of filteredSubjects()">
+            <td>
+              <span class="table-code">{{ subject.subjectCode }}</span>
+            </td>
+
+            <td>
+              <div class="name-cell">
+                <strong>{{ subject.subjectName }}</strong>
+                <small>Academic subject entry</small>
+              </div>
+            </td>
+
+            <td>{{ subject.units }}</td>
+
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="subject.status === 'Active' ? 'active' : 'inactive'"
+              >
+                {{ subject.status }}
+              </span>
+            </td>
+
+            <td class="actions">
+              <button class="icon-btn edit" (click)="openEdit(subject)">
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <button class="icon-btn delete" (click)="deleteSubject(subject)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+
+          <tr *ngIf="filteredSubjects().length === 0">
+            <td colspan="5">
+              <div class="empty-row">No subject records available.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Edit Subject' : 'Add Subject' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update the selected subject information.'
+                : 'Enter the required subject details below.'
+            }}
+          </p>
+        </div>
+
+        <button class="close-btn" (click)="showModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Subject Code</label>
+            <input type="text" placeholder="Enter subject code" [(ngModel)]="form.subjectCode" />
+          </div>
+
+          <div class="form-group">
+            <label>Units</label>
+            <input type="number" placeholder="Enter units" [(ngModel)]="form.units" />
+          </div>
+
+          <div class="form-group full">
+            <label>Subject Name</label>
+            <input type="text" placeholder="Enter subject name" [(ngModel)]="form.subjectName" />
+          </div>
+
+          <div class="form-group full">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
+        <button class="primary-btn" (click)="saveSubject()">
+          {{ editing ? 'Update Subject' : 'Save Subject' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

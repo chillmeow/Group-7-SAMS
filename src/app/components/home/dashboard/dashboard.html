@@ -1,0 +1,189 @@
+<div class="dashboard-container">
+  <div class="hero compact">
+    <div class="hero-content">
+      <div class="hero-badge">Admin Control Center</div>
+      <h1>{{ welcomeTitle }}</h1>
+      <p>{{ welcomeSubtitle }}</p>
+      <button class="hero-btn">
+        {{ heroButtonText }}
+        <i class="pi pi-arrow-right"></i>
+      </button>
+    </div>
+
+    <div class="hero-mini-stats" *ngIf="currentRole === 'admin'">
+      <div class="mini-stat">
+        <span class="mini-label">Portal</span>
+        <strong>Admin</strong>
+      </div>
+      <div class="mini-stat">
+        <span class="mini-label">Status</span>
+        <strong>{{ isLoading ? 'Loading...' : 'Operational' }}</strong>
+      </div>
+    </div>
+
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+  </div>
+
+  <div class="loading-state" *ngIf="isLoading">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>Loading dashboard data...</span>
+  </div>
+
+  <ng-container *ngIf="!isLoading">
+    <div class="stats-grid">
+      <div class="stat-card" *ngFor="let card of cards">
+        <div class="stat-header">
+          <span class="stat-label">{{ card.title }}</span>
+          <div class="stat-icon" [ngClass]="card.colorClass">
+            <i [class]="card.icon"></i>
+          </div>
+        </div>
+
+        <h2>{{ card.value }}</h2>
+        <div class="section-text">{{ card.subtitle }}</div>
+
+        <div class="stat-trend positive" *ngIf="card.trend">
+          <i class="pi pi-arrow-up-right"></i>
+          <span>{{ card.trend }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="attendance-strip" *ngIf="attendanceCards.length > 0">
+      <div class="strip-header">
+        <h2>Attendance Monitoring</h2>
+        <p>Live overview of today’s attendance operations</p>
+      </div>
+
+      <div class="attendance-grid">
+        <div class="attendance-card" *ngFor="let card of attendanceCards">
+          <div class="attendance-icon" [ngClass]="card.colorClass">
+            <i [class]="card.icon"></i>
+          </div>
+          <div class="attendance-content">
+            <span>{{ card.title }}</span>
+            <h3>{{ card.value }}</h3>
+            <p>{{ card.subtitle }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quick-actions" *ngIf="quickActions.length > 0">
+      <div class="section-header">
+        <h2>Quick Actions</h2>
+      </div>
+
+      <div class="action-grid">
+        <div class="action-card" *ngFor="let action of quickActions">
+          <div class="action-icon" [ngClass]="action.colorClass">
+            <i [class]="action.icon"></i>
+          </div>
+          <div class="action-text">
+            <h4>{{ action.title }}</h4>
+            <p>{{ action.subtitle }}</p>
+          </div>
+          <button class="action-btn">{{ action.buttonLabel }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <div class="section-header">
+          <h2>{{ subjectSectionTitle }}</h2>
+        </div>
+
+        <div class="subjects-grid">
+          <div class="subject-card" *ngFor="let subject of subjectCards">
+            <div class="top-border" [style.background]="subject.borderColor"></div>
+
+            <small>{{ subject.code }}</small>
+            <h4>{{ subject.title }}</h4>
+            <div class="section-text">{{ subject.section }}</div>
+
+            <div class="meta">
+              <div class="meta-item">
+                <i class="pi pi-info-circle"></i>
+                <span>{{ subject.schedule }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="pi pi-map-marker"></i>
+                <span>{{ subject.room }}</span>
+              </div>
+            </div>
+
+            <button class="attendance-btn">{{ subject.buttonLabel }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <div class="schedule-card">
+          <h3>{{ scheduleTitle }}</h3>
+
+          <div *ngIf="schedules.length > 0; else noSchedule">
+            <div class="schedule-item" *ngFor="let item of schedules">
+              <div class="dot"></div>
+              <div class="schedule-content">
+                <strong>{{ item.title }}</strong>
+                <div class="schedule-meta">
+                  <i class="pi pi-clock"></i>
+                  <span>{{ item.schedule }}</span>
+                  <i class="pi pi-map-marker"></i>
+                  <span>{{ item.room }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noSchedule>
+            <div class="empty-state">
+              <i class="pi pi-calendar-times"></i>
+              <span>No schedule available</span>
+            </div>
+          </ng-template>
+        </div>
+
+        <div class="alert-card">
+          <h3>{{ alertTitle }}</h3>
+
+          <div *ngIf="alertItems.length > 0; else noAlerts">
+            <div class="alert-item" *ngFor="let item of alertItems">
+              <i class="pi pi-exclamation-triangle"></i>
+              <span>{{ item }}</span>
+            </div>
+          </div>
+
+          <ng-template #noAlerts>
+            <div class="empty-state">
+              <i class="pi pi-check-circle"></i>
+              <span>No alerts right now</span>
+            </div>
+          </ng-template>
+        </div>
+
+        <div class="recent-card">
+          <h3>{{ recentTitle }}</h3>
+
+          <div *ngIf="recentItems.length > 0; else noRecent">
+            <div class="schedule-item" *ngFor="let item of recentItems">
+              <div class="dot"></div>
+              <div class="schedule-content">
+                <strong>{{ item }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noRecent>
+            <div class="empty-state">
+              <i class="pi pi-inbox"></i>
+              <span>No recent records found</span>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

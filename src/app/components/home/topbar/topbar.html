@@ -1,0 +1,59 @@
+<header class="topbar">
+  <div class="left-top">
+    <h2>{{ pageTitle }}</h2>
+  </div>
+
+  <div class="top-icons">
+    <div class="search-wrapper" [class.active]="isSearchOpen">
+      <input #searchInput type="text" placeholder="Search..." class="search-input" />
+
+      <div class="icon-btn" (click)="toggleSearch()">
+        <i class="pi pi-search"></i>
+      </div>
+    </div>
+
+    <div class="icon-btn" (click)="toggleTheme()">
+      <i [class]="isDarkMode ? 'pi pi-sun' : 'pi pi-moon'"></i>
+    </div>
+
+    <div class="icon-btn notification" (click)="toggleNotif($event)" #notifRef>
+      <i class="pi pi-bell"></i>
+      <span class="badge">3</span>
+
+      <div class="notif-dropdown" *ngIf="isNotifOpen">
+        <p>3 new attendance submissions</p>
+        <p>2 pending approvals</p>
+      </div>
+    </div>
+
+    <div class="profile" (click)="toggleProfile($event)" #profileRef>
+      <div class="avatar">{{ getUserInitial() }}</div>
+
+      <div class="profile-info">
+        <h3>{{ getUserFullName() }}</h3>
+        <p>{{ getUserRoleLabel() }}</p>
+      </div>
+
+      <i class="pi pi-chevron-down arrow" [class.rotate]="isProfileOpen"></i>
+
+      <div class="profile-dropdown" *ngIf="isProfileOpen">
+        <a href="#">
+          <i class="pi pi-user"></i>
+          <span>Profile</span>
+        </a>
+
+        <a href="#">
+          <i class="pi pi-cog"></i>
+          <span>Settings</span>
+        </a>
+
+        <hr />
+
+        <a href="#" class="logout" (click)="logout($event)">
+          <i class="pi pi-sign-out"></i>
+          <span>Logout</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>

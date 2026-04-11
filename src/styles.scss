@@ -1,0 +1,17 @@
+@import '@fontsource/poppins/index.css';
+@import url('https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Poppins', sans-serif;
+  color: #1f2937;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}

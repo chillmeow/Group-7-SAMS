@@ -1,0 +1,281 @@
+<div class="sections-page">
+  <div class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Academic Structure</span>
+      <h1>Sections</h1>
+      <p>Organize class groups, capacity, and adviser assignments in one place.</p>
+    </div>
+
+    <button class="primary-btn" (click)="openAdd()">
+      <i class="pi pi-plus"></i>
+      <span>Add Section</span>
+    </button>
+  </div>
+
+  <div class="overview-grid">
+    <div class="overview-card blue">
+      <div>
+        <span class="label">Total Sections</span>
+        <h2>{{ sections.length }}</h2>
+        <small>Registered class groups</small>
+      </div>
+      <i class="pi pi-sitemap"></i>
+    </div>
+
+    <div class="overview-card green">
+      <div>
+        <span class="label">Active Sections</span>
+        <h2>{{ getActiveCount() }}</h2>
+        <small>Currently available groups</small>
+      </div>
+      <i class="pi pi-check-circle"></i>
+    </div>
+
+    <div class="overview-card orange">
+      <div>
+        <span class="label">Total Students</span>
+        <h2>{{ getTotalStudents() }}</h2>
+        <small>Across all sections</small>
+      </div>
+      <i class="pi pi-users"></i>
+    </div>
+  </div>
+
+  <div class="toolbar-card">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        placeholder="Search by section, year level, or adviser..."
+        [(ngModel)]="search"
+      />
+    </div>
+
+    <div class="toolbar-actions">
+      <select [(ngModel)]="selectedStatus" class="filter-select">
+        <option value="All">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+
+      <button class="ghost-btn" (click)="loadSections()">
+        <i class="pi pi-refresh"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="board-section">
+    <div class="section-title">
+      <div>
+        <h3>Section Board</h3>
+        <p>{{ filteredSections().length }} section card(s) displayed</p>
+      </div>
+    </div>
+
+    <div class="board-grid" *ngIf="filteredSections().length > 0; else emptyState">
+      <div
+        class="section-card"
+        *ngFor="let section of filteredSections(); let i = index"
+        [ngClass]="getCardAccent(i)"
+      >
+        <div class="accent-bar"></div>
+
+        <div class="card-top">
+          <div>
+            <span class="section-code">{{ section.sectionName }}</span>
+            <h4>{{ section.yearLevel }}</h4>
+          </div>
+
+          <span class="status-chip" [ngClass]="section.status === 'Active' ? 'active' : 'inactive'">
+            {{ section.status }}
+          </span>
+        </div>
+
+        <div class="adviser-box">
+          <div class="avatar">
+            {{ section.adviser.charAt(0) }}
+          </div>
+
+          <div>
+            <small>Adviser</small>
+            <strong>{{ section.adviser }}</strong>
+          </div>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-card">
+            <span>Students</span>
+            <strong>{{ section.students }}</strong>
+          </div>
+
+          <div class="metric-card">
+            <span>Capacity</span>
+            <strong>{{ section.capacity }}</strong>
+          </div>
+        </div>
+
+        <div class="occupancy">
+          <div class="occupancy-head">
+            <span>Occupancy</span>
+            <span>{{ getOccupancy(section) }}% · {{ getOccupancyLabel(section) }}</span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" [style.width.%]="getOccupancy(section)"></div>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button class="soft-btn edit" (click)="openEdit(section)">
+            <i class="pi pi-pencil"></i>
+            <span>Edit</span>
+          </button>
+
+          <button class="soft-btn delete" (click)="deleteSection(section)">
+            <i class="pi pi-trash"></i>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #emptyState>
+      <div class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <h4>No Sections Yet</h4>
+        <p>Create a section to start organizing student groups.</p>
+        <button class="primary-btn" (click)="openAdd()">Add First Section</button>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <h3>Section List</h3>
+        <p>Compact management view for records and quick actions</p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th>Year Level</th>
+            <th>Adviser</th>
+            <th>Students</th>
+            <th>Capacity</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let section of filteredSections()">
+            <td>
+              <span class="table-code">{{ section.sectionName }}</span>
+            </td>
+
+            <td>{{ section.yearLevel }}</td>
+            <td>{{ section.adviser }}</td>
+            <td>{{ section.students }}</td>
+            <td>{{ section.capacity }}</td>
+
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="section.status === 'Active' ? 'active' : 'inactive'"
+              >
+                {{ section.status }}
+              </span>
+            </td>
+
+            <td class="actions">
+              <button class="icon-btn edit" (click)="openEdit(section)">
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <button class="icon-btn delete" (click)="deleteSection(section)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+
+          <tr *ngIf="filteredSections().length === 0">
+            <td colspan="7">
+              <div class="empty-row">No section records available.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Edit Section' : 'Add Section' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update the selected section information.'
+                : 'Enter the required section details below.'
+            }}
+          </p>
+        </div>
+
+        <button class="close-btn" (click)="showModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Section Name</label>
+            <input type="text" placeholder="Enter section name" [(ngModel)]="form.sectionName" />
+          </div>
+
+          <div class="form-group">
+            <label>Year Level</label>
+            <input type="text" placeholder="Enter year level" [(ngModel)]="form.yearLevel" />
+          </div>
+
+          <div class="form-group full">
+            <label>Adviser</label>
+            <input type="text" placeholder="Enter adviser name" [(ngModel)]="form.adviser" />
+          </div>
+
+          <div class="form-group">
+            <label>Capacity</label>
+            <input type="number" placeholder="Enter capacity" [(ngModel)]="form.capacity" />
+          </div>
+
+          <div class="form-group">
+            <label>Current Students</label>
+            <input type="number" placeholder="Enter student count" [(ngModel)]="form.students" />
+          </div>
+
+          <div class="form-group full">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
+        <button class="primary-btn" (click)="saveSection()">
+          {{ editing ? 'Update Section' : 'Save Section' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

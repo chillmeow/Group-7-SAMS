@@ -1,0 +1,213 @@
+<div class="reports-page">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">ANALYTICS & MONITORING</p>
+      <h1>Reports</h1>
+      <p class="subtitle">
+        Review attendance insights, identify risk patterns, and generate academic monitoring
+        reports.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button class="secondary-btn" (click)="generateReport()">
+        <i class="pi pi-chart-bar"></i>
+        Generate Report
+      </button>
+
+      <button class="primary-btn" *ngIf="canExportReports" (click)="exportPdf()">
+        <i class="pi pi-file-pdf"></i>
+        Export PDF
+      </button>
+
+      <button class="primary-btn alt" *ngIf="canExportReports" (click)="exportExcel()">
+        <i class="pi pi-file-excel"></i>
+        Export Excel
+      </button>
+    </div>
+  </section>
+
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Total Students Covered</span>
+        <div class="icon blue">
+          <i class="pi pi-users"></i>
+        </div>
+      </div>
+      <h2>{{ totalStudents }}</h2>
+      <p>Students included in filtered reports</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Attendance Sessions</span>
+        <div class="icon green">
+          <i class="pi pi-calendar"></i>
+        </div>
+      </div>
+      <h2>{{ totalAttendanceSessions }}</h2>
+      <p>Total class sessions monitored</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Overall Attendance Rate</span>
+        <div class="icon violet">
+          <i class="pi pi-chart-line"></i>
+        </div>
+      </div>
+      <h2>{{ overallAttendanceRate }}%</h2>
+      <p>Average present rate across classes</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Total Estimated Absences</span>
+        <div class="icon red">
+          <i class="pi pi-exclamation-circle"></i>
+        </div>
+      </div>
+      <h2>{{ totalAbsences }}</h2>
+      <p>Accumulated absences from report rows</p>
+    </div>
+  </section>
+
+  <section class="filter-panel">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="applyFilters()"
+        placeholder="Search by student, subject, teacher, or section..."
+      />
+    </div>
+
+    <div class="filter-grid">
+      <div class="field">
+        <label>Section</label>
+        <select [(ngModel)]="selectedSection" (change)="applyFilters()">
+          <option value="">All Sections</option>
+          <option *ngFor="let section of sections" [value]="section">
+            {{ section }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Subject</label>
+        <select [(ngModel)]="selectedSubject" (change)="applyFilters()">
+          <option value="">All Subjects</option>
+          <option *ngFor="let subject of subjects" [value]="subject">
+            {{ subject }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Month</label>
+        <input type="month" [(ngModel)]="selectedMonth" />
+      </div>
+
+      <div class="field action-field">
+        <button class="secondary-btn full" (click)="resetFilters()">
+          <i class="pi pi-refresh"></i>
+          Reset Filters
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-grid">
+    <div class="card table-card">
+      <div class="card-header">
+        <div>
+          <h3>Attendance Summary by Class</h3>
+          <p>{{ filteredAttendanceSummary.length }} class record(s)</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper" *ngIf="filteredAttendanceSummary.length > 0; else noSummary">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Section</th>
+              <th>Teacher</th>
+              <th>Total Students</th>
+              <th>Sessions</th>
+              <th>Present %</th>
+              <th>Absent %</th>
+              <th>Late %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of filteredAttendanceSummary">
+              <td>{{ row.subject }}</td>
+              <td>{{ row.section }}</td>
+              <td>{{ row.teacher }}</td>
+              <td>{{ row.totalStudents }}</td>
+              <td>{{ row.totalSessions }}</td>
+              <td>
+                <span class="rate-badge" [ngClass]="getRateClass(row.presentRate)">
+                  {{ row.presentRate }}%
+                </span>
+              </td>
+              <td>{{ row.absentRate }}%</td>
+              <td>{{ row.lateRate }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #noSummary>
+        <div class="empty-state small">
+          <i class="pi pi-chart-bar"></i>
+          <h4>No Summary Data</h4>
+          <p>No report rows match your current filters.</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="card side-card">
+      <div class="card-header">
+        <div>
+          <h3>Students With Highest Absences</h3>
+          <p>{{ filteredStudentRisks.length }} student(s)</p>
+        </div>
+      </div>
+
+      <div class="risk-list" *ngIf="filteredStudentRisks.length > 0; else noRisk">
+        <div class="risk-item" *ngFor="let item of filteredStudentRisks">
+          <div class="risk-main">
+            <div class="avatar">
+              {{ item.studentName.charAt(0) }}
+            </div>
+
+            <div class="risk-info">
+              <h4>{{ item.studentName }}</h4>
+              <p>{{ item.studentNo }} · {{ item.section }}</p>
+            </div>
+          </div>
+
+          <div class="risk-stats">
+            <span class="mini-badge absent">{{ item.absences }} Absences</span>
+            <span class="mini-badge late">{{ item.lates }} Lates</span>
+            <span class="mini-badge rate" [ngClass]="getRateClass(item.attendanceRate)">
+              {{ item.attendanceRate }}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noRisk>
+        <div class="empty-state small">
+          <i class="pi pi-users"></i>
+          <h4>No Risk Data</h4>
+          <p>No student attendance risk data found.</p>
+        </div>
+      </ng-template>
+    </div>
+  </section>
+</div>

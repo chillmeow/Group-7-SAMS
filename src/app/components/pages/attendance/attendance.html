@@ -1,0 +1,283 @@
+<div class="attendance-page">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">CLASS MONITORING</p>
+      <h1>Attendance</h1>
+      <p class="subtitle">
+        Track student attendance, manage daily records, and monitor class participation.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button class="secondary-btn" (click)="refreshPage()">
+        <i class="pi pi-refresh"></i>
+        Refresh
+      </button>
+
+      <button class="primary-btn" (click)="openAttendancePanel()">
+        <i class="pi pi-plus"></i>
+        Record Attendance
+      </button>
+    </div>
+  </section>
+
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Attendance Sessions</span>
+        <div class="icon blue">
+          <i class="pi pi-calendar"></i>
+        </div>
+      </div>
+      <h2>{{ totalSessions }}</h2>
+      <p>Total recorded class sessions</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Present Today</span>
+        <div class="icon green">
+          <i class="pi pi-check-circle"></i>
+        </div>
+      </div>
+      <h2>{{ presentToday }}</h2>
+      <p>Students marked present today</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Late Today</span>
+        <div class="icon amber">
+          <i class="pi pi-clock"></i>
+        </div>
+      </div>
+      <h2>{{ lateToday }}</h2>
+      <p>Students who arrived late</p>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <span>Absent Today</span>
+        <div class="icon red">
+          <i class="pi pi-times-circle"></i>
+        </div>
+      </div>
+      <h2>{{ absentToday }}</h2>
+      <p>Students marked absent today</p>
+    </div>
+  </section>
+
+  <section class="control-panel">
+    <div class="controls-left">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (input)="applyFilters()"
+          placeholder="Search by student, offering, or date..."
+        />
+      </div>
+    </div>
+
+    <div class="controls-right">
+      <div class="field">
+        <label>Class Offering</label>
+        <select [(ngModel)]="selectedOffering" (change)="applyFilters()">
+          <option value="">All Offerings</option>
+          <option *ngFor="let offering of offerings" [value]="offering.id">
+            {{ getOfferingLabel(offering.id || '') }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Status</label>
+        <select [(ngModel)]="selectedStatus" (change)="applyFilters()">
+          <option value="">All Status</option>
+          <option value="Present">Present</option>
+          <option value="Late">Late</option>
+          <option value="Absent">Absent</option>
+          <option value="Excused">Excused</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Date</label>
+        <input type="date" [(ngModel)]="selectedDate" (change)="applyFilters()" />
+      </div>
+    </div>
+  </section>
+
+  <section class="record-panel" *ngIf="showAttendancePanel">
+    <div class="panel-header">
+      <div>
+        <h3>Record Attendance</h3>
+        <p>Select class details and manage student attendance for the session.</p>
+      </div>
+
+      <button class="icon-btn" (click)="closeAttendancePanel()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div class="record-form">
+      <div class="field">
+        <label>Class Offering</label>
+        <select [(ngModel)]="form.offeringId" (change)="onOfferingChange()">
+          <option value="">Select class offering</option>
+          <option *ngFor="let offering of offerings" [value]="offering.id">
+            {{ getOfferingLabel(offering.id || '') }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Date</label>
+        <input type="date" [(ngModel)]="form.date" />
+      </div>
+
+      <div class="field">
+        <label>Time</label>
+        <input type="time" [(ngModel)]="form.time" />
+      </div>
+    </div>
+
+    <div class="students-panel">
+      <div class="students-header">
+        <h4>Student Attendance List</h4>
+        <span>{{ attendanceFormStudents.length }} student(s)</span>
+      </div>
+
+      <div class="student-list" *ngIf="attendanceFormStudents.length > 0; else noStudentsYet">
+        <div class="student-row" *ngFor="let student of attendanceFormStudents; let i = index">
+          <div class="student-info">
+            <div class="avatar">{{ student.name.charAt(0) }}</div>
+            <div>
+              <h5>{{ student.name }}</h5>
+              <p>{{ student.studentNumber }}</p>
+            </div>
+          </div>
+
+          <div class="status-actions">
+            <button
+              class="status-btn present"
+              [class.active]="student.status === 'Present'"
+              (click)="setStudentStatus(i, 'Present')"
+            >
+              Present
+            </button>
+
+            <button
+              class="status-btn late"
+              [class.active]="student.status === 'Late'"
+              (click)="setStudentStatus(i, 'Late')"
+            >
+              Late
+            </button>
+
+            <button
+              class="status-btn absent"
+              [class.active]="student.status === 'Absent'"
+              (click)="setStudentStatus(i, 'Absent')"
+            >
+              Absent
+            </button>
+
+            <button
+              class="status-btn excused"
+              [class.active]="student.status === 'Excused'"
+              (click)="setStudentStatus(i, 'Excused')"
+            >
+              Excused
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noStudentsYet>
+        <div class="empty-mini">
+          <i class="pi pi-users"></i>
+          <p>No students available for attendance recording yet.</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="panel-actions">
+      <button class="secondary-btn" (click)="resetAttendanceForm()">Reset</button>
+      <button class="primary-btn" (click)="saveAttendance()">Save Attendance</button>
+    </div>
+  </section>
+
+  <section class="records-section">
+    <div class="section-head">
+      <div>
+        <h3>Attendance Records</h3>
+        <p>{{ filteredRecords.length }} record(s) displayed</p>
+      </div>
+    </div>
+
+    <div class="records-wrapper" *ngIf="filteredRecords.length > 0; else emptyState">
+      <table class="records-table">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Student No.</th>
+            <th>Class Offering</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let record of filteredRecords">
+            <td>{{ record.studentName }}</td>
+            <td>{{ record.studentNumber }}</td>
+            <td>{{ record.offeringLabel }}</td>
+            <td>{{ record.date }}</td>
+            <td>{{ record.time }}</td>
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="{
+                  present: record.status === 'Present',
+                  late: record.status === 'Late',
+                  absent: record.status === 'Absent',
+                  excused: record.status === 'Excused',
+                }"
+              >
+                {{ record.status }}
+              </span>
+            </td>
+            <td class="text-center">
+              <div class="table-actions">
+                <button class="table-btn edit" (click)="editRecord(record)">
+                  <i class="pi pi-pencil"></i>
+                </button>
+                <button class="table-btn delete" (click)="deleteRecord(record.id)">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ng-template #emptyState>
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="pi pi-calendar-plus"></i>
+        </div>
+        <h4>No Attendance Records Yet</h4>
+        <p>Start recording attendance for class offerings to see daily student monitoring here.</p>
+        <button class="primary-btn" (click)="openAttendancePanel()">
+          <i class="pi pi-plus"></i>
+          Record First Attendance
+        </button>
+      </div>
+    </ng-template>
+  </section>
+</div>

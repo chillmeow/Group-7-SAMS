@@ -1,0 +1,320 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "username": "admin1",
+      "email": "admin@sams.com",
+      "password": "abcd123",
+      "firstName": "Kenji",
+      "lastName": "Hakari",
+      "role": "admin",
+      "status": "active"
+    },
+    {
+      "id": "2",
+      "username": "teacher1",
+      "email": "teacher@sams.com",
+      "password": "abcd123",
+      "firstName": "Maria",
+      "lastName": "Santos",
+      "role": "teacher",
+      "status": "active"
+    },
+    {
+      "id": "3",
+      "username": "teacher2",
+      "email": "john.cruz@sams.com",
+      "password": "abcd123",
+      "firstName": "John",
+      "lastName": "Cruz",
+      "role": "teacher",
+      "status": "active"
+    },
+    {
+      "id": "4",
+      "username": "student1",
+      "email": "student1@sams.com",
+      "password": "abcd123",
+      "firstName": "Juan",
+      "lastName": "Dela Cruz",
+      "role": "student",
+      "status": "active"
+    },
+    {
+      "id": "5",
+      "username": "student2",
+      "email": "student2@sams.com",
+      "password": "abcd123",
+      "firstName": "Angela",
+      "lastName": "Reyes",
+      "role": "student",
+      "status": "active"
+    },
+    {
+      "id": "6",
+      "username": "student3",
+      "email": "student3@sams.com",
+      "password": "abcd123",
+      "firstName": "Mark",
+      "lastName": "Villanueva",
+      "role": "student",
+      "status": "active"
+    },
+    {
+      "id": "7",
+      "username": "student4",
+      "email": "student4@sams.com",
+      "password": "abcd123",
+      "firstName": "Claire",
+      "lastName": "Mendoza",
+      "role": "student",
+      "status": "active"
+    },
+    {
+      "id": "8",
+      "username": "parent1",
+      "email": "parent1@sams.com",
+      "password": "abcd123",
+      "firstName": "Ana",
+      "lastName": "Dela Cruz",
+      "role": "parent",
+      "status": "active"
+    },
+    {
+      "id": "9",
+      "username": "parent2",
+      "email": "parent2@sams.com",
+      "password": "abcd123",
+      "firstName": "Liza",
+      "lastName": "Reyes",
+      "role": "parent",
+      "status": "active"
+    }
+  ],
+  "students": [
+    {
+      "id": "1",
+      "userId": "4",
+      "studentNumber": "2026-0001",
+      "firstName": "Juan",
+      "lastName": "Dela Cruz",
+      "email": "student1@sams.com",
+      "sectionId": "1",
+      "yearLevel": "3rd Year",
+      "status": "active"
+    },
+    {
+      "id": "2",
+      "userId": "5",
+      "studentNumber": "2026-0002",
+      "firstName": "Angela",
+      "lastName": "Reyes",
+      "email": "student2@sams.com",
+      "sectionId": "1",
+      "yearLevel": "3rd Year",
+      "status": "active"
+    },
+    {
+      "id": "3",
+      "userId": "6",
+      "studentNumber": "2026-0003",
+      "firstName": "Mark",
+      "lastName": "Villanueva",
+      "email": "student3@sams.com",
+      "sectionId": "2",
+      "yearLevel": "2nd Year",
+      "status": "active"
+    },
+    {
+      "id": "4",
+      "userId": "7",
+      "studentNumber": "2026-0004",
+      "firstName": "Claire",
+      "lastName": "Mendoza",
+      "email": "student4@sams.com",
+      "sectionId": "3",
+      "yearLevel": "1st Year",
+      "status": "active"
+    }
+  ],
+  "teachers": [
+    {
+      "id": "1",
+      "userId": "2",
+      "employeeId": "T-1001",
+      "firstName": "Maria",
+      "lastName": "Santos",
+      "email": "teacher@sams.com",
+      "department": "College of Information Technology",
+      "status": "active"
+    },
+    {
+      "id": "2",
+      "userId": "3",
+      "employeeId": "T-1002",
+      "firstName": "John",
+      "lastName": "Cruz",
+      "email": "john.cruz@sams.com",
+      "department": "College of Information Technology",
+      "status": "active"
+    }
+  ],
+  "parents": [
+    {
+      "id": "1",
+      "userId": "8",
+      "studentId": "1",
+      "relationship": "Mother",
+      "firstName": "Ana",
+      "lastName": "Dela Cruz",
+      "email": "parent1@sams.com",
+      "status": "active"
+    },
+    {
+      "id": "2",
+      "userId": "9",
+      "studentId": "2",
+      "relationship": "Mother",
+      "firstName": "Liza",
+      "lastName": "Reyes",
+      "email": "parent2@sams.com",
+      "status": "active"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "1",
+      "subjectCode": "IT301",
+      "subjectName": "Web Development",
+      "units": 3
+    },
+    {
+      "id": "2",
+      "subjectCode": "CS201",
+      "subjectName": "Data Structures and Algorithms",
+      "units": 3
+    },
+    {
+      "id": "3",
+      "subjectCode": "SIA101",
+      "subjectName": "System Integration and Architecture",
+      "units": 3
+    }
+  ],
+  "sections": [
+    {
+      "id": "1",
+      "sectionName": "BSIT 3-A",
+      "yearLevel": "3rd Year",
+      "adviser": "Maria Santos",
+      "capacity": 40,
+      "students": 2,
+      "status": "Active"
+    },
+    {
+      "id": "2",
+      "sectionName": "BSIT 2-B",
+      "yearLevel": "2nd Year",
+      "adviser": "John Cruz",
+      "capacity": 40,
+      "students": 1,
+      "status": "Active"
+    },
+    {
+      "id": "3",
+      "sectionName": "BSIT 1-A",
+      "yearLevel": "1st Year",
+      "adviser": "Maria Santos",
+      "capacity": 40,
+      "students": 1,
+      "status": "Active"
+    }
+  ],
+  "classOfferings": [
+    {
+      "id": "1",
+      "subjectId": "1",
+      "teacherId": "1",
+      "sectionId": "1",
+      "room": "Lab 201",
+      "schedule": "MWF 9:00-10:30 AM"
+    },
+    {
+      "id": "2",
+      "subjectId": "2",
+      "teacherId": "1",
+      "sectionId": "1",
+      "room": "Room 201",
+      "schedule": "TTh 1:00-2:30 PM"
+    },
+    {
+      "id": "3",
+      "subjectId": "3",
+      "teacherId": "2",
+      "sectionId": "2",
+      "room": "Room 305",
+      "schedule": "MWF 10:30-12:00 PM"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "1",
+      "offeringId": "1",
+      "date": "2026-03-11",
+      "qrCode": "SESSION-IT301-0311",
+      "status": "active"
+    },
+    {
+      "id": "2",
+      "offeringId": "2",
+      "date": "2026-03-11",
+      "qrCode": "SESSION-CS201-0311",
+      "status": "closed"
+    },
+    {
+      "id": "3",
+      "offeringId": "3",
+      "date": "2026-03-11",
+      "qrCode": "SESSION-SIA101-0311",
+      "status": "active"
+    }
+  ],
+  "attendance": [
+    {
+      "id": "1",
+      "sessionId": "1",
+      "studentId": "1",
+      "status": "Present",
+      "time": "09:02 AM"
+    },
+    {
+      "id": "2",
+      "sessionId": "1",
+      "studentId": "2",
+      "status": "Late",
+      "time": "09:15 AM"
+    },
+    {
+      "id": "3",
+      "sessionId": "2",
+      "studentId": "1",
+      "status": "Present",
+      "time": "01:03 PM"
+    },
+    {
+      "id": "4",
+      "sessionId": "2",
+      "studentId": "2",
+      "status": "Absent",
+      "time": ""
+    },
+    {
+      "id": "5",
+      "sessionId": "3",
+      "studentId": "3",
+      "status": "Present",
+      "time": "10:34 AM"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

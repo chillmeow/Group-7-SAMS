@@ -1,0 +1,25 @@
+<div class="sidebar">
+  <div class="logo">
+    <img src="/assets/images/SAMS_logo2.png" alt="SAMS Logo" />
+    <div class="text">
+      <h1 class="title">SAMS</h1>
+      <p class="sub-title">Student Attendance Monitoring System</p>
+    </div>
+  </div>
+
+  <hr class="line" />
+
+  <p class="portal-label">{{ currentRole ? (currentRole | titlecase) : 'User' }} Portal</p>
+
+  <nav>
+    <a
+      *ngFor="let item of menuItems"
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      <i [class]="item.icon"></i>
+      <span>{{ item.label }}</span>
+    </a>
+  </nav>
+</div>

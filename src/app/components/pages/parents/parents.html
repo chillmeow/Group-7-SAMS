@@ -1,0 +1,223 @@
+<div class="parents-page">
+  <div class="page-header">
+    <div>
+      <h1>Parents</h1>
+      <p>Manage parent accounts, linked students, and relationship details.</p>
+    </div>
+
+    <button class="primary-btn" (click)="openAdd()">
+      <i class="pi pi-plus"></i>
+      <span>Add Parent</span>
+    </button>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Total Parents</span>
+        <h2>{{ parents.length }}</h2>
+        <small>Registered parent records</small>
+      </div>
+      <div class="summary-icon blue">
+        <i class="pi pi-user-plus"></i>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Active Parents</span>
+        <h2>{{ parents.filter(p => p.status === 'Active').length }}</h2>
+        <small>Currently active accounts</small>
+      </div>
+      <div class="summary-icon green">
+        <i class="pi pi-check-circle"></i>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-info">
+        <span class="summary-label">Inactive Parents</span>
+        <h2>{{ parents.filter(p => p.status === 'Inactive').length }}</h2>
+        <small>Needs review or update</small>
+      </div>
+      <div class="summary-icon red">
+        <i class="pi pi-times-circle"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Search by parent name, student, or relationship..."
+          [(ngModel)]="search"
+        />
+      </div>
+
+      <div class="toolbar-right">
+        <button class="ghost-btn" (click)="loadParents()">
+          <i class="pi pi-refresh"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header-row">
+        <div>
+          <h3>Parent List</h3>
+          <p>{{ filteredParents().length }} record(s) found</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Full Name</th>
+              <th>Email</th>
+              <th>Contact Number</th>
+              <th>Linked Student</th>
+              <th>Relationship</th>
+              <th>Status</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let p of filteredParents()">
+              <td>
+                <div class="parent-name-cell">
+                  <div class="avatar">{{ p.firstName.charAt(0) }}{{ p.lastName.charAt(0) }}</div>
+                  <div>
+                    <strong>{{ p.firstName }} {{ p.lastName }}</strong>
+                    <small>Parent Record</small>
+                  </div>
+                </div>
+              </td>
+
+              <td>{{ p.email }}</td>
+              <td>{{ p.contactNumber }}</td>
+              <td>{{ p.studentName }}</td>
+              <td>{{ p.relationship }}</td>
+
+              <td>
+                <span
+                  class="status-badge"
+                  [ngClass]="{
+                    active: p.status === 'Active',
+                    inactive: p.status === 'Inactive',
+                  }"
+                >
+                  {{ p.status }}
+                </span>
+              </td>
+
+              <td class="actions">
+                <button class="icon-btn edit" (click)="openEdit(p)" title="Edit">
+                  <i class="pi pi-pencil"></i>
+                </button>
+
+                <button class="icon-btn delete" (click)="deleteParent(p)" title="Delete">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="filteredParents().length === 0">
+              <td colspan="7">
+                <div class="empty-state">
+                  <i class="pi pi-inbox"></i>
+                  <h4>No parents found</h4>
+                  <p>Try adjusting your search or add a new parent record.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Edit Parent' : 'Add Parent' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update the selected parent information.'
+                : 'Enter the required parent details below.'
+            }}
+          </p>
+        </div>
+
+        <button class="close-btn" (click)="showModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" placeholder="Enter first name" [(ngModel)]="form.firstName" />
+          </div>
+
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" placeholder="Enter last name" [(ngModel)]="form.lastName" />
+          </div>
+
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" placeholder="Enter email address" [(ngModel)]="form.email" />
+          </div>
+
+          <div class="form-group">
+            <label>Contact Number</label>
+            <input
+              type="text"
+              placeholder="Enter contact number"
+              [(ngModel)]="form.contactNumber"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Linked Student</label>
+            <input
+              type="text"
+              placeholder="Enter linked student name"
+              [(ngModel)]="form.studentName"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Relationship</label>
+            <input type="text" placeholder="Enter relationship" [(ngModel)]="form.relationship" />
+          </div>
+
+          <div class="form-group full">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
+        <button class="primary-btn" (click)="saveParent()">
+          {{ editing ? 'Update Parent' : 'Save Parent' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
