@@ -316,5 +316,18 @@
       "time": "10:34 AM"
     }
   ],
+
+  "notifications": [
+    {
+      "id": 1,
+      "userId": "admin-001",
+      "title": "Attendance submitted",
+      "message": "A new attendance submission was received for Section A.",
+      "type": "info",
+      "read": false,
+      "createdAt": "2026-04-15T14:00:00.000Z"
+    }
+  ],
+
   "$schema": "./node_modules/json-server/schema.json"
 }

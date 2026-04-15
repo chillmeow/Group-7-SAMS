@@ -1,14 +1,18 @@
 .dashboard-container {
-  padding: 0;
-  background: #f5f7fb;
+  padding: 24px;
+  background: var(--page-bg);
   min-height: 100%;
+  box-sizing: border-box;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
 }
 
 .hero {
   position: relative;
-  background: linear-gradient(135deg, #1d3b8b 0%, #2563eb 60%, #4f8dfd 100%);
+  background: var(--hero-gradient);
   border-radius: 24px;
-  color: white;
+  color: var(--hero-text);
   overflow: hidden;
   display: flex;
   justify-content: space-between;
@@ -37,8 +41,8 @@
   align-items: center;
   width: fit-content;
   padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--hero-badge-bg);
+  border: 1px solid var(--hero-badge-border);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -51,6 +55,7 @@
   font-size: 30px;
   font-weight: 700;
   line-height: 1.15;
+  color: var(--hero-text);
 }
 
 .hero-content p {
@@ -59,6 +64,7 @@
   font-size: 15px;
   line-height: 1.6;
   max-width: 560px;
+  color: var(--hero-text);
 }
 
 .hero-btn {
@@ -93,8 +99,8 @@
 }
 
 .mini-stat {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--hero-mini-bg);
+  border: 1px solid var(--hero-mini-border);
   backdrop-filter: blur(10px);
   border-radius: 18px;
   padding: 16px;
@@ -110,12 +116,13 @@
 .mini-stat strong {
   font-size: 16px;
   font-weight: 700;
+  color: var(--hero-text);
 }
 
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hero-circle);
 }
 
 .circle-1 {
@@ -133,14 +140,15 @@
 }
 
 .loading-state {
-  background: white;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 20px;
   padding: 26px;
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #475569;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+  color: var(--card-subtext);
+  box-shadow: var(--card-shadow);
   margin-bottom: 24px;
 }
 
@@ -157,15 +165,18 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 20px;
   padding: 22px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
-  border: 1px solid #edf1f7;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 150px;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .stat-header {
@@ -176,7 +187,7 @@
 
 .stat-label {
   font-size: 14px;
-  color: #64748b;
+  color: var(--card-muted);
   font-weight: 600;
 }
 
@@ -184,7 +195,7 @@
   margin: 12px 0 0;
   font-size: 30px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .stat-icon {
@@ -247,12 +258,12 @@
 }
 
 .attendance-strip {
-  background: white;
+  background: var(--card-bg);
   border-radius: 24px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
-  border: 1px solid #edf1f7;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
 }
 
 .strip-header {
@@ -262,13 +273,13 @@
 .strip-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .strip-header p {
   margin: 6px 0 0;
   font-size: 14px;
-  color: #64748b;
+  color: var(--card-muted);
 }
 
 .attendance-grid {
@@ -278,8 +289,8 @@
 }
 
 .attendance-card {
-  background: #f8fbff;
-  border: 1px solid #edf1f7;
+  background: var(--card-bg-soft);
+  border: 1px solid var(--card-border);
   border-radius: 18px;
   padding: 18px;
   display: flex;
@@ -307,20 +318,20 @@
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--card-muted);
   margin-bottom: 4px;
 }
 
 .attendance-content h3 {
   margin: 0;
   font-size: 24px;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .attendance-content p {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--card-muted);
   line-height: 1.5;
 }
 
@@ -338,7 +349,7 @@
 .section-header h2 {
   margin: 0;
   font-size: 28px;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .action-grid {
@@ -348,11 +359,11 @@
 }
 
 .action-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
-  border: 1px solid #edf1f7;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -361,21 +372,21 @@
 .action-text h4 {
   margin: 0 0 6px;
   font-size: 16px;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .action-text p {
   margin: 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--card-muted);
   line-height: 1.5;
 }
 
 .action-btn,
 .attendance-btn {
   border: none;
-  background: #2563eb;
-  color: white;
+  background: var(--primary-btn-bg);
+  color: var(--primary-btn-text);
   border-radius: 12px;
   padding: 12px 16px;
   font-weight: 700;
@@ -388,7 +399,7 @@
 .action-btn:hover,
 .attendance-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.16);
+  box-shadow: var(--primary-btn-shadow);
 }
 
 .main-grid {
@@ -404,12 +415,12 @@
 }
 
 .subject-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 22px;
   padding: 24px;
   position: relative;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
-  border: 1px solid #edf1f7;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
 }
@@ -426,7 +437,7 @@
 .subject-card small {
   margin-top: 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--card-muted);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -435,13 +446,13 @@
   margin: 8px 0 6px;
   font-size: 18px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--card-text);
   line-height: 1.35;
 }
 
 .section-text {
   font-size: 14px;
-  color: #475569;
+  color: var(--card-subtext);
   margin-top: 8px;
   margin-bottom: 12px;
   line-height: 1.5;
@@ -452,7 +463,7 @@
   flex-direction: column;
   gap: 8px;
   font-size: 14px;
-  color: #475569;
+  color: var(--card-subtext);
 }
 
 .meta-item {
@@ -463,7 +474,7 @@
 
 .meta-item i {
   font-size: 14px;
-  color: #64748b;
+  color: var(--card-muted);
 }
 
 .attendance-btn {
@@ -479,11 +490,11 @@
 .schedule-card,
 .recent-card,
 .alert-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 22px;
   padding: 24px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
-  border: 1px solid #edf1f7;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
 }
 
 .schedule-card h3,
@@ -492,7 +503,7 @@
   margin-top: 0;
   margin-bottom: 18px;
   font-size: 18px;
-  color: #0f172a;
+  color: var(--card-text);
 }
 
 .schedule-item {
@@ -517,7 +528,7 @@
 .schedule-content strong {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--card-text);
   line-height: 1.5;
 }
 
@@ -527,7 +538,7 @@
   align-items: center;
   margin-top: 6px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--card-muted);
   flex-wrap: wrap;
 }
 
@@ -540,7 +551,7 @@
   align-items: flex-start;
   gap: 10px;
   margin-bottom: 14px;
-  color: #475569;
+  color: var(--card-subtext);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -559,7 +570,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #94a3b8;
+  color: var(--card-muted);
   padding: 20px 0;
   text-align: center;
 }
@@ -610,7 +621,7 @@
   }
 
   .dashboard-container {
-    padding: 0;
+    padding: 20px;
   }
 
   .hero.compact {

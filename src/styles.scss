@@ -8,7 +8,140 @@ body {
   padding: 0;
   height: 100%;
   font-family: 'Poppins', sans-serif;
+  background: #f5f7fb;
   color: #1f2937;
+}
+
+body {
+  --app-bg: #f5f7fb;
+  --page-bg: #f5f7fb;
+
+  /* topbar */
+  --topbar-bg: #fcb316;
+  --topbar-title: #0f172a;
+  --topbar-icon: #0f172a;
+  --topbar-hover: rgba(15, 23, 42, 0.08);
+
+  /* search */
+  --search-bg: #ffffff;
+  --search-border: #dbe3f0;
+  --search-text: #111827;
+  --search-placeholder: #94a3b8;
+  --search-icon: #64748b;
+
+  /* dropdowns */
+  --dropdown-bg: #ffffff;
+  --dropdown-hover: #f8fafc;
+  --dropdown-title: #1f2937;
+  --dropdown-text: #475569;
+  --dropdown-muted: #64748b;
+  --border-color: #e5e7eb;
+
+  /* notifications */
+  --notif-unread-bg: #eff6ff;
+  --notif-icon-bg: #eef4ff;
+  --notif-icon-color: #2563eb;
+
+  /* profile */
+  --profile-name: #ffffff;
+  --profile-role: rgba(255, 255, 255, 0.9);
+
+  /* sidebar */
+  --sidebar-bg: #1a1851;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-divider: rgba(255, 255, 255, 0.2);
+  --sidebar-hover: rgba(59, 130, 246, 0.16);
+  --sidebar-active: #3b82f6;
+  --sidebar-subtitle: #fcb316;
+
+  /* cards and surfaces */
+  --card-bg: #ffffff;
+  --card-bg-soft: #f8fbff;
+  --card-text: #0f172a;
+  --card-muted: #64748b;
+  --card-subtext: #475569;
+  --card-border: #edf1f7;
+  --card-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+
+  /* hero */
+  --hero-gradient: linear-gradient(135deg, #1d3b8b 0%, #2563eb 60%, #4f8dfd 100%);
+  --hero-text: #ffffff;
+  --hero-badge-bg: rgba(255, 255, 255, 0.16);
+  --hero-badge-border: rgba(255, 255, 255, 0.22);
+  --hero-mini-bg: rgba(255, 255, 255, 0.12);
+  --hero-mini-border: rgba(255, 255, 255, 0.14);
+  --hero-circle: rgba(255, 255, 255, 0.12);
+
+  /* buttons */
+  --primary-btn-bg: #2563eb;
+  --primary-btn-text: #ffffff;
+  --primary-btn-shadow: 0 10px 20px rgba(37, 99, 235, 0.16);
+
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+body.dark-mode {
+  --app-bg: #0f172a;
+  --page-bg: #111827;
+
+  --topbar-bg: #0b1f5f;
+  --topbar-title: #f8fafc;
+  --topbar-icon: #f8fafc;
+  --topbar-hover: rgba(255, 255, 255, 0.08);
+
+  --search-bg: #1f2937;
+  --search-border: #374151;
+  --search-text: #f9fafb;
+  --search-placeholder: #9ca3af;
+  --search-icon: #cbd5e1;
+
+  --dropdown-bg: #111827;
+  --dropdown-hover: #1f2937;
+  --dropdown-title: #f9fafb;
+  --dropdown-text: #d1d5db;
+  --dropdown-muted: #9ca3af;
+  --border-color: #374151;
+
+  --notif-unread-bg: rgba(37, 99, 235, 0.16);
+  --notif-icon-bg: rgba(59, 130, 246, 0.16);
+  --notif-icon-color: #93c5fd;
+
+  --profile-name: #f9fafb;
+  --profile-role: #cbd5e1;
+
+  --sidebar-bg: #0b1029;
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-divider: rgba(255, 255, 255, 0.1);
+  --sidebar-hover: rgba(59, 130, 246, 0.18);
+  --sidebar-active: #2563eb;
+  --sidebar-subtitle: #fcb316;
+
+  --card-bg: #111827;
+  --card-bg-soft: #0f172a;
+  --card-text: #f9fafb;
+  --card-muted: #9ca3af;
+  --card-subtext: #cbd5e1;
+  --card-border: #374151;
+  --card-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+
+  --hero-gradient: linear-gradient(135deg, #0b1f5f 0%, #1d4ed8 60%, #3b82f6 100%);
+  --hero-text: #ffffff;
+  --hero-badge-bg: rgba(255, 255, 255, 0.12);
+  --hero-badge-border: rgba(255, 255, 255, 0.16);
+  --hero-mini-bg: rgba(255, 255, 255, 0.08);
+  --hero-mini-border: rgba(255, 255, 255, 0.12);
+  --hero-circle: rgba(255, 255, 255, 0.08);
+
+  --primary-btn-bg: #2563eb;
+  --primary-btn-text: #ffffff;
+  --primary-btn-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+
+  background: #0f172a;
+  color: #f9fafb;
 }
 
 app-root {

@@ -18,36 +18,46 @@
       <h1>SAMS</h1>
       <p>Student Attendance Monitoring System</p>
 
-      <!-- EMAIL -->
       <div class="input-group">
         <i class="pi pi-envelope left-icon"></i>
-        <input type="email" id="email" [(ngModel)]="email" required />
+        <input
+          type="email"
+          id="email"
+          name="email"
+          [(ngModel)]="email"
+          required
+          autocomplete="email"
+        />
         <label for="email">Email</label>
       </div>
 
-      <!-- PASSWORD -->
       <div class="input-group">
         <i class="pi pi-lock left-icon"></i>
 
         <input
           [type]="showPassword ? 'text' : 'password'"
           id="password"
+          name="password"
           [(ngModel)]="password"
           required
+          autocomplete="current-password"
         />
         <label for="password">Password</label>
 
-        <!-- EYE TOGGLE -->
-        <i
-          class="pi toggle-password"
-          [ngClass]="showPassword ? 'pi-eye-slash' : 'pi-eye'"
+        <button
+          type="button"
+          class="toggle-password"
           (click)="togglePassword()"
-        ></i>
+          [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+        >
+          <i class="pi" [ngClass]="showPassword ? 'pi-eye-slash' : 'pi-eye'"></i>
+        </button>
       </div>
 
       <label class="remember">
-        <input type="checkbox" />
-        Remember me
+        <input type="checkbox" [(ngModel)]="rememberMe" name="rememberMe" />
+        <span class="custom-check"></span>
+        <span class="remember-text">Remember me</span>
       </label>
 
       <button class="login-btn" (click)="login()" [disabled]="isLoading">

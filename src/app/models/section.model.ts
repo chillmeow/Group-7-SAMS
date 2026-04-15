@@ -1,5 +1,5 @@
 export interface Section {
-  id?: number;
+  id?: string;
   sectionName: string;
   yearLevel: string;
   adviser: string;

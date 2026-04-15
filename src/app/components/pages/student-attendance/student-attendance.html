@@ -1,0 +1,51 @@
+<div class="student-page">
+  <section class="header">
+    <h1>My Attendance</h1>
+    <p>Enter session code or scan QR to record attendance.</p>
+  </section>
+
+  <section class="card submit-card">
+    <h3>Record Attendance</h3>
+
+    <div class="input-group">
+      <input
+        type="text"
+        placeholder="Enter session code (e.g. ATTD-1234)"
+        [(ngModel)]="sessionCode"
+      />
+      <button (click)="submitAttendance()" [disabled]="loading">
+        {{ loading ? 'Submitting...' : 'Submit' }}
+      </button>
+    </div>
+
+    <p class="success" *ngIf="message">{{ message }}</p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </section>
+
+  <section class="card history-card">
+    <h3>Attendance History</h3>
+
+    <div *ngIf="records.length === 0" class="empty">No attendance records yet.</div>
+
+    <div class="history-list">
+      <div class="history-item" *ngFor="let r of records">
+        <div>
+          <p class="date">{{ r.timeRecorded | date: 'medium' }}</p>
+          <p class="method">{{ r.method }}</p>
+        </div>
+
+        <span
+          class="badge"
+          [ngClass]="{
+            present: r.status === 'present',
+            late: r.status === 'late',
+            absent: r.status === 'absent',
+            excused: r.status === 'excused',
+          }"
+        >
+          {{ getStatusLabel(r.status) }}
+        </span>
+      </div>
+    </div>
+  </section>
+</div>

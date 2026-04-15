@@ -1,7 +1,19 @@
-export interface AttendanceSessionModel {
+export interface AttendanceSession {
   id?: string;
-  offeringId: string;
+
+  classOfferingId: string;
+  instructorId: string;
+
   date: string;
-  qrCode: string;
-  status: string;
+  startTime: string;
+  endTime?: string;
+
+  sessionCode: string;
+  qrToken: string;
+
+  status: 'active' | 'closed';
+
+  lateThresholdMinutes?: number;
+
+  createdAt: string;
 }

@@ -1,28 +1,85 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Injectable } from '@angular/core';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+} from 'firebase/firestore';
+import { from, map, Observable } from 'rxjs';
+
+import { db } from '../firebase.config';
 import { Subject } from '../models/subject.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class SubjectService {
-  private http = inject(HttpClient);
-  private api = 'http://localhost:3000/subjects';
+  private readonly collectionName = 'subjects';
 
   getSubjects(): Observable<Subject[]> {
-    return this.http.get<Subject[]>(this.api);
+    const subjectsRef = collection(db, this.collectionName);
+    const subjectsQuery = query(subjectsRef, orderBy('subjectCode'));
+
+    return from(getDocs(subjectsQuery)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map(
+          (docSnap) =>
+            ({
+              id: docSnap.id,
+              ...docSnap.data(),
+              units: Number(docSnap.data()['units']) || 0,
+            }) as Subject,
+        ),
+      ),
+    );
   }
 
   addSubject(subject: Subject): Observable<Subject> {
-    return this.http.post<Subject>(this.api, subject);
+    const subjectsRef = collection(db, this.collectionName);
+
+    const payload = {
+      subjectCode: subject.subjectCode.trim(),
+      subjectName: subject.subjectName.trim(),
+      units: Number(subject.units) || 0,
+      status: (subject.status || 'active').trim().toLowerCase(),
+    };
+
+    return from(addDoc(subjectsRef, payload)).pipe(
+      map((docRef) => ({
+        id: docRef.id,
+        ...payload,
+      })),
+    );
   }
 
   updateSubject(subject: Subject): Observable<Subject> {
-    return this.http.put<Subject>(`${this.api}/${subject.id}`, subject);
+    if (!subject.id) {
+      throw new Error('Subject ID is required for update.');
+    }
+
+    const subjectRef = doc(db, this.collectionName, subject.id);
+
+    const payload = {
+      subjectCode: subject.subjectCode.trim(),
+      subjectName: subject.subjectName.trim(),
+      units: Number(subject.units) || 0,
+      status: (subject.status || 'active').trim().toLowerCase(),
+    };
+
+    return from(updateDoc(subjectRef, payload)).pipe(
+      map(() => ({
+        id: subject.id,
+        ...payload,
+      })),
+    );
   }
 
-  deleteSubject(id: number): Observable<any> {
-    return this.http.delete(`${this.api}/${id}`);
+  deleteSubject(id: string): Observable<void> {
+    const subjectRef = doc(db, this.collectionName, id);
+    return from(deleteDoc(subjectRef));
   }
 }

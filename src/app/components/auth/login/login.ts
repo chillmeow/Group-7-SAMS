@@ -22,6 +22,7 @@ export class Login {
   errorMessage = '';
   isLoading = false;
   showPassword = false;
+  rememberMe = false;
 
   togglePassword(): void {
     this.showPassword = !this.showPassword;

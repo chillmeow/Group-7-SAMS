@@ -1,10 +1,16 @@
-export type AttendanceStatus = 'Present' | 'Absent' | 'Late' | 'Excused';
-
-export interface AttendanceRecordModel {
+export interface AttendanceRecord {
   id?: string;
+
   sessionId: string;
   studentId: string;
-  status: AttendanceStatus;
-  time?: string;
-  remarks?: string;
+
+  status: 'present' | 'late' | 'absent' | 'excused';
+
+  method: 'qr' | 'manual' | 'code';
+
+  timeRecorded: string;
+
+  recordedBy?: string;
+
+  isValid?: boolean;
 }

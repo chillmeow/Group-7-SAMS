@@ -8,10 +8,12 @@ import { ReportsComponent } from './components/pages/reports/reports';
 import { Notifications } from './components/pages/notifications/notifications';
 import { Messages } from './components/pages/messages/messages';
 import { StudentsComponent } from './components/pages/students/students';
+import { StudentAttendanceComponent } from './components/pages/student-attendance/student-attendance';
 import { TeachersComponent } from './components/pages/teachers/teachers';
 import { ParentsComponent } from './components/pages/parents/parents';
 import { SectionsComponent } from './components/pages/sections/sections';
 import { ClassOfferingsComponent } from './components/pages/class-offerings/class-offerings';
+import { ProfileComponent } from './components/features/profile/profile';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -28,11 +30,24 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardComponent },
 
       {
+        path: 'profile',
+        component: ProfileComponent,
+        canActivate: [roleGuard],
+        data: { roles: ['admin', 'teacher', 'student', 'parent'] },
+      },
+
+      {
         path: 'students',
         component: StudentsComponent,
         canActivate: [roleGuard],
         data: { roles: ['admin'] },
       },
+
+      {
+        path: 'student-attendance',
+        component: StudentAttendanceComponent,
+      },
+
       {
         path: 'teachers',
         component: TeachersComponent,

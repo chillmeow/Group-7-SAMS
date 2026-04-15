@@ -1,7 +1,7 @@
 export interface Teacher {
-  id?: number;
+  id?: string;
   employeeNo: string;
-  userId?: number | null;
+  userId?: string | null;
   firstName: string;
   lastName: string;
   department: string;

@@ -80,6 +80,17 @@ export interface Attendance {
   time?: string;
 }
 
+export interface Notification {
+  id: string | number;
+  userId: string | number;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+  link?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -268,5 +279,42 @@ export class ApiService {
 
   deleteAttendance(id: string | number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/attendance/${id}`);
+  }
+
+  getNotifications(): Observable<Notification[]> {
+    return this.http.get<Notification[]>(
+      `${this.baseUrl}/notifications?_sort=createdAt&_order=desc`,
+    );
+  }
+
+  getNotificationsByUser(userId: string | number): Observable<Notification[]> {
+    return this.http.get<Notification[]>(
+      `${this.baseUrl}/notifications?userId=${userId}&_sort=createdAt&_order=desc`,
+    );
+  }
+
+  getNotificationById(id: string | number): Observable<Notification> {
+    return this.http.get<Notification>(`${this.baseUrl}/notifications/${id}`);
+  }
+
+  createNotification(payload: Partial<Notification>): Observable<Notification> {
+    return this.http.post<Notification>(`${this.baseUrl}/notifications`, payload);
+  }
+
+  updateNotification(
+    id: string | number,
+    payload: Partial<Notification>,
+  ): Observable<Notification> {
+    return this.http.patch<Notification>(`${this.baseUrl}/notifications/${id}`, payload);
+  }
+
+  markNotificationAsRead(id: string | number): Observable<Notification> {
+    return this.http.patch<Notification>(`${this.baseUrl}/notifications/${id}`, {
+      read: true,
+    });
+  }
+
+  deleteNotification(id: string | number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/notifications/${id}`);
   }
 }

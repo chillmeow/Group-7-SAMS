@@ -2,27 +2,30 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
-  background: #f5f7fb;
+  background: var(--app-bg);
+  transition: background 0.25s ease;
 }
 
-main {
+.main-shell {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   height: 100vh;
-  overflow: hidden;
-}
-
-app-topbar {
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-.pages {
-  flex: 1;
-
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
-  padding: 24px;
+  background: var(--app-bg);
+  transition: background 0.25s ease;
+}
+
+app-topbar {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.pages {
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  background: var(--page-bg);
+  transition: background 0.25s ease;
 }

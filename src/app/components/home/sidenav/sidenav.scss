@@ -1,22 +1,24 @@
 .sidebar {
   width: 270px;
-  background: #1a1851;
-  color: white;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   height: 100vh;
   padding: 20px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  box-sizing: border-box;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
 }
 
-/* LOGO CONTAINER */
 .logo {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* LOGO IMAGE */
 .logo img {
   width: 70px;
   height: 70px;
@@ -24,42 +26,39 @@
   object-fit: cover;
 }
 
-/* TEXT WRAPPER */
 .text {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-/* SAMS TITLE */
 .title {
   font-family: 'Zen Dots', cursive;
   font-size: 30px;
   margin: 0;
   line-height: 1.1;
   letter-spacing: 1px;
+  color: var(--sidebar-text);
 }
 
-/* SUBTITLE */
 .sub-title {
   margin: -4px 0 0 0;
   font-size: 13px;
-  color: #fcb316;
+  color: var(--sidebar-subtitle);
   line-height: 1.2;
 }
 
-/* LINE */
 .line {
   border: none;
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--sidebar-divider);
   margin: 20px -20px;
 }
 
 .portal-label {
   font-size: 15px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--sidebar-text);
   margin-bottom: 12px;
 }
 
@@ -76,16 +75,24 @@ nav a {
   margin: 6px 0;
   border-radius: 12px;
   cursor: pointer;
-  color: #cbd5e1;
+  color: var(--sidebar-muted);
   text-decoration: none;
-  transition: 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
   font-size: 15px;
 }
 
-nav a.active,
 nav a:hover {
-  background: #3b82f6;
-  color: white;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+  transform: translateX(2px);
+}
+
+nav a.active {
+  background: var(--sidebar-active);
+  color: #ffffff;
 }
 
 nav a i {

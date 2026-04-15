@@ -12,7 +12,7 @@ export interface AttendanceSummaryReportModel {
 }
 
 export interface StudentAttendanceRiskModel {
-  studentId: number;
+  studentId: string;
   studentName: string;
   studentNo: string;
 

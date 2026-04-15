@@ -84,9 +84,11 @@
   width: 85px;
   margin-left: 65px;
 }
+
 .bar2 {
   width: 150px;
 }
+
 .bar3 {
   width: 85px;
 }
@@ -172,26 +174,78 @@
   color: #0b1f5f;
 }
 
-/* EYE TOGGLE */
+/* PASSWORD TOGGLE */
 .toggle-password {
   position: absolute;
-  right: 15px;
+  right: 11px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #0b1f5f;
   cursor: pointer;
   transition: 0.3s ease;
+  padding: 0;
+}
+
+.toggle-password i {
+  font-size: 16px;
+  pointer-events: none;
 }
 
 /* REMEMBER */
 .remember {
-  font-size: 12px;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 10px 0 20px;
-  margin-left: 15px;
+  gap: 8px;
+  margin: 8px 0 20px;
+  margin-left: 2px;
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+  color: #444;
+}
+
+.remember input {
+  display: none;
+}
+
+.custom-check {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #9ca3af;
+  border-radius: 4px;
+  background: #fff;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remember input:checked + .custom-check {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.remember input:checked + .custom-check::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.remember-text {
+  line-height: 1;
 }
 
 /* BUTTON */
@@ -207,14 +261,19 @@
   transition: 0.3s;
 }
 
-.login-btn:hover {
+.login-btn:hover:not(:disabled) {
   background: white;
   color: #0b1f5f;
   transform: translateY(-2px);
 }
 
-.login-btn:active {
+.login-btn:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* ANIMATIONS */

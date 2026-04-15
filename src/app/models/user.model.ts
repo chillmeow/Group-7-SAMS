@@ -7,4 +7,9 @@ export interface User {
   lastName: string;
   role: UserRole;
   status?: 'active' | 'inactive';
+
+  username?: string;
+  contactNumber?: string;
+  address?: string;
+  photoUrl?: string;
 }

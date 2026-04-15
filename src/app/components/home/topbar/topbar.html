@@ -4,55 +4,152 @@
   </div>
 
   <div class="top-icons">
-    <div class="search-wrapper" [class.active]="isSearchOpen">
-      <input #searchInput type="text" placeholder="Search..." class="search-input" />
+    <div class="search-shell" #searchRef [class.active]="isSearchOpen">
+      <div class="search-box" *ngIf="isSearchOpen">
+        <input
+          #searchInput
+          type="text"
+          [(ngModel)]="searchQuery"
+          placeholder="Search modules, records, users..."
+          class="search-input"
+        />
 
-      <div class="icon-btn" (click)="toggleSearch()">
-        <i class="pi pi-search"></i>
+        <button type="button" class="search-submit" (click)="toggleSearch()" aria-label="Search">
+          <i class="pi pi-search"></i>
+        </button>
       </div>
+
+      <button
+        type="button"
+        class="icon-btn"
+        *ngIf="!isSearchOpen"
+        (click)="toggleSearch()"
+        aria-label="Open search"
+      >
+        <i class="pi pi-search"></i>
+      </button>
     </div>
 
-    <div class="icon-btn" (click)="toggleTheme()">
+    <button
+      type="button"
+      class="icon-btn theme-btn"
+      (click)="toggleTheme()"
+      aria-label="Toggle theme"
+    >
       <i [class]="isDarkMode ? 'pi pi-sun' : 'pi pi-moon'"></i>
-    </div>
+    </button>
 
-    <div class="icon-btn notification" (click)="toggleNotif($event)" #notifRef>
-      <i class="pi pi-bell"></i>
-      <span class="badge">3</span>
+    <div class="notification-wrap" #notifRef>
+      <button
+        type="button"
+        class="icon-btn notification-btn"
+        (click)="toggleNotif($event)"
+        aria-label="Open notifications"
+      >
+        <i class="pi pi-bell"></i>
+        <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+      </button>
 
       <div class="notif-dropdown" *ngIf="isNotifOpen">
-        <p>3 new attendance submissions</p>
-        <p>2 pending approvals</p>
+        <div class="notif-header">
+          <div>
+            <h3>Notifications</h3>
+            <p>{{ unreadCount }} unread</p>
+          </div>
+
+          <button
+            type="button"
+            class="notif-action"
+            (click)="markAllAsRead($event)"
+            [disabled]="unreadCount === 0"
+          >
+            Mark all as read
+          </button>
+        </div>
+
+        <div class="notif-body" *ngIf="!isLoadingNotifications; else notifLoading">
+          <div class="notif-list" *ngIf="notifications.length > 0; else emptyNotif">
+            <div
+              class="notif-item"
+              *ngFor="let item of notifications"
+              [class.unread]="!item.read"
+              (click)="markAsRead(item)"
+            >
+              <div class="notif-icon">
+                <i [class]="getNotificationIcon(item.type)"></i>
+              </div>
+
+              <div class="notif-content">
+                <div class="notif-row">
+                  <h4>{{ item.title }}</h4>
+                  <span>{{ item.createdAt | date: 'short' }}</span>
+                </div>
+
+                <p>{{ item.message }}</p>
+              </div>
+
+              <button
+                type="button"
+                class="notif-remove"
+                (click)="removeNotification(item.id, $event)"
+                aria-label="Remove notification"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #notifLoading>
+          <div class="notif-empty">
+            <i class="pi pi-spin pi-spinner"></i>
+            <p>Loading notifications...</p>
+          </div>
+        </ng-template>
+
+        <ng-template #emptyNotif>
+          <div class="notif-empty">
+            <i class="pi pi-bell-slash"></i>
+            <p>No notifications yet.</p>
+          </div>
+        </ng-template>
       </div>
     </div>
 
-    <div class="profile" (click)="toggleProfile($event)" #profileRef>
-      <div class="avatar">{{ getUserInitial() }}</div>
+    <div class="profile" #profileRef>
+      <button
+        type="button"
+        class="profile-trigger"
+        (click)="toggleProfile($event)"
+        aria-label="Open profile menu"
+      >
+        <div class="avatar">{{ getUserInitial() }}</div>
 
-      <div class="profile-info">
-        <h3>{{ getUserFullName() }}</h3>
-        <p>{{ getUserRoleLabel() }}</p>
-      </div>
+        <div class="profile-info">
+          <h3>{{ getUserFullName() }}</h3>
+          <p>{{ getUserRoleLabel() }}</p>
+        </div>
 
-      <i class="pi pi-chevron-down arrow" [class.rotate]="isProfileOpen"></i>
+        <i class="pi pi-chevron-down arrow" [class.rotate]="isProfileOpen"></i>
+      </button>
 
       <div class="profile-dropdown" *ngIf="isProfileOpen">
-        <a href="#">
+        <button type="button" (click)="goToProfile($event)">
           <i class="pi pi-user"></i>
           <span>Profile</span>
-        </a>
+        </button>
 
-        <a href="#">
+        <button type="button" (click)="openSettings($event)">
           <i class="pi pi-cog"></i>
           <span>Settings</span>
-        </a>
+        </button>
 
         <hr />
 
-        <a href="#" class="logout" (click)="logout($event)">
+        <button type="button" class="logout" (click)="logout($event)">
           <i class="pi pi-sign-out"></i>
           <span>Logout</span>
-        </a>
+        </button>
       </div>
     </div>
   </div>

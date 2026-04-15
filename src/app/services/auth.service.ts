@@ -71,6 +71,22 @@ export class AuthService {
     return raw ? (JSON.parse(raw) as User) : null;
   }
 
+  updateCurrentUser(partial: Partial<User>): User | null {
+    const current = this.getCurrentUser();
+
+    if (!current || !this.isBrowser) {
+      return current;
+    }
+
+    const updatedUser: User = {
+      ...current,
+      ...partial,
+    };
+
+    localStorage.setItem(this.storageKey, JSON.stringify(updatedUser));
+    return updatedUser;
+  }
+
   getUserRole(): UserRole | null {
     return this.getCurrentUser()?.role ?? null;
   }
