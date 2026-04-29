@@ -1,8 +1,33 @@
-<div class="dashboard-layout">
-  <app-sidenav></app-sidenav>
+<div
+  class="dashboard-layout"
+  [class.sidebar-collapsed]="sidebarCollapsed && !isMobile"
+  [class.mobile-view]="isMobile"
+>
+  <div
+    class="sidebar-backdrop"
+    *ngIf="isMobile && mobileSidebarOpen"
+    (click)="closeMobileSidebar()"
+    (keydown.escape)="closeMobileSidebar()"
+    tabindex="0"
+    aria-label="Close sidebar backdrop"
+  ></div>
+
+  <app-sidenav
+    [collapsed]="sidebarCollapsed"
+    [isMobile]="isMobile"
+    [mobileOpen]="mobileSidebarOpen"
+    (requestClose)="closeMobileSidebar()"
+    (navigateItem)="handleSidebarNavigate()"
+    (toggleCollapse)="toggleSidebar()"
+  ></app-sidenav>
 
   <main class="main-shell">
-    <app-topbar></app-topbar>
+    <app-topbar
+      [isSidebarCollapsed]="sidebarCollapsed"
+      [isMobile]="isMobile"
+      [isMobileSidebarOpen]="mobileSidebarOpen"
+      (menuToggle)="toggleSidebar()"
+    ></app-topbar>
 
     <div class="pages">
       <router-outlet></router-outlet>

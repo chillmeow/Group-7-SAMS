@@ -1,650 +1,698 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
-import { forkJoin } from 'rxjs';
-import { AuthService } from '../../../services/auth.service';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import {
-  ApiService,
-  Attendance,
-  Parent,
-  Section,
-  Session,
-  Student,
-  Teacher,
-  ClassOffering,
-} from '../../../services/api.service';
+  ChangeDetectorRef,
+  Component,
+  Inject,
+  NgZone,
+  OnInit,
+  PLATFORM_ID,
+  inject,
+} from '@angular/core';
+import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { take } from 'rxjs/operators';
+
+import { AuthService } from '../../../services/auth.service';
+import { ApiService } from '../../../services/api.service';
 import { User, UserRole } from '../../../models/user.model';
 
-interface DashboardCard {
-  title: string;
+interface DashboardStat {
+  label: string;
   value: string;
   subtitle: string;
   icon: string;
-  colorClass: 'blue' | 'purple' | 'green' | 'yellow' | 'red';
-  trend?: string;
+  tone: 'blue' | 'green' | 'orange' | 'purple';
 }
 
-interface ActionCard {
+interface DashboardCard {
   title: string;
-  subtitle: string;
-  icon: string;
-  buttonLabel: string;
+  purpose: string;
+  date: string;
+  status: string;
   route: string;
-  colorClass: 'blue' | 'purple' | 'green' | 'yellow';
-}
-
-interface ModuleCard {
-  code: string;
-  title: string;
-  section: string;
-  schedule: string;
-  room: string;
-  buttonLabel: string;
-  borderColor: string;
-}
-
-interface ScheduleItem {
-  title: string;
-  schedule: string;
-  room: string;
+  tone: 'warning' | 'success' | 'danger' | 'info';
 }
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class DashboardComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly apiService = inject(ApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
 
   currentUser: User | null = null;
   currentRole: UserRole | null = null;
 
-  welcomeTitle = '';
-  welcomeSubtitle = '';
-  heroButtonText = '';
-
-  cards: DashboardCard[] = [];
-  attendanceCards: DashboardCard[] = [];
-  quickActions: ActionCard[] = [];
-
-  subjectSectionTitle = '';
-  subjectCards: ModuleCard[] = [];
-
-  scheduleTitle = '';
-  schedules: ScheduleItem[] = [];
-
-  recentTitle = '';
-  recentItems: string[] = [];
-
-  alertTitle = 'System Alerts';
-  alertItems: string[] = [];
-
   isLoading = false;
+  errorMessage = '';
+
+  displayName = 'User';
+  roleLabel = 'Portal';
+
+  stats: DashboardStat[] = [];
+  cards: DashboardCard[] = [];
+
+  private students: any[] = [];
+  private teachers: any[] = [];
+  private parents: any[] = [];
+  private sections: any[] = [];
+  private subjects: any[] = [];
+  private attendance: any[] = [];
+  private sessions: any[] = [];
+  private offerings: any[] = [];
+
+  constructor(@Inject(PLATFORM_ID) private platformId: object) {}
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
     this.currentRole = this.authService.getUserRole();
-    this.loadDashboardByRole();
+    this.displayName = this.currentUser?.firstName || 'User';
+    this.roleLabel = this.getRoleLabel(this.currentRole);
+
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    this.loadDashboard();
   }
 
-  private loadDashboardByRole(): void {
-    switch (this.currentRole) {
-      case 'admin':
-        this.loadAdminDashboard();
-        break;
-      case 'teacher':
-        this.loadTeacherDashboard();
-        break;
-      case 'student':
-        this.loadStudentDashboard();
-        break;
-      case 'parent':
-        this.loadParentDashboard();
-        break;
-      default:
-        this.loadFallbackDashboard();
-        break;
-    }
-  }
-
-  private loadAdminDashboard(): void {
-    this.isLoading = true;
-
-    this.welcomeTitle = `Welcome back, ${this.currentUser?.firstName || 'Admin'}!`;
-    this.welcomeSubtitle =
-      'Monitor attendance operations, manage academic records, and respond to priority issues.';
-    this.heroButtonText = 'Open Reports';
-
-    this.quickActions = [
-      {
-        title: 'Add Student',
-        subtitle: 'Register a new student record',
-        icon: 'pi pi-user-plus',
-        buttonLabel: 'Go to Students',
-        route: '/students',
-        colorClass: 'blue',
-      },
-      {
-        title: 'Add Teacher',
-        subtitle: 'Create or update faculty records',
-        icon: 'pi pi-briefcase',
-        buttonLabel: 'Go to Teachers',
-        route: '/teachers',
-        colorClass: 'purple',
-      },
-      {
-        title: 'Manage Sections',
-        subtitle: 'Maintain year level and section setup',
-        icon: 'pi pi-sitemap',
-        buttonLabel: 'Go to Sections',
-        route: '/sections',
-        colorClass: 'green',
-      },
-      {
-        title: 'Open Attendance',
-        subtitle: 'Review active sessions and submissions',
-        icon: 'pi pi-calendar',
-        buttonLabel: 'Go to Attendance',
-        route: '/attendance',
-        colorClass: 'yellow',
-      },
-    ];
-
-    this.subjectSectionTitle = 'Management Modules';
-    this.scheduleTitle = "Today's Priority Tasks";
-    this.recentTitle = 'Recent Activities';
+  loadDashboard(): void {
+    this.zone.run(() => {
+      this.isLoading = true;
+      this.errorMessage = '';
+      this.cdr.detectChanges();
+    });
 
     forkJoin({
-      students: this.apiService.getStudents(),
-      teachers: this.apiService.getTeachers(),
-      parents: this.apiService.getParents(),
-      sections: this.apiService.getSections(),
-      attendance: this.apiService.getAttendance(),
-      sessions: this.apiService.getSessions(),
-      offerings: this.apiService.getClassOfferings(),
+      students: this.apiService.getStudents().pipe(take(1)),
+      teachers: this.apiService.getTeachers().pipe(take(1)),
+      parents: this.apiService.getParents().pipe(take(1)),
+      sections: this.apiService.getSections().pipe(take(1)),
+      subjects: this.apiService.getSubjects().pipe(take(1)),
+      attendance: this.apiService.getAttendance().pipe(take(1)),
+      sessions: this.apiService.getSessions().pipe(take(1)),
+      offerings: this.apiService.getClassOfferings().pipe(take(1)),
     }).subscribe({
-      next: ({ students, teachers, parents, sections, attendance, sessions, offerings }) => {
-        const today = this.getTodayString();
-        const todaySessions = sessions.filter((session) => session.date === today);
-        const activeSessions = sessions.filter(
-          (session) => session.status?.toLowerCase() === 'active',
-        );
-        const todayAttendance = attendance.filter((record) =>
-          todaySessions.some((session) => String(session.id) === String(record.sessionId)),
-        );
+      next: ({
+        students,
+        teachers,
+        parents,
+        sections,
+        subjects,
+        attendance,
+        sessions,
+        offerings,
+      }) => {
+        this.zone.run(() => {
+          this.students = students || [];
+          this.teachers = teachers || [];
+          this.parents = parents || [];
+          this.sections = sections || [];
+          this.subjects = subjects || [];
+          this.attendance = attendance || [];
+          this.sessions = sessions || [];
+          this.offerings = offerings || [];
 
-        const lateToday = todayAttendance.filter(
-          (record) => record.status?.toLowerCase() === 'late',
-        ).length;
+          this.buildDashboard();
 
-        const absentToday = todayAttendance.filter(
-          (record) => record.status?.toLowerCase() === 'absent',
-        ).length;
-
-        const pendingRecords = activeSessions.length;
-
-        this.cards = [
-          {
-            title: 'Total Students',
-            value: `${students.length}`,
-            subtitle: 'Registered student records',
-            icon: 'pi pi-users',
-            colorClass: 'blue',
-          },
-          {
-            title: 'Total Teachers',
-            value: `${teachers.length}`,
-            subtitle: 'Faculty records',
-            icon: 'pi pi-briefcase',
-            colorClass: 'purple',
-          },
-          {
-            title: 'Total Parents',
-            value: `${parents.length}`,
-            subtitle: 'Linked parent accounts',
-            icon: 'pi pi-user-plus',
-            colorClass: 'green',
-          },
-          {
-            title: 'Active Sections',
-            value: `${sections.filter((section) => section.status?.toLowerCase() === 'active').length}`,
-            subtitle: 'Current academic sections',
-            icon: 'pi pi-sitemap',
-            colorClass: 'yellow',
-          },
-          {
-            title: 'Pending Reviews',
-            value: `${pendingRecords}`,
-            subtitle: 'Open attendance sessions',
-            icon: 'pi pi-exclamation-circle',
-            colorClass: 'red',
-          },
-        ];
-
-        this.attendanceCards = [
-          {
-            title: 'Sessions Today',
-            value: `${todaySessions.length}`,
-            subtitle: 'Attendance sessions scheduled today',
-            icon: 'pi pi-calendar',
-            colorClass: 'blue',
-          },
-          {
-            title: 'Attendance Logs',
-            value: `${todayAttendance.length}`,
-            subtitle: 'Recorded attendance entries today',
-            icon: 'pi pi-check-square',
-            colorClass: 'purple',
-          },
-          {
-            title: 'Late Today',
-            value: `${lateToday}`,
-            subtitle: 'Students marked late today',
-            icon: 'pi pi-clock',
-            colorClass: 'yellow',
-          },
-          {
-            title: 'Absent Today',
-            value: `${absentToday}`,
-            subtitle: 'Students marked absent today',
-            icon: 'pi pi-times-circle',
-            colorClass: 'red',
-          },
-        ];
-
-        this.subjectCards = [
-          {
-            code: 'STU',
-            title: 'Student Management',
-            section: `${students.length} student records`,
-            schedule: 'Create, update, and organize student information',
-            room: 'Admin Module',
-            buttonLabel: 'Open Module',
-            borderColor: '#3b82f6',
-          },
-          {
-            code: 'TCH',
-            title: 'Teacher Management',
-            section: `${teachers.length} teacher records`,
-            schedule: 'Maintain faculty accounts and assignments',
-            room: 'Admin Module',
-            buttonLabel: 'Open Module',
-            borderColor: '#8b5cf6',
-          },
-          {
-            code: 'SEC',
-            title: 'Sections',
-            section: `${sections.length} configured sections`,
-            schedule: 'Manage section capacity, adviser, and year level',
-            room: 'Academic Module',
-            buttonLabel: 'View Sections',
-            borderColor: '#10b981',
-          },
-          {
-            code: 'CLS',
-            title: 'Class Offerings',
-            section: `${offerings.length} active offerings`,
-            schedule: 'Assign subjects, teachers, sections, and schedules',
-            room: 'Academic Module',
-            buttonLabel: 'View Offerings',
-            borderColor: '#f59e0b',
-          },
-        ];
-
-        this.schedules = [
-          {
-            title: `${activeSessions.length} active session(s) to monitor`,
-            schedule: 'Live tracking',
-            room: 'Attendance Module',
-          },
-          {
-            title: `${pendingRecords} session(s) still open`,
-            schedule: 'Needs review',
-            room: 'Admin Review',
-          },
-          {
-            title: `${todayAttendance.length} attendance record(s) submitted today`,
-            schedule: 'Daily monitoring',
-            room: 'Dashboard Overview',
-          },
-        ];
-
-        this.recentItems = [
-          `${students.length} total student record(s) currently stored`,
-          `${teachers.length} teacher record(s) available in the system`,
-          `${offerings.length} class offering(s) currently configured`,
-          `${todayAttendance.length} attendance record(s) logged today`,
-        ];
-
-        this.alertItems = [];
-        if (students.length === 0) {
-          this.alertItems.push(
-            'No student records found. Add students to begin attendance monitoring.',
-          );
-        }
-        if (teachers.length === 0) {
-          this.alertItems.push('No teacher records found. Assign teachers for class offerings.');
-        }
-        if (offerings.length === 0) {
-          this.alertItems.push(
-            'No class offerings available. Configure offerings before opening sessions.',
-          );
-        }
-        if (todaySessions.length === 0) {
-          this.alertItems.push('No attendance sessions scheduled for today.');
-        }
-        if (activeSessions.length > 0) {
-          this.alertItems.push(
-            `${activeSessions.length} attendance session(s) remain active and may need closing.`,
-          );
-        }
-
-        this.isLoading = false;
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
       },
-      error: () => {
-        this.cards = [];
-        this.attendanceCards = [];
-        this.subjectCards = [];
-        this.schedules = [];
-        this.recentItems = ['Unable to load dashboard data from JSON Server.'];
-        this.alertItems = ['Check if JSON Server is running on http://localhost:3000.'];
-        this.isLoading = false;
+      error: (error) => {
+        this.zone.run(() => {
+          console.error('DASHBOARD LOAD ERROR:', error);
+          this.errorMessage = 'Unable to load dashboard data. Please refresh the page.';
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
       },
     });
   }
 
-  private loadTeacherDashboard(): void {
-    this.welcomeTitle = `Welcome back, ${this.currentUser?.firstName || 'Teacher'}!`;
-    this.welcomeSubtitle = 'View your classes, monitor attendance, and manage daily sessions.';
-    this.heroButtonText = 'View Attendance';
+  trackByStat(index: number, stat: DashboardStat): string {
+    return `${stat.label}-${index}`;
+  }
+
+  trackByCard(index: number, card: DashboardCard): string {
+    return `${card.title}-${index}`;
+  }
+
+  private buildDashboard(): void {
+    if (this.currentRole === 'admin') {
+      this.buildAdminDashboard();
+      return;
+    }
+
+    if (this.currentRole === 'teacher') {
+      this.buildTeacherDashboard();
+      return;
+    }
+
+    if (this.currentRole === 'student') {
+      this.buildStudentDashboard();
+      return;
+    }
+
+    if (this.currentRole === 'parent') {
+      this.buildParentDashboard();
+      return;
+    }
+
+    this.stats = [];
+    this.cards = [];
+  }
+
+  private buildAdminDashboard(): void {
+    const today = this.getTodayString();
+
+    const todaySessions = this.sessions.filter((session) => session.date === today);
+
+    const todayAttendance = this.attendance.filter((record) =>
+      todaySessions.some((session) => String(session.id) === String(record.sessionId)),
+    );
+
+    const activeSessions = this.sessions.filter(
+      (session) => String(session.status || '').toLowerCase() === 'active',
+    );
+
+    const lateToday = todayAttendance.filter(
+      (record) => String(record.status || '').toLowerCase() === 'late',
+    ).length;
+
+    const absentToday = todayAttendance.filter(
+      (record) => String(record.status || '').toLowerCase() === 'absent',
+    ).length;
+
+    this.stats = [
+      {
+        label: 'Total Students',
+        value: `${this.students.length}`,
+        subtitle: 'Registered students',
+        icon: 'pi pi-users',
+        tone: 'blue',
+      },
+      {
+        label: 'Total Teachers',
+        value: `${this.teachers.length}`,
+        subtitle: 'Faculty members',
+        icon: 'pi pi-briefcase',
+        tone: 'green',
+      },
+      {
+        label: 'Total Parents',
+        value: `${this.parents.length}`,
+        subtitle: 'Parent accounts',
+        icon: 'pi pi-user-plus',
+        tone: 'orange',
+      },
+      {
+        label: 'Attendance Today',
+        value: `${todayAttendance.length}`,
+        subtitle: 'Records logged today',
+        icon: 'pi pi-calendar',
+        tone: 'purple',
+      },
+    ];
 
     this.cards = [
       {
-        title: 'Total Subjects',
-        value: '6',
-        subtitle: 'Handled this term',
-        icon: 'pi pi-book',
-        colorClass: 'blue',
+        title: 'Students',
+        purpose: `${this.students.length} student record(s) registered`,
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/students',
+        tone: 'info',
+      },
+      {
+        title: 'Teachers',
+        purpose: `${this.teachers.length} faculty record(s) registered`,
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/teachers',
+        tone: 'info',
+      },
+      {
+        title: 'Parents',
+        purpose: `${this.parents.length} parent account(s) registered`,
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/parents',
+        tone: 'info',
+      },
+      {
+        title: 'Subjects',
+        purpose: `${this.subjects.length} subject record(s) configured`,
+        date: this.formatToday(),
+        status: this.subjects.length > 0 ? 'READY' : 'SETUP',
+        route: '/subjects',
+        tone: this.subjects.length > 0 ? 'info' : 'warning',
       },
       {
         title: 'Sections',
-        value: '6',
-        subtitle: 'Assigned sections',
-        icon: 'pi pi-sitemap',
-        colorClass: 'purple',
+        purpose: `${this.sections.length} section(s) configured`,
+        date: this.formatToday(),
+        status: this.sections.length > 0 ? 'READY' : 'SETUP',
+        route: '/sections',
+        tone: this.sections.length > 0 ? 'info' : 'warning',
       },
       {
-        title: 'Total Students',
-        value: '180',
-        subtitle: 'Across all classes',
-        icon: 'pi pi-users',
-        colorClass: 'green',
+        title: 'Class Offerings',
+        purpose: `${this.offerings.length} class offering(s) configured`,
+        date: this.formatToday(),
+        status: this.offerings.length > 0 ? 'READY' : 'SETUP',
+        route: '/offerings',
+        tone: this.offerings.length > 0 ? 'info' : 'warning',
       },
       {
-        title: 'Classes Today',
-        value: '4',
-        subtitle: 'Scheduled today',
-        icon: 'pi pi-calendar',
-        colorClass: 'yellow',
+        title: 'Attendance Monitoring',
+        purpose: `${activeSessions.length} active session(s) currently open`,
+        date: this.formatToday(),
+        status: activeSessions.length > 0 ? 'PENDING' : 'STABLE',
+        route: '/admin-attendance',
+        tone: activeSessions.length > 0 ? 'warning' : 'success',
       },
       {
-        title: 'Pending',
-        value: '3',
-        subtitle: 'Attendance to check',
-        icon: 'pi pi-exclamation-circle',
-        colorClass: 'red',
+        title: 'Reports',
+        purpose: `${todayAttendance.length} attendance record(s) logged today`,
+        date: this.formatToday(),
+        status: 'READY',
+        route: '/reports',
+        tone: 'info',
+      },
+      {
+        title: 'Late Records',
+        purpose: `${lateToday} student(s) marked late today`,
+        date: this.formatToday(),
+        status: lateToday > 0 ? 'PENDING' : 'CLEAR',
+        route: '/reports',
+        tone: lateToday > 0 ? 'warning' : 'success',
+      },
+      {
+        title: 'Absence Records',
+        purpose: `${absentToday} student(s) marked absent today`,
+        date: this.formatToday(),
+        status: absentToday > 0 ? 'PENDING' : 'CLEAR',
+        route: '/reports',
+        tone: absentToday > 0 ? 'danger' : 'success',
       },
     ];
-
-    this.attendanceCards = [];
-    this.quickActions = [];
-    this.subjectSectionTitle = 'My Subjects';
-    this.subjectCards = [
-      {
-        code: 'CS201',
-        title: 'Data Structures & Algorithms',
-        section: 'Section A',
-        schedule: 'MWF 9:00-10:30 AM',
-        room: 'Room 201',
-        buttonLabel: 'Open Attendance',
-        borderColor: '#3b82f6',
-      },
-      {
-        code: 'IT301',
-        title: 'Web Development',
-        section: 'Section C',
-        schedule: 'TTh 9:00-10:30 AM',
-        room: 'Lab 201',
-        buttonLabel: 'Open Attendance',
-        borderColor: '#f59e0b',
-      },
-    ];
-
-    this.scheduleTitle = "Today's Schedule";
-    this.schedules = [
-      {
-        title: 'Data Structures & Algorithms',
-        schedule: 'MWF 9:00-10:30 AM',
-        room: 'Room 201',
-      },
-      {
-        title: 'Web Development',
-        schedule: 'TTh 9:00-10:30 AM',
-        room: 'Lab 201',
-      },
-      {
-        title: 'System Analysis & Design',
-        schedule: 'TTh 1:00-2:30 PM',
-        room: 'Room 305',
-      },
-    ];
-
-    this.recentTitle = 'Recent Attendance Sessions';
-    this.recentItems = [
-      'Web Development attendance opened',
-      'Section A marked complete',
-      '2 late students recorded this morning',
-    ];
-
-    this.alertItems = [];
   }
 
-  private loadStudentDashboard(): void {
-    this.welcomeTitle = `Welcome back, ${this.currentUser?.firstName || 'Student'}!`;
-    this.welcomeSubtitle = 'Track your attendance and stay updated with your classes.';
-    this.heroButtonText = 'View My Subjects';
+  private buildTeacherDashboard(): void {
+    const teacherId = this.findCurrentTeacherId();
 
-    this.cards = [
+    const handledOfferings = this.offerings.filter(
+      (offering) =>
+        String(offering.teacherId || '') === teacherId &&
+        String(offering.status || '').toLowerCase() !== 'inactive' &&
+        String(offering.status || '').toLowerCase() !== 'archived',
+    );
+
+    const handledOfferingIds = handledOfferings.map((offering) => String(offering.id));
+
+    const handledSessions = this.sessions.filter((session) =>
+      handledOfferingIds.includes(String(session.classOfferingId)),
+    );
+
+    const activeSessions = handledSessions.filter(
+      (session) => String(session.status || '').toLowerCase() === 'active',
+    );
+
+    const handledSessionIds = handledSessions.map((session) => String(session.id));
+
+    const handledAttendance = this.attendance.filter((record) =>
+      handledSessionIds.includes(String(record.sessionId)),
+    );
+
+    const today = this.getTodayString();
+
+    const todaySessions = handledSessions.filter((session) => session.date === today);
+    const todaySessionIds = todaySessions.map((session) => String(session.id));
+
+    const todayAttendance = handledAttendance.filter((record) =>
+      todaySessionIds.includes(String(record.sessionId)),
+    );
+
+    this.stats = [
       {
-        title: 'Subjects',
-        value: '7',
-        subtitle: 'Enrolled this term',
+        label: 'Handled Classes',
+        value: `${handledOfferings.length}`,
+        subtitle: 'Assigned classes',
         icon: 'pi pi-book',
-        colorClass: 'blue',
+        tone: 'blue',
       },
       {
-        title: 'Attendance Rate',
-        value: '96%',
-        subtitle: 'Overall attendance',
-        icon: 'pi pi-chart-line',
-        colorClass: 'purple',
+        label: 'Active Sessions',
+        value: `${activeSessions.length}`,
+        subtitle: 'Currently open',
+        icon: 'pi pi-qrcode',
+        tone: 'green',
       },
       {
-        title: 'Present Today',
-        value: '3',
-        subtitle: 'Recorded sessions',
-        icon: 'pi pi-check-circle',
-        colorClass: 'green',
-      },
-      {
-        title: 'Classes Today',
-        value: '4',
-        subtitle: 'Scheduled today',
+        label: 'Records Today',
+        value: `${todayAttendance.length}`,
+        subtitle: 'Logged today',
         icon: 'pi pi-calendar',
-        colorClass: 'yellow',
+        tone: 'orange',
       },
       {
-        title: 'Late',
-        value: '1',
-        subtitle: 'This month',
-        icon: 'pi pi-clock',
-        colorClass: 'red',
+        label: 'Total Records',
+        value: `${handledAttendance.length}`,
+        subtitle: 'Attendance records',
+        icon: 'pi pi-list-check',
+        tone: 'purple',
       },
     ];
-
-    this.attendanceCards = [];
-    this.quickActions = [];
-    this.subjectSectionTitle = 'My Subjects';
-    this.subjectCards = [
-      {
-        code: 'IT301',
-        title: 'Web Development',
-        section: 'BSIT 3-A',
-        schedule: 'TTh 9:00-10:30 AM',
-        room: 'Lab 201',
-        buttonLabel: 'View Details',
-        borderColor: '#3b82f6',
-      },
-      {
-        code: 'SIA101',
-        title: 'System Integration & Architecture',
-        section: 'BSIT 3-A',
-        schedule: 'MWF 1:00-2:30 PM',
-        room: 'Room 305',
-        buttonLabel: 'View Details',
-        borderColor: '#16a34a',
-      },
-    ];
-
-    this.scheduleTitle = "Today's Schedule";
-    this.schedules = [
-      {
-        title: 'Web Development',
-        schedule: '9:00-10:30 AM',
-        room: 'Lab 201',
-      },
-      {
-        title: 'System Integration & Architecture',
-        schedule: '1:00-2:30 PM',
-        room: 'Room 305',
-      },
-    ];
-
-    this.recentTitle = 'Recent Attendance';
-    this.recentItems = [
-      'Marked present in Web Development',
-      'Marked present in Data Structures',
-      '1 late record this month',
-    ];
-
-    this.alertItems = [];
-  }
-
-  private loadParentDashboard(): void {
-    this.welcomeTitle = `Welcome back, ${this.currentUser?.firstName || 'Parent'}!`;
-    this.welcomeSubtitle = 'Monitor your child’s attendance and class participation.';
-    this.heroButtonText = 'View Child Records';
 
     this.cards = [
       {
-        title: 'Linked Child',
-        value: '1',
-        subtitle: 'Student account linked',
-        icon: 'pi pi-user',
-        colorClass: 'blue',
+        title: 'Attendance Workspace',
+        purpose: 'Create QR sessions, mark attendance, approve requests, and import Excel sheets',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/attendance',
+        tone: 'info',
+      },
+      {
+        title: 'Active Sessions',
+        purpose: `${activeSessions.length} active attendance session(s)`,
+        date: this.formatToday(),
+        status: activeSessions.length > 0 ? 'PENDING' : 'CLEAR',
+        route: '/attendance',
+        tone: activeSessions.length > 0 ? 'warning' : 'success',
+      },
+      {
+        title: 'My Subjects',
+        purpose: 'View your assigned subjects and covered sections',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/teacher-subjects',
+        tone: 'info',
+      },
+      {
+        title: 'Reports',
+        purpose: 'Review class attendance summaries and monitoring records',
+        date: this.formatToday(),
+        status: 'READY',
+        route: '/reports',
+        tone: 'info',
+      },
+      {
+        title: 'Messages',
+        purpose: 'Check messages, updates, and communication',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/messages',
+        tone: 'info',
+      },
+    ];
+  }
+
+  private buildStudentDashboard(): void {
+    const student = this.findCurrentStudent();
+
+    const studentRecords = student
+      ? this.attendance.filter((record) => String(record.studentId) === String(student.id))
+      : [];
+
+    const present = this.countStatus(studentRecords, 'present');
+    const late = this.countStatus(studentRecords, 'late');
+    const absent = this.countStatus(studentRecords, 'absent');
+    const excused = this.countStatus(studentRecords, 'excused');
+
+    const total = present + late + absent + excused;
+    const attendanceRate = total ? Math.round(((present + late + excused) / total) * 100) : 0;
+
+    this.stats = [
+      {
+        label: 'Attendance Rate',
+        value: `${attendanceRate}%`,
+        subtitle: 'Current performance',
+        icon: 'pi pi-chart-line',
+        tone: 'blue',
+      },
+      {
+        label: 'Present',
+        value: `${present}`,
+        subtitle: 'Present records',
+        icon: 'pi pi-check-circle',
+        tone: 'green',
+      },
+      {
+        label: 'Late',
+        value: `${late}`,
+        subtitle: 'Late records',
+        icon: 'pi pi-clock',
+        tone: 'orange',
+      },
+      {
+        label: 'Absent',
+        value: `${absent}`,
+        subtitle: 'Absent records',
+        icon: 'pi pi-times-circle',
+        tone: 'purple',
+      },
+    ];
+
+    this.cards = [
+      {
+        title: 'My Attendance',
+        purpose: 'Scan QR, enter session code, and view attendance history',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/student-attendance',
+        tone: 'info',
+      },
+      {
+        title: 'My Subjects',
+        purpose: 'View your enrolled subjects and class information',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/student-subjects',
+        tone: 'info',
       },
       {
         title: 'Attendance Rate',
-        value: '94%',
+        purpose: `${attendanceRate}% current attendance rate`,
+        date: this.formatToday(),
+        status: attendanceRate >= 80 ? 'GOOD' : attendanceRate >= 60 ? 'WATCH' : 'WARNING',
+        route: '/student-attendance',
+        tone: attendanceRate >= 80 ? 'success' : attendanceRate >= 60 ? 'warning' : 'danger',
+      },
+      {
+        title: 'Late Records',
+        purpose: `${late} late record(s) found`,
+        date: this.formatToday(),
+        status: late > 0 ? 'PENDING' : 'CLEAR',
+        route: '/student-attendance',
+        tone: late > 0 ? 'warning' : 'success',
+      },
+      {
+        title: 'Absence Records',
+        purpose: `${absent} absence record(s) found`,
+        date: this.formatToday(),
+        status: absent > 0 ? 'PENDING' : 'CLEAR',
+        route: '/student-attendance',
+        tone: absent > 0 ? 'danger' : 'success',
+      },
+      {
+        title: 'Reports',
+        purpose: 'Review your attendance summary',
+        date: this.formatToday(),
+        status: 'READY',
+        route: '/reports',
+        tone: 'info',
+      },
+    ];
+  }
+
+  private buildParentDashboard(): void {
+    const parent = this.findCurrentParent();
+    const linkedStudents = this.getLinkedStudentsForParent(parent);
+    const linkedStudentIds = linkedStudents.map((student) => String(student.id));
+
+    const childAttendance = this.attendance.filter((record) =>
+      linkedStudentIds.includes(String(record.studentId)),
+    );
+
+    const present = this.countStatus(childAttendance, 'present');
+    const late = this.countStatus(childAttendance, 'late');
+    const absent = this.countStatus(childAttendance, 'absent');
+    const excused = this.countStatus(childAttendance, 'excused');
+
+    const total = present + late + absent + excused;
+    const attendanceRate = total ? Math.round(((present + late + excused) / total) * 100) : 0;
+
+    this.stats = [
+      {
+        label: 'Linked Children',
+        value: `${linkedStudents.length}`,
+        subtitle: 'Connected students',
+        icon: 'pi pi-users',
+        tone: 'blue',
+      },
+      {
+        label: 'Attendance Rate',
+        value: `${attendanceRate}%`,
         subtitle: 'Child attendance rate',
         icon: 'pi pi-chart-line',
-        colorClass: 'purple',
+        tone: 'green',
       },
       {
-        title: 'Present',
-        value: '18',
-        subtitle: 'This month',
-        icon: 'pi pi-check-circle',
-        colorClass: 'green',
-      },
-      {
-        title: 'Absences',
-        value: '2',
-        subtitle: 'This month',
-        icon: 'pi pi-calendar-times',
-        colorClass: 'yellow',
-      },
-      {
-        title: 'Late',
-        value: '1',
-        subtitle: 'This month',
+        label: 'Late Records',
+        value: `${late}`,
+        subtitle: 'Late records',
         icon: 'pi pi-clock',
-        colorClass: 'red',
+        tone: 'orange',
+      },
+      {
+        label: 'Absences',
+        value: `${absent}`,
+        subtitle: 'Absent records',
+        icon: 'pi pi-exclamation-circle',
+        tone: 'purple',
       },
     ];
 
-    this.attendanceCards = [];
-    this.quickActions = [];
-    this.subjectSectionTitle = "Child's Subjects";
-    this.subjectCards = [
+    this.cards = [
       {
-        code: 'IT301',
-        title: 'Web Development',
-        section: 'BSIT 3-A',
-        schedule: 'TTh 9:00-10:30 AM',
-        room: 'Lab 201',
-        buttonLabel: 'View Attendance',
-        borderColor: '#3b82f6',
+        title: 'Child Attendance',
+        purpose: 'Monitor child attendance history and latest status',
+        date: this.formatToday(),
+        status: 'OPEN',
+        route: '/parent-attendance',
+        tone: 'info',
       },
       {
-        code: 'SIA101',
-        title: 'System Integration & Architecture',
-        section: 'BSIT 3-A',
-        schedule: 'MWF 1:00-2:30 PM',
-        room: 'Room 305',
-        buttonLabel: 'View Attendance',
-        borderColor: '#f59e0b',
+        title: 'Linked Children',
+        purpose: `${linkedStudents.length} student record(s) linked to your account`,
+        date: this.formatToday(),
+        status: linkedStudents.length > 0 ? 'ACTIVE' : 'SETUP',
+        route: '/parent-attendance',
+        tone: linkedStudents.length > 0 ? 'success' : 'warning',
+      },
+      {
+        title: 'Attendance Rate',
+        purpose: `${attendanceRate}% combined child attendance rate`,
+        date: this.formatToday(),
+        status: attendanceRate >= 80 ? 'GOOD' : attendanceRate >= 60 ? 'WATCH' : 'WARNING',
+        route: '/parent-attendance',
+        tone: attendanceRate >= 80 ? 'success' : attendanceRate >= 60 ? 'warning' : 'danger',
+      },
+      {
+        title: 'Late Records',
+        purpose: `${late} late record(s) found`,
+        date: this.formatToday(),
+        status: late > 0 ? 'PENDING' : 'CLEAR',
+        route: '/parent-attendance',
+        tone: late > 0 ? 'warning' : 'success',
+      },
+      {
+        title: 'Absence Records',
+        purpose: `${absent} absence record(s) found`,
+        date: this.formatToday(),
+        status: absent > 0 ? 'PENDING' : 'CLEAR',
+        route: '/parent-attendance',
+        tone: absent > 0 ? 'danger' : 'success',
       },
     ];
-
-    this.scheduleTitle = "Child's Schedule";
-    this.schedules = [
-      {
-        title: 'Web Development',
-        schedule: '9:00-10:30 AM',
-        room: 'Lab 201',
-      },
-      {
-        title: 'System Integration & Architecture',
-        schedule: '1:00-2:30 PM',
-        room: 'Room 305',
-      },
-    ];
-
-    this.recentTitle = 'Recent Attendance Updates';
-    this.recentItems = [
-      'Present in Web Development',
-      'Present in System Integration',
-      '1 late record this month',
-    ];
-
-    this.alertItems = [];
   }
 
-  private loadFallbackDashboard(): void {
-    this.welcomeTitle = 'Welcome to SAMS!';
-    this.welcomeSubtitle = 'Student Attendance Monitoring System';
-    this.heroButtonText = 'Explore';
-    this.cards = [];
-    this.attendanceCards = [];
-    this.quickActions = [];
-    this.subjectCards = [];
-    this.schedules = [];
-    this.recentItems = [];
-    this.alertItems = [];
+  private findCurrentTeacherId(): string {
+    const currentUserId = String(this.currentUser?.id || '').trim();
+    const currentEmail = String(this.currentUser?.email || '')
+      .toLowerCase()
+      .trim();
+
+    const teacher =
+      this.teachers.find((item) => String(item.userId || '').trim() === currentUserId) ||
+      this.teachers.find(
+        (item) =>
+          String(item.email || '')
+            .toLowerCase()
+            .trim() === currentEmail,
+      );
+
+    return String(teacher?.id || '').trim();
+  }
+
+  private findCurrentStudent(): any | null {
+    const currentUserId = String(this.currentUser?.id || '').trim();
+    const currentEmail = String(this.currentUser?.email || '')
+      .toLowerCase()
+      .trim();
+
+    return (
+      this.students.find((item) => String(item.userId || '').trim() === currentUserId) ||
+      this.students.find(
+        (item) =>
+          String(item.email || '')
+            .toLowerCase()
+            .trim() === currentEmail,
+      ) ||
+      null
+    );
+  }
+
+  private findCurrentParent(): any | null {
+    const currentUserId = String(this.currentUser?.id || '').trim();
+    const currentEmail = String(this.currentUser?.email || '')
+      .toLowerCase()
+      .trim();
+
+    return (
+      this.parents.find((item) => String(item.userId || '').trim() === currentUserId) ||
+      this.parents.find(
+        (item) =>
+          String(item.email || '')
+            .toLowerCase()
+            .trim() === currentEmail,
+      ) ||
+      null
+    );
+  }
+
+  private getLinkedStudentsForParent(parent: any | null): any[] {
+    if (!parent) return [];
+
+    const parentId = String(parent.id || '').trim();
+
+    const parentStudentIds = Array.isArray(parent.studentIds)
+      ? parent.studentIds.map((id: any) => String(id).trim()).filter(Boolean)
+      : [];
+
+    const legacyStudentId = String(parent.studentId || '').trim();
+
+    if (legacyStudentId && !parentStudentIds.includes(legacyStudentId)) {
+      parentStudentIds.push(legacyStudentId);
+    }
+
+    return this.students.filter((student) => {
+      const studentId = String(student.id || '').trim();
+      const studentParentId = String(student.parentId || '').trim();
+
+      return parentStudentIds.includes(studentId) || (!!parentId && studentParentId === parentId);
+    });
+  }
+
+  private countStatus(records: any[], status: string): number {
+    return records.filter(
+      (record) => String(record.status || '').toLowerCase() === status.toLowerCase(),
+    ).length;
+  }
+
+  private getRoleLabel(role: UserRole | null): string {
+    if (role === 'admin') return 'Admin';
+    if (role === 'teacher') return 'Teacher';
+    if (role === 'student') return 'Student';
+    if (role === 'parent') return 'Parent';
+
+    return 'SAMS';
   }
 
   private getTodayString(): string {
@@ -652,6 +700,15 @@ export class DashboardComponent implements OnInit {
     const year = now.getFullYear();
     const month = `${now.getMonth() + 1}`.padStart(2, '0');
     const day = `${now.getDate()}`.padStart(2, '0');
+
     return `${year}-${month}-${day}`;
+  }
+
+  private formatToday(): string {
+    return new Date().toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   }
 }

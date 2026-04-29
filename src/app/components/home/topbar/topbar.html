@@ -1,5 +1,17 @@
 <header class="topbar">
   <div class="left-top">
+    <button
+      *ngIf="isMobile"
+      type="button"
+      class="menu-toggle"
+      (click)="onMenuToggle()"
+      [attr.aria-label]="getMenuButtonLabel()"
+      [attr.aria-expanded]="isMobileSidebarOpen"
+      aria-controls="app-sidebar"
+    >
+      <i class="pi" [ngClass]="getMenuIconClass()"></i>
+    </button>
+
     <h2>{{ pageTitle }}</h2>
   </div>
 
@@ -12,6 +24,7 @@
           [(ngModel)]="searchQuery"
           placeholder="Search modules, records, users..."
           class="search-input"
+          (keydown.escape)="toggleSearch()"
         />
 
         <button type="button" class="search-submit" (click)="toggleSearch()" aria-label="Search">

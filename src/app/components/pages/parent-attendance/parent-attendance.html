@@ -1,0 +1,186 @@
+<section class="parent-attendance-page">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Parent Attendance Monitoring</p>
+      <h1>Child Attendance Overview</h1>
+      <p>
+        View your child’s attendance status, recent records, and important attendance concerns in a
+        simple monitoring dashboard.
+      </p>
+    </div>
+
+    <button type="button" class="refresh-btn" (click)="loadParentAttendance()">
+      <i class="pi pi-refresh"></i>
+      Refresh
+    </button>
+  </div>
+
+  <div class="alert error" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </div>
+
+  <div class="loading-state" *ngIf="isLoading">
+    <i class="pi pi-spin pi-spinner"></i>
+    Loading child attendance records...
+  </div>
+
+  <ng-container *ngIf="!isLoading && !errorMessage">
+    <section class="child-card" *ngIf="children.length > 0">
+      <div class="child-info">
+        <div class="child-avatar">
+          <i class="pi pi-user"></i>
+        </div>
+
+        <div>
+          <span>Monitoring</span>
+          <h2>{{ selectedChild?.name || 'Student' }}</h2>
+          <p>
+            {{ selectedChild?.studentNumber }} · Year Level:
+            {{ selectedChild?.yearLevel }}
+          </p>
+        </div>
+      </div>
+
+      <div class="child-select" *ngIf="children.length > 1">
+        <label>Select child</label>
+        <select [(ngModel)]="selectedStudentId" (change)="onChildChange()">
+          <option *ngFor="let child of children; trackBy: trackByChild" [value]="child.id">
+            {{ child.name }} - {{ child.studentNumber }}
+          </option>
+        </select>
+      </div>
+    </section>
+
+    <section class="notice-card" [class.warning]="hasConcern" *ngIf="children.length > 0">
+      <div class="notice-icon">
+        <i [class]="hasConcern ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle'"></i>
+      </div>
+
+      <div>
+        <h3>{{ hasConcern ? 'Needs Attention' : 'Everything Looks Okay' }}</h3>
+        <p *ngIf="hasConcern">
+          There are attendance records that may need your attention, such as absences or repeated
+          late records.
+        </p>
+        <p *ngIf="!hasConcern">
+          No urgent attendance concerns were found based on the current records.
+        </p>
+      </div>
+    </section>
+
+    <section class="summary-grid" *ngIf="children.length > 0">
+      <article class="summary-card">
+        <span>Attendance Rate</span>
+        <strong>{{ attendanceRate }}%</strong>
+        <small>Present and late records</small>
+      </article>
+
+      <article class="summary-card present">
+        <span>Present</span>
+        <strong>{{ presentCount }}</strong>
+        <small>Attended on time</small>
+      </article>
+
+      <article class="summary-card late">
+        <span>Late</span>
+        <strong>{{ lateCount }}</strong>
+        <small>Marked late</small>
+      </article>
+
+      <article class="summary-card absent">
+        <span>Absent</span>
+        <strong>{{ absentCount }}</strong>
+        <small>Needs attention</small>
+      </article>
+
+      <article class="summary-card excused">
+        <span>Excused</span>
+        <strong>{{ excusedCount }}</strong>
+        <small>Excused attendance</small>
+      </article>
+    </section>
+
+    <section class="history-card" *ngIf="children.length > 0">
+      <div class="section-header">
+        <div>
+          <h2>Attendance History</h2>
+          <p>
+            Latest attendance records for your selected child. Each record shows the class, status,
+            method, and time.
+          </p>
+        </div>
+
+        <span class="record-pill">{{ totalRecords }} record(s)</span>
+      </div>
+
+      <div class="empty-box" *ngIf="filteredRows.length === 0">
+        No attendance records found yet.
+      </div>
+
+      <div class="history-list" *ngIf="filteredRows.length > 0">
+        <article
+          class="history-item"
+          *ngFor="let row of filteredRows; trackBy: trackByRow"
+          [ngClass]="row.status"
+        >
+          <div class="status-icon">
+            <i
+              [class]="
+                row.status === 'present'
+                  ? 'pi pi-check'
+                  : row.status === 'late'
+                    ? 'pi pi-clock'
+                    : row.status === 'absent'
+                      ? 'pi pi-times'
+                      : 'pi pi-info-circle'
+              "
+            ></i>
+          </div>
+
+          <div class="history-main">
+            <div class="history-title">
+              <h3>{{ row.subjectLabel }}</h3>
+
+              <span class="status-pill" [ngClass]="row.status">
+                {{ getStatusLabel(row.status) }}
+              </span>
+            </div>
+
+            <p>{{ getStatusDescription(row.status) }}</p>
+
+            <div class="history-meta">
+              <span>
+                <i class="pi pi-sitemap"></i>
+                {{ row.sectionLabel }}
+              </span>
+
+              <span>
+                <i class="pi pi-calendar"></i>
+                {{ formatDateTime(row.dateTime) }}
+              </span>
+
+              <span>
+                <i class="pi pi-tag"></i>
+                {{ row.method }}
+              </span>
+
+              <span *ngIf="row.lateTime">
+                <i class="pi pi-clock"></i>
+                Late time: {{ formatTime(row.lateTime) }}
+              </span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="empty-parent" *ngIf="children.length === 0">
+      <i class="pi pi-user"></i>
+      <h2>No child record linked yet</h2>
+      <p>
+        Once the administrator links your parent account to your child’s student record, attendance
+        monitoring will appear here.
+      </p>
+    </section>
+  </ng-container>
+</section>

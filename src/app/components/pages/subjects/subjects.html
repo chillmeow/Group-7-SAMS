@@ -3,13 +3,28 @@
     <div class="header-copy">
       <span class="eyebrow">Academic Management</span>
       <h1>Subjects</h1>
-      <p>Maintain the official list of subjects offered in the system.</p>
+      <p>Manage official academic subjects used for class offerings and attendance.</p>
     </div>
 
-    <button class="primary-btn" (click)="openAdd()">
-      <i class="pi pi-plus"></i>
-      <span>Add Subject</span>
-    </button>
+    <div class="header-actions">
+      <input
+        #excelInput
+        type="file"
+        accept=".xlsx,.xls"
+        hidden
+        (change)="onExcelSelected($event)"
+      />
+
+      <button class="ghost-btn" (click)="openExcelPicker()" [disabled]="importing">
+        <i class="pi pi-upload"></i>
+        <span>{{ importing ? 'Importing...' : 'Import Excel' }}</span>
+      </button>
+
+      <button class="primary-btn" (click)="openAdd()">
+        <i class="pi pi-plus"></i>
+        <span>Add Subject</span>
+      </button>
+    </div>
   </div>
 
   <div class="overview-grid">
@@ -17,7 +32,7 @@
       <div>
         <span class="label">Total Subjects</span>
         <h2>{{ subjects.length }}</h2>
-        <small>Registered subject records</small>
+        <small>Registered academic subjects</small>
       </div>
       <i class="pi pi-book"></i>
     </div>
@@ -26,7 +41,7 @@
       <div>
         <span class="label">Active Subjects</span>
         <h2>{{ getActiveCount() }}</h2>
-        <small>Currently available</small>
+        <small>Currently available for offerings</small>
       </div>
       <i class="pi pi-check-circle"></i>
     </div>
@@ -44,14 +59,20 @@
   <div class="toolbar-card">
     <div class="search-box">
       <i class="pi pi-search"></i>
-      <input type="text" placeholder="Search by subject code or name..." [(ngModel)]="search" />
+      <input
+        type="text"
+        placeholder="Search subject code, name, or program..."
+        [(ngModel)]="search"
+        (ngModelChange)="applyFilters()"
+      />
     </div>
 
     <div class="toolbar-actions">
-      <select [(ngModel)]="selectedStatus" class="filter-select">
-        <option value="All">All Status</option>
-        <option value="Active">Active</option>
-        <option value="Inactive">Inactive</option>
+      <select [(ngModel)]="selectedStatus" class="filter-select" (ngModelChange)="applyFilters()">
+        <option value="all">All Active Records</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="archived">Archived</option>
       </select>
 
       <button class="ghost-btn" (click)="loadSubjects()">
@@ -61,18 +82,115 @@
     </div>
   </div>
 
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <h3>Subject List</h3>
+        <p>{{ filteredList.length }} subject record(s)</p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subject Name</th>
+            <th>Program</th>
+            <th>Year</th>
+            <th>Semester</th>
+            <th>Units</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let subject of filteredList">
+            <td>
+              <span class="table-code">{{ subject.subjectCode }}</span>
+            </td>
+
+            <td>
+              <div class="name-cell">
+                <strong>{{ subject.subjectName }}</strong>
+                <small> Lec: {{ subject.lectureHours }} | Lab: {{ subject.labHours }} </small>
+              </div>
+            </td>
+
+            <td>{{ subject.program }}</td>
+            <td>{{ subject.yearLevel }}</td>
+            <td>{{ subject.semester }}</td>
+            <td>{{ subject.units }}</td>
+
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="
+                  subject.status === 'active'
+                    ? 'active'
+                    : subject.status === 'inactive'
+                      ? 'inactive'
+                      : 'archived'
+                "
+              >
+                {{ subject.status | titlecase }}
+              </span>
+            </td>
+
+            <td class="actions">
+              <button
+                class="icon-btn edit"
+                *ngIf="subject.status !== 'archived'"
+                (click)="openEdit(subject)"
+              >
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <button
+                class="icon-btn archive"
+                *ngIf="subject.status !== 'archived'"
+                (click)="archiveSubject(subject)"
+              >
+                <i class="pi pi-box"></i>
+              </button>
+
+              <button
+                class="icon-btn restore"
+                *ngIf="subject.status === 'archived'"
+                (click)="restoreSubject(subject)"
+              >
+                <i class="pi pi-replay"></i>
+              </button>
+
+              <button class="icon-btn delete" (click)="permanentlyDeleteSubject(subject)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+
+          <tr *ngIf="filteredList.length === 0">
+            <td colspan="8">
+              <div class="empty-row">No subject records available.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="catalog-section">
     <div class="section-title">
       <div>
         <h3>Subject Catalog</h3>
-        <p>{{ filteredSubjects().length }} subject card(s) displayed</p>
+        <p>{{ filteredList.length }} subject card(s) displayed</p>
       </div>
     </div>
 
-    <div class="catalog-grid" *ngIf="filteredSubjects().length > 0; else emptyCatalog">
+    <div class="catalog-grid" *ngIf="filteredList.length > 0; else emptyCatalog">
       <div
         class="subject-card"
-        *ngFor="let subject of filteredSubjects(); let i = index"
+        *ngFor="let subject of filteredList; let i = index"
         [ngClass]="getCardAccent(i)"
       >
         <div class="accent-bar"></div>
@@ -80,14 +198,23 @@
         <div class="card-top">
           <div class="subject-badge">{{ subject.subjectCode }}</div>
 
-          <span class="status-chip" [ngClass]="subject.status === 'Active' ? 'active' : 'inactive'">
-            {{ subject.status }}
+          <span
+            class="status-chip"
+            [ngClass]="
+              subject.status === 'active'
+                ? 'active'
+                : subject.status === 'inactive'
+                  ? 'inactive'
+                  : 'archived'
+            "
+          >
+            {{ subject.status | titlecase }}
           </span>
         </div>
 
         <div class="card-body">
           <h4>{{ subject.subjectName }}</h4>
-          <p>Structured academic course entry for curriculum planning and class offerings.</p>
+          <p>{{ subject.program }} • {{ subject.yearLevel }} • {{ subject.semester }}</p>
         </div>
 
         <div class="card-meta">
@@ -95,15 +222,42 @@
             <i class="pi pi-star"></i>
             <span>{{ subject.units }} Units</span>
           </div>
+
+          <div class="meta-pill">
+            <i class="pi pi-clock"></i>
+            <span>Lec {{ subject.lectureHours }} / Lab {{ subject.labHours }}</span>
+          </div>
         </div>
 
         <div class="card-actions">
-          <button class="soft-btn edit" (click)="openEdit(subject)">
+          <button
+            class="soft-btn edit"
+            *ngIf="subject.status !== 'archived'"
+            (click)="openEdit(subject)"
+          >
             <i class="pi pi-pencil"></i>
             <span>Edit</span>
           </button>
 
-          <button class="soft-btn delete" (click)="deleteSubject(subject)">
+          <button
+            class="soft-btn archive"
+            *ngIf="subject.status !== 'archived'"
+            (click)="archiveSubject(subject)"
+          >
+            <i class="pi pi-box"></i>
+            <span>Archive</span>
+          </button>
+
+          <button
+            class="soft-btn restore"
+            *ngIf="subject.status === 'archived'"
+            (click)="restoreSubject(subject)"
+          >
+            <i class="pi pi-replay"></i>
+            <span>Restore</span>
+          </button>
+
+          <button class="soft-btn delete" (click)="permanentlyDeleteSubject(subject)">
             <i class="pi pi-trash"></i>
             <span>Delete</span>
           </button>
@@ -120,72 +274,6 @@
     </ng-template>
   </div>
 
-  <div class="table-card">
-    <div class="table-header">
-      <div>
-        <h3>Subject List</h3>
-        <p>Compact table view for quick management</p>
-      </div>
-    </div>
-
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Subject Code</th>
-            <th>Subject Name</th>
-            <th>Units</th>
-            <th>Status</th>
-            <th class="actions-col">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr *ngFor="let subject of filteredSubjects()">
-            <td>
-              <span class="table-code">{{ subject.subjectCode }}</span>
-            </td>
-
-            <td>
-              <div class="name-cell">
-                <strong>{{ subject.subjectName }}</strong>
-                <small>Academic subject entry</small>
-              </div>
-            </td>
-
-            <td>{{ subject.units }}</td>
-
-            <td>
-              <span
-                class="status-badge"
-                [ngClass]="subject.status === 'Active' ? 'active' : 'inactive'"
-              >
-                {{ subject.status }}
-              </span>
-            </td>
-
-            <td class="actions">
-              <button class="icon-btn edit" (click)="openEdit(subject)">
-                <i class="pi pi-pencil"></i>
-              </button>
-
-              <button class="icon-btn delete" (click)="deleteSubject(subject)">
-                <i class="pi pi-trash"></i>
-              </button>
-            </td>
-          </tr>
-
-          <tr *ngIf="filteredSubjects().length === 0">
-            <td colspan="5">
-              <div class="empty-row">No subject records available.</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- MODAL -->
   <div class="modal-backdrop" *ngIf="showModal">
     <div class="modal">
       <div class="modal-header">
@@ -194,13 +282,13 @@
           <p>
             {{
               editing
-                ? 'Update the selected subject information.'
-                : 'Enter the required subject details below.'
+                ? 'Update the selected academic subject.'
+                : 'Create a new academic subject record.'
             }}
           </p>
         </div>
 
-        <button class="close-btn" (click)="showModal = false">
+        <button class="close-btn" (click)="closeModal()">
           <i class="pi pi-times"></i>
         </button>
       </div>
@@ -209,12 +297,12 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Subject Code</label>
-            <input type="text" placeholder="Enter subject code" [(ngModel)]="form.subjectCode" />
+            <input type="text" placeholder="Ex. IT 223" [(ngModel)]="form.subjectCode" />
           </div>
 
           <div class="form-group">
             <label>Units</label>
-            <input type="number" placeholder="Enter units" [(ngModel)]="form.units" />
+            <input type="number" [(ngModel)]="form.units" />
           </div>
 
           <div class="form-group full">
@@ -222,20 +310,61 @@
             <input type="text" placeholder="Enter subject name" [(ngModel)]="form.subjectName" />
           </div>
 
-          <div class="form-group full">
+          <div class="form-group">
+            <label>Program</label>
+            <select [(ngModel)]="form.program">
+              <option value="">Select Program</option>
+              <option *ngFor="let program of programs" [value]="program">
+                {{ program }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Year Level</label>
+            <select [(ngModel)]="form.yearLevel">
+              <option value="">Select Year</option>
+              <option *ngFor="let year of yearLevels" [value]="year">
+                {{ year }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Semester</label>
+            <select [(ngModel)]="form.semester">
+              <option value="">Select Semester</option>
+              <option *ngFor="let sem of semesters" [value]="sem">
+                {{ sem }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label>Status</label>
             <select [(ngModel)]="form.status">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label>Lecture Hours</label>
+            <input type="number" [(ngModel)]="form.lectureHours" />
+          </div>
+
+          <div class="form-group">
+            <label>Laboratory Hours</label>
+            <input type="number" [(ngModel)]="form.labHours" />
           </div>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
-        <button class="primary-btn" (click)="saveSubject()">
-          {{ editing ? 'Update Subject' : 'Save Subject' }}
+        <button class="cancel-btn" (click)="closeModal()">Cancel</button>
+
+        <button class="primary-btn" (click)="saveSubject()" [disabled]="saving">
+          {{ saving ? 'Saving...' : editing ? 'Update Subject' : 'Save Subject' }}
         </button>
       </div>
     </div>

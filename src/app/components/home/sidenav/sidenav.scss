@@ -1,22 +1,110 @@
-.sidebar {
+:host {
+  display: block;
   width: 270px;
+  min-width: 270px;
+  height: 100vh;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1200;
+  overflow: visible;
+  transition:
+    width 0.25s ease,
+    min-width 0.25s ease,
+    transform 0.25s ease;
+}
+
+:host(.host-collapsed) {
+  width: 92px;
+  min-width: 92px;
+}
+
+:host(.host-mobile) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translateX(-100%);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+}
+
+:host(.host-mobile.host-mobile-open) {
+  transform: translateX(0);
+}
+
+.sidebar {
+  width: 100%;
+  min-width: 100%;
+  height: 100vh;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
-  height: 100vh;
-  padding: 20px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   box-sizing: border-box;
+  position: relative;
+  overflow: visible;
   transition:
+    padding 0.25s ease,
     background 0.25s ease,
     color 0.25s ease;
+}
+
+.sidebar.collapsed {
+  padding: 20px 10px;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 102px;
+  right: -14px;
+  width: 25px;
+  height: 25px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 999px;
+  background: var(--card-bg, #ffffff);
+  color: var(--card-text, #0f172a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--card-shadow, 0 6px 20px rgba(15, 23, 42, 0.05));
+  z-index: 9999;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.sidebar-toggle:hover {
+  transform: translateX(1px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.sidebar-toggle:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.35),
+    0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.sidebar-toggle i {
+  font-size: 12px;
+  font-weight: 700;
+  color: inherit;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 74px;
+  padding-right: 8px;
+}
+
+.logo.logo-collapsed {
+  justify-content: center;
+  padding-right: 0;
 }
 
 .logo img {
@@ -24,12 +112,22 @@
   height: 70px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
+  transition:
+    width 0.25s ease,
+    height 0.25s ease;
+}
+
+.sidebar.collapsed .logo img {
+  width: 50px;
+  height: 50px;
 }
 
 .text {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
 }
 
 .title {
@@ -52,50 +150,98 @@
   border: none;
   height: 1px;
   background-color: var(--sidebar-divider);
-  margin: 20px -20px;
+  margin: 20px -16px;
 }
 
 .portal-label {
   font-size: 15px;
   font-weight: 600;
   color: var(--sidebar-text);
-  margin-bottom: 12px;
+  margin: 0 6px 12px;
 }
 
-nav {
+.nav-list {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
-nav a {
+.nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  min-height: 48px;
   padding: 12px 14px;
-  margin: 6px 0;
-  border-radius: 12px;
+  margin: 2px 0;
+  border-radius: 14px;
   cursor: pointer;
   color: var(--sidebar-muted);
   text-decoration: none;
   transition:
     background 0.2s ease,
     color 0.2s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   font-size: 15px;
+  outline: none;
 }
 
-nav a:hover {
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: 12px;
+  gap: 0;
+}
+
+.nav-link:hover {
   background: var(--sidebar-hover);
   color: var(--sidebar-text);
   transform: translateX(2px);
 }
 
-nav a.active {
+.sidebar.collapsed .nav-link:hover {
+  transform: none;
+}
+
+.nav-link.active {
   background: var(--sidebar-active);
   color: #ffffff;
 }
 
-nav a i {
+.nav-link:focus-visible {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.45);
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+}
+
+.nav-link i {
   font-size: 16px;
   width: 18px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.nav-link span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 991px) {
+  :host {
+    width: 270px;
+    min-width: 270px;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    overflow: hidden;
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
 }

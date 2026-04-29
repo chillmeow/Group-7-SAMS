@@ -3,32 +3,51 @@
     <div class="header-copy">
       <span class="eyebrow">Academic Scheduling</span>
       <h1>Class Offerings</h1>
-      <p>Manage subject assignments, section schedules, and room allocations.</p>
+      <p>
+        Manage official teaching assignments by connecting subjects, sections, teachers, school
+        terms, and flexible lecture/laboratory schedules.
+      </p>
     </div>
 
-    <button class="primary-btn" (click)="openAdd()">
-      <i class="pi pi-plus"></i>
-      <span>Add Offering</span>
-    </button>
+    <div class="header-actions" *ngIf="!isArchiveView()">
+      <button type="button" class="ghost-btn" (click)="openImport()">
+        <i class="pi pi-upload"></i>
+        <span>Import Excel</span>
+      </button>
+
+      <button type="button" class="primary-btn" (click)="openAdd()">
+        <i class="pi pi-plus"></i>
+        <span>Add Class Offering</span>
+      </button>
+    </div>
   </div>
 
   <div class="overview-grid">
     <div class="overview-card blue">
       <div>
         <span class="label">Total Offerings</span>
-        <h2>{{ offerings.length }}</h2>
-        <small>Registered class schedules</small>
+        <h2>{{ totalOfferings }}</h2>
+        <small>Current teaching assignments</small>
       </div>
       <i class="pi pi-calendar"></i>
     </div>
 
     <div class="overview-card green">
       <div>
-        <span class="label">Sections Covered</span>
-        <h2>{{ getUniqueSectionsCount() }}</h2>
-        <small>Unique section assignments</small>
+        <span class="label">Active Offerings</span>
+        <h2>{{ activeOfferings }}</h2>
+        <small>Available for attendance use</small>
       </div>
-      <i class="pi pi-sitemap"></i>
+      <i class="pi pi-check-circle"></i>
+    </div>
+
+    <div class="overview-card orange">
+      <div>
+        <span class="label">Schedule Entries</span>
+        <h2>{{ totalSchedules }}</h2>
+        <small>Lecture and laboratory schedules</small>
+      </div>
+      <i class="pi pi-clock"></i>
     </div>
   </div>
 
@@ -37,190 +56,396 @@
       <i class="pi pi-search"></i>
       <input
         type="text"
-        placeholder="Search by subject ID, teacher ID, section ID, room, or schedule..."
+        placeholder="Search subject, section, teacher, semester, school year, or schedule..."
         [(ngModel)]="search"
+        (ngModelChange)="onSearchChange()"
       />
     </div>
 
     <div class="toolbar-actions">
-      <button class="ghost-btn" (click)="loadOfferings()">
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'all'"
+        (click)="setStatusFilter('all')"
+      >
+        All Records
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'active'"
+        (click)="setStatusFilter('active')"
+      >
+        Active
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'inactive'"
+        (click)="setStatusFilter('inactive')"
+      >
+        Inactive
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'archived'"
+        (click)="setStatusFilter('archived')"
+      >
+        Archived
+      </button>
+
+      <button type="button" class="ghost-btn" (click)="loadOfferings()">
         <i class="pi pi-refresh"></i>
         <span>Refresh</span>
       </button>
     </div>
   </div>
 
-  <div class="board-section">
-    <div class="section-title">
-      <div>
-        <h3>Schedule Board</h3>
-        <p>{{ filteredOfferings().length }} offering card(s) displayed</p>
-      </div>
-    </div>
-
-    <div class="board-grid" *ngIf="filteredOfferings().length > 0; else emptyState">
-      <div
-        class="offering-card"
-        *ngFor="let offering of filteredOfferings(); let i = index"
-        [ngClass]="getCardAccent(i)"
-      >
-        <div class="accent-bar"></div>
-
-        <div class="card-top">
-          <span class="subject-chip">{{ offering.sectionId }}</span>
-        </div>
-
-        <div class="card-body">
-          <h4>Subject ID: {{ offering.subjectId }}</h4>
-          <p>Teacher ID: {{ offering.teacherId }}</p>
-        </div>
-
-        <div class="info-list">
-          <div class="info-item">
-            <i class="pi pi-map-marker"></i>
-            <span>{{ offering.room }}</span>
-          </div>
-
-          <div class="info-item">
-            <i class="pi pi-clock"></i>
-            <span>{{ offering.schedule }}</span>
-          </div>
-        </div>
-
-        <div class="card-actions">
-          <button class="soft-btn edit" (click)="openEdit(offering)">
-            <i class="pi pi-pencil"></i>
-            <span>Edit</span>
-          </button>
-
-          <button class="soft-btn delete" (click)="deleteOffering(offering)">
-            <i class="pi pi-trash"></i>
-            <span>Delete</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <ng-template #emptyState>
-      <div class="empty-state">
-        <i class="pi pi-inbox"></i>
-        <h4>No Class Offerings Yet</h4>
-        <p>Create a class offering to connect subjects, teachers, and sections.</p>
-        <button class="primary-btn" (click)="openAdd()">Add First Offering</button>
-      </div>
-    </ng-template>
-  </div>
-
   <div class="table-card">
     <div class="table-header">
       <div>
-        <h3>Offering List</h3>
-        <p>Compact view for quick academic schedule management</p>
+        <h3>{{ isArchiveView() ? 'Archived Class Offerings' : 'Class Offering List' }}</h3>
+        <p>{{ recordCountLabel }}</p>
       </div>
     </div>
 
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Subject ID</th>
-            <th>Teacher ID</th>
-            <th>Section ID</th>
-            <th>Room</th>
-            <th>Schedule</th>
-            <th class="actions-col">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr *ngFor="let offering of filteredOfferings()">
-            <td>
-              <div class="subject-cell">
-                <strong>{{ offering.subjectId }}</strong>
-                <small>Class offering entry</small>
-              </div>
-            </td>
-
-            <td>{{ offering.teacherId }}</td>
-            <td>{{ offering.sectionId }}</td>
-            <td>{{ offering.room }}</td>
-            <td>{{ offering.schedule }}</td>
-
-            <td class="actions">
-              <button class="icon-btn edit" (click)="openEdit(offering)">
-                <i class="pi pi-pencil"></i>
-              </button>
-
-              <button class="icon-btn delete" (click)="deleteOffering(offering)">
-                <i class="pi pi-trash"></i>
-              </button>
-            </td>
-          </tr>
-
-          <tr *ngIf="filteredOfferings().length === 0">
-            <td colspan="6">
-              <div class="empty-row">No class offering records available.</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="loading-shell" *ngIf="isLoading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading class offering records...</span>
     </div>
-  </div>
 
-  <div class="modal-backdrop" *ngIf="showModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div>
-          <h3>{{ editing ? 'Edit Class Offering' : 'Add Class Offering' }}</h3>
+    <ng-container *ngIf="!isLoading">
+      <div class="table-wrapper" *ngIf="filteredList.length > 0; else emptyOfferings">
+        <table>
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Section</th>
+              <th>Teacher</th>
+              <th>Term</th>
+              <th>Schedule</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let offering of filteredList; trackBy: trackByOffering">
+              <td>
+                <div class="main-cell">
+                  <strong>{{ offering.subjectCode }}</strong>
+                  <small>{{ offering.subjectName }}</small>
+                </div>
+              </td>
+
+              <td>{{ offering.sectionName }}</td>
+              <td>{{ offering.teacherName }}</td>
+
+              <td>
+                <div class="main-cell">
+                  <strong>{{ offering.schoolYear }}</strong>
+                  <small>{{ offering.semester }}</small>
+                </div>
+              </td>
+
+              <td>
+                <div class="schedule-list">
+                  <span
+                    class="schedule-pill"
+                    *ngFor="let schedule of offering.schedules"
+                    [class.lab]="schedule.type === 'Laboratory'"
+                  >
+                    {{ getScheduleLabel(schedule) }}
+                  </span>
+                </div>
+              </td>
+
+              <td>
+                <span class="status-badge" [ngClass]="offering.status">
+                  {{ getStatusLabel(offering.status) }}
+                </span>
+              </td>
+
+              <td class="actions">
+                <ng-container *ngIf="!isArchiveView(); else archiveActions">
+                  <button type="button" class="icon-btn edit" (click)="openEdit(offering)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="text-action-btn"
+                    [ngClass]="getActionClass(offering.status)"
+                    (click)="toggleOfferingStatus(offering)"
+                  >
+                    {{ getActionLabel(offering.status) }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="text-action-btn archive"
+                    (click)="archiveOffering(offering)"
+                  >
+                    Archive
+                  </button>
+                </ng-container>
+
+                <ng-template #archiveActions>
+                  <button
+                    type="button"
+                    class="text-action-btn activate"
+                    (click)="restoreOffering(offering)"
+                  >
+                    Restore
+                  </button>
+
+                  <button
+                    type="button"
+                    class="text-action-btn deactivate"
+                    (click)="permanentlyDeleteOffering(offering)"
+                  >
+                    Permanently Delete
+                  </button>
+                </ng-template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #emptyOfferings>
+        <div class="empty-state">
+          <i class="pi pi-inbox"></i>
+          <h4>
+            {{ isArchiveView() ? 'No archived class offerings' : 'No class offerings found' }}
+          </h4>
           <p>
             {{
-              editing
-                ? 'Update the selected class offering information.'
-                : 'Enter the required class offering details below.'
+              isArchiveView()
+                ? 'Archived class offering records will appear here.'
+                : 'No class offering records match your current search or filter.'
             }}
           </p>
         </div>
+      </ng-template>
+    </ng-container>
+  </div>
 
-        <button class="close-btn" (click)="showModal = false">
+  <div class="drawer-backdrop" *ngIf="showDrawer" (click)="closeDrawer()">
+    <aside class="drawer-panel" (click)="$event.stopPropagation()">
+      <div class="drawer-header">
+        <div>
+          <h3>{{ getDrawerTitle() }}</h3>
+          <p>{{ getDrawerDescription() }}</p>
+        </div>
+
+        <button type="button" class="close-btn" (click)="closeDrawer()">
           <i class="pi pi-times"></i>
         </button>
       </div>
 
-      <div class="modal-body">
+      <div class="drawer-body" *ngIf="drawerMode === 'form'">
         <div class="form-grid">
           <div class="form-group">
-            <label>Subject ID</label>
-            <input type="text" placeholder="Enter subject ID" [(ngModel)]="form.subjectId" />
+            <label>Subject</label>
+            <select [(ngModel)]="form.subjectId" (ngModelChange)="onSubjectChange()">
+              <option value="">Select Subject</option>
+              <option *ngFor="let subject of subjects" [value]="subject.id">
+                {{ getSubjectLabel(subject) }}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
-            <label>Teacher ID</label>
-            <input type="text" placeholder="Enter teacher ID" [(ngModel)]="form.teacherId" />
+            <label>Section</label>
+            <select [(ngModel)]="form.sectionId" (ngModelChange)="onSectionChange()">
+              <option value="">Select Section</option>
+              <option *ngFor="let section of sections" [value]="section.id">
+                {{ getSectionDisplayName(section) }} - {{ section.schoolYear }} -
+                {{ section.semester }}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
-            <label>Section ID</label>
-            <input type="text" placeholder="Enter section ID" [(ngModel)]="form.sectionId" />
+            <label>Teacher</label>
+            <select [(ngModel)]="form.teacherId" (ngModelChange)="onTeacherChange()">
+              <option value="">Select Teacher</option>
+              <option *ngFor="let teacher of teachers" [value]="teacher.id">
+                {{ getTeacherLabel(teacher) }}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
-            <label>Room</label>
-            <input type="text" placeholder="Enter room" [(ngModel)]="form.room" />
+            <label>School Year</label>
+            <input type="text" placeholder="Ex. 2025-2026" [(ngModel)]="form.schoolYear" />
           </div>
 
-          <div class="form-group full">
-            <label>Schedule</label>
-            <input type="text" placeholder="Enter schedule" [(ngModel)]="form.schedule" />
+          <div class="form-group">
+            <label>Semester</label>
+            <select [(ngModel)]="form.semester">
+              <option value="">Select Semester</option>
+              <option *ngFor="let semester of semesters" [value]="semester">
+                {{ semester }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="schedule-section">
+          <div class="schedule-header">
+            <div>
+              <h4>Class Schedule</h4>
+              <p>Add separate lecture and laboratory schedules as needed.</p>
+            </div>
+
+            <button type="button" class="ghost-btn" (click)="addSchedule()">
+              <i class="pi pi-plus"></i>
+              <span>Add Schedule</span>
+            </button>
+          </div>
+
+          <div
+            class="schedule-row"
+            *ngFor="let schedule of form.schedules; let i = index; trackBy: trackBySchedule"
+          >
+            <div class="form-group">
+              <label>Type</label>
+              <select [(ngModel)]="schedule.type">
+                <option *ngFor="let type of scheduleTypes" [value]="type">
+                  {{ type }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Day</label>
+              <select [(ngModel)]="schedule.day">
+                <option value="">Select Day</option>
+                <option *ngFor="let day of days" [value]="day">
+                  {{ day }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Start Time</label>
+              <input type="time" [(ngModel)]="schedule.startTime" />
+            </div>
+
+            <div class="form-group">
+              <label>End Time</label>
+              <input type="time" [(ngModel)]="schedule.endTime" />
+            </div>
+
+            <div class="form-group">
+              <label>Room / Lab</label>
+              <input type="text" placeholder="Ex. Room 201 or Lab 2" [(ngModel)]="schedule.room" />
+            </div>
+
+            <button type="button" class="remove-schedule-btn" (click)="removeSchedule(i)">
+              <i class="pi pi-trash"></i>
+            </button>
           </div>
         </div>
       </div>
 
-      <div class="modal-actions">
-        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
-        <button class="primary-btn" (click)="saveOffering()">
-          {{ editing ? 'Update Offering' : 'Save Offering' }}
+      <div class="drawer-body" *ngIf="drawerMode === 'import'">
+        <div class="import-card">
+          <div class="import-icon">
+            <i class="pi pi-file-excel"></i>
+          </div>
+
+          <h4>Upload Class Offering Excel File</h4>
+          <p>
+            Use this for bulk uploading official teaching assignments from registrar or PRISM-style
+            schedule files.
+          </p>
+
+          <label class="file-upload-box">
+            <input type="file" accept=".xlsx,.xls" (change)="onImportFileSelected($event)" />
+            <i class="pi pi-upload"></i>
+            <span>{{ selectedFileName || 'Choose Excel file' }}</span>
+          </label>
+
+          <button type="button" class="ghost-btn template-btn" (click)="downloadTemplate()">
+            <i class="pi pi-download"></i>
+            <span>Download Template</span>
+          </button>
+        </div>
+
+        <div class="template-guide">
+          <h4>Required Excel Columns</h4>
+          <div class="guide-grid">
+            <span>Subject Code</span>
+            <span>Section</span>
+            <span>Teacher Employee No</span>
+            <span>School Year</span>
+            <span>Semester</span>
+            <span>Schedule Type</span>
+            <span>Day</span>
+            <span>Start Time</span>
+            <span>End Time</span>
+            <span>Room</span>
+          </div>
+        </div>
+
+        <div class="preview-card" *ngIf="importPreview.length > 0">
+          <h4>Import Preview</h4>
+          <p>{{ importPreview.length }} class offering(s) ready for import.</p>
+
+          <div class="preview-list">
+            <div class="preview-item" *ngFor="let offering of importPreview">
+              <strong>{{ offering.subjectCode }} - {{ offering.sectionName }}</strong>
+              <small
+                >{{ offering.teacherName }} • {{ offering.schoolYear }} •
+                {{ offering.semester }}</small
+              >
+              <span>{{ offering.schedules.length }} schedule entry/entries</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-actions">
+        <button type="button" class="cancel-btn" (click)="closeDrawer()">Cancel</button>
+
+        <button
+          *ngIf="drawerMode === 'form'"
+          type="button"
+          class="save-btn"
+          (click)="saveOffering()"
+          [disabled]="isSaving"
+        >
+          <i *ngIf="isSaving" class="pi pi-spin pi-spinner"></i>
+          <span>{{ editing ? 'Update Class Offering' : 'Add Class Offering' }}</span>
+        </button>
+
+        <button
+          *ngIf="drawerMode === 'import'"
+          type="button"
+          class="save-btn"
+          (click)="importClassOfferings()"
+          [disabled]="isImporting || importPreview.length === 0"
+        >
+          <i *ngIf="isImporting" class="pi pi-spin pi-spinner"></i>
+          <span>Import Class Offerings</span>
         </button>
       </div>
-    </div>
+    </aside>
   </div>
 </div>

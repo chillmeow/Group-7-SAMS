@@ -1,1 +1,385 @@
-<p>messages works!</p>
+<section class="messages-page">
+  <aside class="conversation-panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">SAMS Chat</p>
+        <h1>Messages</h1>
+      </div>
+
+      <button
+        type="button"
+        class="new-chat-btn"
+        (click)="toggleNewChatPanel()"
+        *ngIf="currentRole === 'student' || currentRole === 'teacher'"
+        aria-label="Start new chat"
+      >
+        <i class="pi pi-plus"></i>
+      </button>
+    </div>
+
+    <ng-container *ngIf="!showNewChatPanel">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search conversations..."
+          aria-label="Search conversations"
+        />
+      </div>
+
+      <div class="tabs">
+        <button type="button" [class.active]="activeTab === 'all'" (click)="selectTab('all')">
+          All
+        </button>
+
+        <button
+          type="button"
+          [class.active]="activeTab === 'private'"
+          (click)="selectTab('private')"
+        >
+          Private
+        </button>
+
+        <button type="button" [class.active]="activeTab === 'group'" (click)="selectTab('group')">
+          Groups
+        </button>
+      </div>
+    </ng-container>
+
+    <div class="new-chat-panel" *ngIf="showNewChatPanel">
+      <div class="mode-tabs" *ngIf="currentRole === 'student'">
+        <button
+          type="button"
+          [class.active]="newChatMode === 'teacher'"
+          (click)="setNewChatMode('teacher')"
+        >
+          Instructor
+        </button>
+
+        <button
+          type="button"
+          [class.active]="newChatMode === 'classmate'"
+          (click)="setNewChatMode('classmate')"
+        >
+          Classmate
+        </button>
+
+        <button
+          type="button"
+          [class.active]="newChatMode === 'custom-group'"
+          (click)="setNewChatMode('custom-group')"
+        >
+          Group
+        </button>
+      </div>
+
+      <div class="search-box compact">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          [(ngModel)]="availableSearchTerm"
+          placeholder="Search available chats..."
+          aria-label="Search available chats"
+        />
+      </div>
+
+      <div class="available-list" *ngIf="newChatMode !== 'custom-group'">
+        <button
+          type="button"
+          class="available-item"
+          *ngFor="let chat of filteredAvailableChats; trackBy: trackAvailableChat"
+          (click)="openAvailableChat(chat)"
+        >
+          <div class="avatar" [class.group]="chat.type === 'group'">
+            <i [class]="chat.mode === 'classmate' ? 'pi pi-user' : 'pi pi-briefcase'"></i>
+          </div>
+
+          <div class="available-copy">
+            <strong>{{ chat.title }}</strong>
+            <span>{{ chat.subtitle }}</span>
+          </div>
+
+          <small>{{ chat.mode === 'teacher' ? 'Instructor' : 'Classmate' }}</small>
+        </button>
+
+        <div class="mini-empty" *ngIf="filteredAvailableChats.length === 0">
+          No available chats found.
+        </div>
+      </div>
+
+      <div class="custom-group-panel" *ngIf="newChatMode === 'custom-group'">
+        <ng-container *ngIf="currentRole === 'student'; else teacherClassGroups">
+          <p class="helper-text">
+            Select classmates from your section. You can create a private group chat for projects,
+            concerns, or study discussions.
+          </p>
+
+          <div
+            class="classmate-select-list"
+            *ngIf="filteredClassmates.length > 0; else noClassmates"
+          >
+            <button
+              type="button"
+              class="classmate-select-item"
+              *ngFor="let student of filteredClassmates; trackBy: trackClassmate"
+              [class.selected]="isClassmateSelected(student.id)"
+              (click)="toggleClassmateSelection(student.id)"
+            >
+              <div class="avatar">
+                {{
+                  buildName(student.firstName, student.lastName, student.email)
+                    .charAt(0)
+                    .toUpperCase()
+                }}
+              </div>
+
+              <div>
+                <strong>{{ buildName(student.firstName, student.lastName, student.email) }}</strong>
+                <span>{{ student.studentNumber || 'Student' }}</span>
+              </div>
+
+              <i
+                class="pi"
+                [class.pi-check-circle]="isClassmateSelected(student.id)"
+                [class.pi-circle]="!isClassmateSelected(student.id)"
+              ></i>
+            </button>
+          </div>
+
+          <ng-template #noClassmates>
+            <div class="mini-empty">No classmates found in your section.</div>
+          </ng-template>
+
+          <button
+            type="button"
+            class="create-group-btn"
+            (click)="createCustomGroupChat()"
+            [disabled]="selectedClassmateCount === 0"
+          >
+            <i class="pi pi-users"></i>
+            Create Group Chat
+            <span *ngIf="selectedClassmateCount > 0">({{ selectedClassmateCount + 1 }})</span>
+          </button>
+        </ng-container>
+
+        <ng-template #teacherClassGroups>
+          <p class="helper-text">Open a group chat for one of your handled classes.</p>
+
+          <div class="available-list">
+            <button
+              type="button"
+              class="available-item"
+              *ngFor="let chat of filteredAvailableChats; trackBy: trackAvailableChat"
+              (click)="openAvailableChat(chat)"
+            >
+              <div class="avatar group">
+                <i class="pi pi-users"></i>
+              </div>
+
+              <div class="available-copy">
+                <strong>{{ chat.title }}</strong>
+                <span>{{ chat.subtitle }}</span>
+              </div>
+
+              <small>Group</small>
+            </button>
+
+            <div class="mini-empty" *ngIf="filteredAvailableChats.length === 0">
+              No class group chats available.
+            </div>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <div class="loading-state" *ngIf="loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      Loading conversations...
+    </div>
+
+    <div class="error-state" *ngIf="!loading && errorMessage">
+      <i class="pi pi-exclamation-triangle"></i>
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div class="thread-list" *ngIf="!loading && !showNewChatPanel">
+      <button
+        type="button"
+        class="thread-item"
+        *ngFor="let thread of filteredThreads; trackBy: trackThread"
+        [class.active]="selectedThread?.id === thread.id"
+        (click)="selectThread(thread)"
+      >
+        <div class="avatar" [class.group]="thread.type === 'group'">
+          <i [class]="thread.type === 'group' ? 'pi pi-users' : 'pi pi-user'"></i>
+        </div>
+
+        <div class="thread-copy">
+          <div class="thread-top">
+            <strong>{{ thread.title }}</strong>
+            <small>{{ formatTime(thread.lastMessageAt) }}</small>
+          </div>
+
+          <p>{{ thread.lastMessage || thread.subtitle }}</p>
+        </div>
+      </button>
+
+      <div class="empty-list" *ngIf="filteredThreads.length === 0">
+        <i class="pi pi-comments"></i>
+        <h3>{{ emptyTitle }}</h3>
+        <p>Click the plus button to start a private message or group chat.</p>
+      </div>
+    </div>
+  </aside>
+
+  <main class="chat-panel" *ngIf="selectedThread; else noSelectedThread">
+    <header class="chat-header">
+      <div class="avatar large" [class.group]="selectedThread.type === 'group'">
+        <i [class]="selectedThread.type === 'group' ? 'pi pi-users' : 'pi pi-user'"></i>
+      </div>
+
+      <div>
+        <h2>{{ selectedThread.title }}</h2>
+        <p>
+          {{ selectedThread.subtitle }}
+          <span>•</span>
+          {{ selectedThread.type === 'group' ? 'Group chat' : 'Private message' }}
+        </p>
+      </div>
+    </header>
+
+    <section class="message-area" #messageScroll>
+      <div class="loading-messages" *ngIf="loadingMessages">
+        <i class="pi pi-spin pi-spinner"></i>
+        Loading messages...
+      </div>
+
+      <div class="message-empty" *ngIf="!loadingMessages && messages.length === 0">
+        <i class="pi pi-send"></i>
+        <h3>Start the conversation</h3>
+        <p>Send the first message for this chat.</p>
+      </div>
+
+      <div
+        class="message-row"
+        *ngFor="let message of messages; trackBy: trackMessage"
+        [class.own]="isOwnMessage(message)"
+        [class.unsent]="message.isUnsent"
+      >
+        <div class="message-actions" *ngIf="!message.isUnsent">
+          <button
+            type="button"
+            class="message-action-btn"
+            title="Reply"
+            aria-label="Reply to message"
+            (click)="setReplyMessage(message)"
+          >
+            <i class="pi pi-reply"></i>
+          </button>
+
+          <button
+            type="button"
+            class="message-action-btn danger"
+            title="Unsend"
+            aria-label="Unsend message"
+            *ngIf="canUnsendMessage(message)"
+            (click)="unsendMessage(message)"
+          >
+            <i class="pi pi-trash"></i>
+          </button>
+        </div>
+
+        <div class="message-bubble">
+          <div class="message-meta" *ngIf="!isOwnMessage(message)">
+            {{ message.senderName }}
+          </div>
+
+          <div class="reply-preview" *ngIf="message.replyTo">
+            <strong>{{ message.replyTo.senderName }}</strong>
+            <span>{{
+              message.replyTo.isUnsent ? 'This message was unsent' : message.replyTo.text
+            }}</span>
+          </div>
+
+          <p *ngIf="!message.isUnsent">{{ message.text }}</p>
+
+          <p class="unsent-text" *ngIf="message.isUnsent">
+            <i class="pi pi-ban"></i>
+            This message was unsent
+          </p>
+
+          <time>
+            {{ formatTime(message.createdAt) }}
+
+            <span *ngIf="isOwnMessage(message)">
+              •
+              {{ message.seen ? 'Seen' : message.delivered ? 'Delivered' : 'Sent' }}
+            </span>
+          </time>
+        </div>
+      </div>
+    </section>
+
+    <footer class="composer">
+      <div class="replying-box" *ngIf="replyToMessage">
+        <div>
+          <strong>Replying to {{ replyToMessage.senderName }}</strong>
+          <p>{{ getReplyPreviewText(replyToMessage) }}</p>
+        </div>
+
+        <button type="button" aria-label="Cancel reply" (click)="cancelReply()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="emoji-panel" *ngIf="showEmojiPanel">
+        <button
+          type="button"
+          *ngFor="let emoji of emojiList"
+          (click)="addEmoji(emoji)"
+          [attr.aria-label]="'Add emoji ' + emoji"
+        >
+          {{ emoji }}
+        </button>
+      </div>
+
+      <div class="composer-row">
+        <button
+          type="button"
+          class="emoji-toggle-btn"
+          aria-label="Open emoji panel"
+          (click)="toggleEmojiPanel()"
+        >
+          <i class="pi pi-face-smile"></i>
+        </button>
+
+        <textarea
+          [(ngModel)]="newMessage"
+          (keydown)="handleMessageKeydown($event)"
+          placeholder="Type a message..."
+          rows="1"
+        ></textarea>
+
+        <button
+          type="button"
+          class="send-btn"
+          (click)="sendMessage()"
+          [disabled]="!newMessage.trim()"
+        >
+          <i class="pi pi-send"></i>
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <ng-template #noSelectedThread>
+    <main class="chat-panel blank-chat">
+      <div class="blank-content">
+        <i class="pi pi-comments"></i>
+        <h2>Select a conversation</h2>
+        <p>Choose an existing chat or start a new one from your assigned classes.</p>
+      </div>
+    </main>
+  </ng-template>
+</section>

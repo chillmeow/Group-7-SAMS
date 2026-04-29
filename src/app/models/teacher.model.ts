@@ -6,5 +6,6 @@ export interface Teacher {
   lastName: string;
   department: string;
   email: string;
+  facultyType: string;
   status: string;
 }

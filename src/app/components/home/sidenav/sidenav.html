@@ -1,7 +1,27 @@
-<div class="sidebar">
-  <div class="logo">
+<aside
+  id="app-sidebar"
+  class="sidebar"
+  [class.collapsed]="collapsed && !isMobile"
+  [class.mobile-open]="isMobile && mobileOpen"
+  [class.mobile-mode]="isMobile"
+  [attr.aria-hidden]="isMobile && !mobileOpen ? 'true' : 'false'"
+>
+  <button
+    *ngIf="!isMobile"
+    type="button"
+    class="sidebar-toggle"
+    (click)="onToggleCollapse()"
+    [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+    [attr.aria-expanded]="!collapsed"
+    aria-controls="app-sidebar"
+  >
+    <i class="pi" [class.pi-angle-right]="collapsed" [class.pi-angle-left]="!collapsed"></i>
+  </button>
+
+  <div class="logo" [class.logo-collapsed]="collapsed && !isMobile">
     <img src="/assets/images/SAMS_logo2.png" alt="SAMS Logo" />
-    <div class="text">
+
+    <div class="text" *ngIf="!collapsed || isMobile">
       <h1 class="title">SAMS</h1>
       <p class="sub-title">Student Attendance Monitoring System</p>
     </div>
@@ -9,17 +29,26 @@
 
   <hr class="line" />
 
-  <p class="portal-label">{{ currentRole ? (currentRole | titlecase) : 'User' }} Portal</p>
+  <p class="portal-label" *ngIf="!collapsed || isMobile">
+    {{ currentRole ? (currentRole | titlecase) : 'User' }} Portal
+  </p>
 
-  <nav>
+  <nav class="nav-list" aria-label="Sidebar navigation" (keydown)="onNavKeydown($event)">
     <a
-      *ngFor="let item of menuItems"
+      #navLink
+      *ngFor="let item of menuItems; let i = index"
       [routerLink]="item.route"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: true }"
+      class="nav-link"
+      [attr.aria-label]="item.label"
+      [attr.title]="collapsed && !isMobile ? item.label : null"
+      (click)="handleItemClick()"
+      (focus)="focusedIndex = i"
+      (keydown)="onItemKeydown($event, i)"
     >
-      <i [class]="item.icon"></i>
-      <span>{{ item.label }}</span>
+      <i [class]="item.icon" aria-hidden="true"></i>
+      <span *ngIf="!collapsed || isMobile">{{ item.label }}</span>
     </a>
   </nav>
-</div>
+</aside>

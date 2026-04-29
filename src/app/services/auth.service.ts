@@ -1,9 +1,9 @@
 import { Injectable, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
-import { Observable, from, switchMap, map } from 'rxjs';
+import { Observable, from, map, switchMap, throwError, catchError } from 'rxjs';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 import { auth, db } from '../firebase.config';
 import { User, UserRole } from '../models/user.model';
@@ -20,11 +20,19 @@ export class AuthService {
     return isPlatformBrowser(this.platformId);
   }
 
-  login(email: string, password: string): Observable<User> {
-    const normalizedEmail = email.trim().toLowerCase();
+  login(emailOrUsername: string, password: string): Observable<User> {
+    const loginInput = emailOrUsername.trim();
     const normalizedPassword = password.trim();
 
-    return from(signInWithEmailAndPassword(auth, normalizedEmail, normalizedPassword)).pipe(
+    const firebaseEmail = loginInput.toLowerCase();
+
+    return this.loginWithFirebase(firebaseEmail, normalizedPassword).pipe(
+      catchError(() => this.loginWithInstitutionalAccount(loginInput, normalizedPassword)),
+    );
+  }
+
+  private loginWithFirebase(email: string, password: string): Observable<User> {
+    return from(signInWithEmailAndPassword(auth, email, password)).pipe(
       switchMap((cred) => {
         const uid = cred.user.uid;
 
@@ -41,15 +49,67 @@ export class AuthService {
               ...data,
             };
 
-            if (this.isBrowser) {
-              localStorage.setItem(this.storageKey, JSON.stringify(user));
-            }
-
+            this.saveSession(user);
             return user;
           }),
         );
       }),
     );
+  }
+
+  private loginWithInstitutionalAccount(
+    emailOrUsername: string,
+    password: string,
+  ): Observable<User> {
+    const usersRef = collection(db, 'users');
+
+    const usernameQuery = query(usersRef, where('username', '==', emailOrUsername));
+    const emailQuery = query(usersRef, where('email', '==', emailOrUsername.toLowerCase()));
+
+    return from(getDocs(usernameQuery)).pipe(
+      switchMap((usernameSnapshot) => {
+        if (!usernameSnapshot.empty) {
+          const userDoc = usernameSnapshot.docs[0];
+          return from([this.buildInstitutionalUser(userDoc.id, userDoc.data(), password)]);
+        }
+
+        return from(getDocs(emailQuery)).pipe(
+          switchMap((emailSnapshot) => {
+            if (emailSnapshot.empty) {
+              return throwError(() => new Error('invalid-login'));
+            }
+
+            const userDoc = emailSnapshot.docs[0];
+            return from([this.buildInstitutionalUser(userDoc.id, userDoc.data(), password)]);
+          }),
+        );
+      }),
+      map((user) => {
+        this.saveSession(user);
+        return user;
+      }),
+    );
+  }
+
+  private buildInstitutionalUser(
+    id: string,
+    data: Record<string, unknown>,
+    password: string,
+  ): User {
+    const user = {
+      id,
+      ...(data as Omit<User, 'id'>),
+    } as User;
+
+    if (user.status === 'inactive') {
+      throw new Error('account-inactive');
+    }
+
+    if (!user.defaultPassword || user.defaultPassword !== password) {
+      throw new Error('invalid-password');
+    }
+
+    return user;
   }
 
   logout(): void {
@@ -103,6 +163,68 @@ export class AuthService {
   clearSession(): void {
     if (this.isBrowser) {
       localStorage.removeItem(this.storageKey);
+    }
+  }
+
+  getCurrentUserId(): string | null {
+    return this.getCurrentUser()?.id ?? null;
+  }
+
+  getLinkedStudentId(): string | null {
+    const user = this.getCurrentUser();
+    return this.extractLinkedId(user, [
+      'studentId',
+      'linkedStudentId',
+      'studentProfileId',
+      'profileId',
+    ]);
+  }
+
+  getLinkedFacultyId(): string | null {
+    const user = this.getCurrentUser();
+    return this.extractLinkedId(user, [
+      'facultyId',
+      'teacherId',
+      'instructorId',
+      'linkedFacultyId',
+      'linkedTeacherId',
+      'facultyProfileId',
+      'teacherProfileId',
+      'profileId',
+    ]);
+  }
+
+  getLinkedParentId(): string | null {
+    const user = this.getCurrentUser();
+    return this.extractLinkedId(user, [
+      'parentId',
+      'linkedParentId',
+      'parentProfileId',
+      'profileId',
+    ]);
+  }
+
+  private extractLinkedId(user: User | null, possibleKeys: string[]): string | null {
+    if (!user) {
+      return null;
+    }
+
+    const source = user as unknown as Record<string, unknown>;
+
+    for (const key of possibleKeys) {
+      const value = source[key];
+
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return null;
+  }
+
+  private saveSession(user: User): void {
+    if (this.isBrowser) {
+      localStorage.setItem(this.storageKey, JSON.stringify(user));
     }
   }
 }

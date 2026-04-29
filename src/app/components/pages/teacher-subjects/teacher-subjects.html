@@ -1,0 +1,182 @@
+<section class="teacher-subjects-page">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Teacher Portal</p>
+      <h1>My Subjects</h1>
+      <p class="subtitle">View the subjects and class sections currently assigned to you.</p>
+    </div>
+
+    <button type="button" class="refresh-btn" (click)="loadTeacherSubjects()" [disabled]="loading">
+      <i class="pi pi-refresh"></i>
+      <span>Refresh</span>
+    </button>
+  </div>
+
+  <div class="summary-grid">
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-book"></i>
+      </div>
+      <div>
+        <p>Total Subjects</p>
+        <h2>{{ totalSubjects }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-sitemap"></i>
+      </div>
+      <div>
+        <p>Covered Sections</p>
+        <h2>{{ totalSections }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-calendar"></i>
+      </div>
+      <div>
+        <p>Schedules</p>
+        <h2>{{ totalSchedules }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-check-circle"></i>
+      </div>
+      <div>
+        <p>Active Classes</p>
+        <h2>{{ activeOfferings }}</h2>
+      </div>
+    </article>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Search subject, section, semester..."
+        aria-label="Search teacher subjects"
+      />
+    </div>
+
+    <div class="filter-group">
+      <select [(ngModel)]="selectedSemester" aria-label="Filter by semester">
+        <option value="all">All Semesters</option>
+        <option *ngFor="let semester of semesters" [value]="semester">
+          {{ semester }}
+        </option>
+      </select>
+
+      <select [(ngModel)]="selectedSchoolYear" aria-label="Filter by school year">
+        <option value="all">All School Years</option>
+        <option *ngFor="let schoolYear of schoolYears" [value]="schoolYear">
+          {{ schoolYear }}
+        </option>
+      </select>
+
+      <button type="button" class="clear-btn" (click)="resetFilters()">
+        <i class="pi pi-filter-slash"></i>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <div class="state-card loading-card" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading your assigned subjects...</p>
+  </div>
+
+  <div class="state-card error-card" *ngIf="!loading && errorMessage">
+    <i class="pi pi-exclamation-triangle"></i>
+    <h3>Unable to load subjects</h3>
+    <p>{{ errorMessage }}</p>
+    <button type="button" (click)="loadTeacherSubjects()">Try Again</button>
+  </div>
+
+  <div
+    class="state-card empty-card"
+    *ngIf="!loading && !errorMessage && filteredSubjectGroups.length === 0"
+  >
+    <i class="pi pi-folder-open"></i>
+    <h3>No assigned subjects found</h3>
+    <p>
+      There are no class offerings assigned to your teacher account yet, or your filters returned no
+      results.
+    </p>
+    <button type="button" (click)="resetFilters()">Reset Filters</button>
+  </div>
+
+  <div class="subjects-list" *ngIf="!loading && !errorMessage && filteredSubjectGroups.length > 0">
+    <article
+      class="subject-card"
+      *ngFor="let group of filteredSubjectGroups; trackBy: trackSubjectGroup"
+    >
+      <div class="subject-main">
+        <div class="subject-code-badge">
+          {{ group.subjectCode }}
+        </div>
+
+        <div class="subject-info">
+          <h2>{{ group.subjectName }}</h2>
+          <p>
+            {{ group.totalSections }}
+            {{ group.totalSections === 1 ? 'section' : 'sections' }} covered
+            <span>•</span>
+            {{ group.totalSchedules }}
+            {{ group.totalSchedules === 1 ? 'schedule' : 'schedules' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="section-list">
+        <div class="section-row" *ngFor="let offering of group.offerings; trackBy: trackOffering">
+          <div class="section-left">
+            <div class="section-title">
+              <h3>{{ offering.sectionName }}</h3>
+              <span
+                class="status-pill"
+                [class.inactive]="(offering.status || '').toLowerCase() !== 'active'"
+              >
+                {{ offering.status || 'active' }}
+              </span>
+            </div>
+
+            <div class="section-meta">
+              <span>
+                <i class="pi pi-calendar"></i>
+                {{ offering.semester || 'No semester' }}
+              </span>
+
+              <span>
+                <i class="pi pi-clock"></i>
+                {{ offering.schoolYear || 'No school year' }}
+              </span>
+            </div>
+
+            <div class="schedule-box">
+              <i class="pi pi-map-marker"></i>
+              <span>{{ getSchedulePreview(offering.schedules) }}</span>
+            </div>
+          </div>
+
+          <div class="section-actions">
+            <a
+              class="action-btn primary"
+              routerLink="/attendance"
+              [queryParams]="{ offeringId: offering.id }"
+            >
+              <i class="pi pi-calendar-check"></i>
+              Attendance
+            </a>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>

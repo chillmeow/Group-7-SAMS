@@ -1,163 +1,237 @@
 <div class="parents-page">
-  <div class="page-header">
-    <div>
-      <h1>Parents</h1>
-      <p>Manage parent accounts, linked students, and relationship details.</p>
-    </div>
+  <app-page-header
+    title="Parent / Guardian Directory"
+    subtitle="Review parent records, linked students, contact information, and parent portal account status."
+  ></app-page-header>
 
-    <button class="primary-btn" (click)="openAdd()">
-      <i class="pi pi-plus"></i>
-      <span>Add Parent</span>
-    </button>
-  </div>
+  <section class="stats-grid">
+    <app-stat-card
+      label="Total Guardians"
+      [value]="totalParents.toString()"
+      subtitle="Parents and guardians in the main directory"
+      icon="pi pi-users"
+      variant="blue"
+    ></app-stat-card>
 
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="summary-info">
-        <span class="summary-label">Total Parents</span>
-        <h2>{{ parents.length }}</h2>
-        <small>Registered parent records</small>
-      </div>
-      <div class="summary-icon blue">
-        <i class="pi pi-user-plus"></i>
-      </div>
-    </div>
+    <app-stat-card
+      label="Active Guardians"
+      [value]="activeParents.toString()"
+      subtitle="Parent records available for communication"
+      icon="pi pi-check-circle"
+      variant="green"
+    ></app-stat-card>
 
-    <div class="summary-card">
-      <div class="summary-info">
-        <span class="summary-label">Active Parents</span>
-        <h2>{{ parents.filter(p => p.status === 'Active').length }}</h2>
-        <small>Currently active accounts</small>
-      </div>
-      <div class="summary-icon green">
-        <i class="pi pi-check-circle"></i>
-      </div>
-    </div>
+    <app-stat-card
+      label="Portal Accounts"
+      [value]="linkedAccounts.toString()"
+      subtitle="Parents with generated login accounts"
+      icon="pi pi-id-card"
+      variant="purple"
+    ></app-stat-card>
+  </section>
 
-    <div class="summary-card">
-      <div class="summary-info">
-        <span class="summary-label">Inactive Parents</span>
-        <h2>{{ parents.filter(p => p.status === 'Inactive').length }}</h2>
-        <small>Needs review or update</small>
-      </div>
-      <div class="summary-icon red">
-        <i class="pi pi-times-circle"></i>
-      </div>
-    </div>
-  </div>
-
-  <div class="table-section">
-    <div class="table-toolbar">
-      <div class="search-box">
-        <i class="pi pi-search"></i>
-        <input
-          type="text"
-          placeholder="Search by parent name, student, or relationship..."
-          [(ngModel)]="search"
-        />
-      </div>
-
-      <div class="toolbar-right">
-        <button class="ghost-btn" (click)="loadParents()">
-          <i class="pi pi-refresh"></i>
-          <span>Refresh</span>
-        </button>
-      </div>
-    </div>
-
+  <section class="table-section">
     <div class="table-card">
-      <div class="table-header-row">
+      <div class="table-head">
         <div>
-          <h3>Parent List</h3>
-          <p>{{ filteredParents().length }} record(s) found</p>
-        </div>
-      </div>
+          <h3>
+            {{
+              isArchiveView()
+                ? 'Archived Parent / Guardian Records'
+                : 'Linked Parent / Guardian Records'
+            }}
+          </h3>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>Contact Number</th>
-              <th>Linked Student</th>
-              <th>Relationship</th>
-              <th>Status</th>
-              <th class="actions-column">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr *ngFor="let p of filteredParents()">
-              <td>
-                <div class="parent-name-cell">
-                  <div class="avatar">{{ p.firstName.charAt(0) }}{{ p.lastName.charAt(0) }}</div>
-                  <div>
-                    <strong>{{ p.firstName }} {{ p.lastName }}</strong>
-                    <small>Parent Record</small>
-                  </div>
-                </div>
-              </td>
-
-              <td>{{ p.email }}</td>
-              <td>{{ p.contactNumber }}</td>
-              <td>{{ p.studentName }}</td>
-              <td>{{ p.relationship }}</td>
-
-              <td>
-                <span
-                  class="status-badge"
-                  [ngClass]="{
-                    active: p.status === 'Active',
-                    inactive: p.status === 'Inactive',
-                  }"
-                >
-                  {{ p.status }}
-                </span>
-              </td>
-
-              <td class="actions">
-                <button class="icon-btn edit" (click)="openEdit(p)" title="Edit">
-                  <i class="pi pi-pencil"></i>
-                </button>
-
-                <button class="icon-btn delete" (click)="deleteParent(p)" title="Delete">
-                  <i class="pi pi-trash"></i>
-                </button>
-              </td>
-            </tr>
-
-            <tr *ngIf="filteredParents().length === 0">
-              <td colspan="7">
-                <div class="empty-state">
-                  <i class="pi pi-inbox"></i>
-                  <h4>No parents found</h4>
-                  <p>Try adjusting your search or add a new parent record.</p>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL -->
-  <div class="modal-backdrop" *ngIf="showModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div>
-          <h3>{{ editing ? 'Edit Parent' : 'Add Parent' }}</h3>
           <p>
             {{
-              editing
-                ? 'Update the selected parent information.'
-                : 'Enter the required parent details below.'
+              isArchiveView()
+                ? 'Archived parent records are kept for history and may be restored or permanently deleted.'
+                : 'This directory supports attendance monitoring by keeping parent contact details, linked student references, and portal account status aligned.'
             }}
           </p>
         </div>
 
-        <button class="close-btn" (click)="showModal = false">
+        <div class="header-actions" *ngIf="!isArchiveView()">
+          <button type="button" class="text-action-btn activate" (click)="openAdd()">
+            Register Parent Manually
+          </button>
+        </div>
+      </div>
+
+      <app-data-toolbar
+        searchPlaceholder="Search parent name, email, contact number, relationship, linked student, or account status..."
+        [searchValue]="search"
+        [showSearch]="true"
+        [showRefresh]="true"
+        [showPrimaryAction]="false"
+        refreshLabel="Refresh"
+        (searchValueChange)="onSearchChange($event)"
+        (refreshClick)="loadParents()"
+      ></app-data-toolbar>
+
+      <div class="filter-row">
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="statusFilter === 'all'"
+          (click)="setStatusFilter('all')"
+        >
+          All Records
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="statusFilter === 'active'"
+          (click)="setStatusFilter('active')"
+        >
+          Active
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="statusFilter === 'inactive'"
+          (click)="setStatusFilter('inactive')"
+        >
+          Inactive
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="statusFilter === 'archived'"
+          (click)="setStatusFilter('archived')"
+        >
+          Archived
+        </button>
+      </div>
+
+      <div class="loading-shell" *ngIf="isLoading">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Loading parent records...</span>
+      </div>
+
+      <ng-container *ngIf="!isLoading">
+        <div class="table-meta">
+          <p>{{ recordCountLabel }}</p>
+        </div>
+
+        <div class="table-wrapper" *ngIf="filteredList.length > 0; else noParents">
+          <table>
+            <thead>
+              <tr>
+                <th>Guardian</th>
+                <th>Linked Student</th>
+                <th>Relationship</th>
+                <th>Contact Number</th>
+                <th>Email</th>
+                <th>Portal Account</th>
+                <th>Status</th>
+                <th class="actions-column">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let parent of filteredList; trackBy: trackByParent">
+                <td>
+                  <div class="parent-cell">
+                    <div class="avatar">{{ getParentInitials(parent) }}</div>
+
+                    <div class="parent-copy">
+                      <strong>{{ getParentFullName(parent) }}</strong>
+                      <small>{{ parent.email || 'No email provided' }}</small>
+                    </div>
+                  </div>
+                </td>
+
+                <td>{{ getLinkedStudentLabel(parent) }}</td>
+                <td>{{ parent.relationship || '—' }}</td>
+                <td>{{ parent.contactNumber || '—' }}</td>
+                <td>{{ parent.email || '—' }}</td>
+
+                <td>
+                  <app-status-badge
+                    [label]="getAccountLabel(parent)"
+                    [variant]="getAccountVariant(parent)"
+                  ></app-status-badge>
+                </td>
+
+                <td>
+                  <app-status-badge
+                    [label]="getStatusLabel(parent.status)"
+                    [variant]="getStatusVariant(parent.status)"
+                  ></app-status-badge>
+                </td>
+
+                <td class="actions">
+                  <ng-container *ngIf="!isArchiveView(); else archiveActions">
+                    <button type="button" class="icon-btn edit" (click)="openEdit(parent)">
+                      <i class="pi pi-pencil"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="text-action-btn deactivate"
+                      (click)="archiveParent(parent)"
+                    >
+                      Archive
+                    </button>
+                  </ng-container>
+
+                  <ng-template #archiveActions>
+                    <button
+                      type="button"
+                      class="text-action-btn activate"
+                      (click)="restoreParent(parent)"
+                    >
+                      Restore
+                    </button>
+
+                    <button
+                      type="button"
+                      class="text-action-btn deactivate"
+                      (click)="permanentlyDeleteParent(parent)"
+                    >
+                      Permanently Delete
+                    </button>
+                  </ng-template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #noParents>
+          <app-empty-state
+            [title]="isArchiveView() ? 'No archived parent records' : 'No parent records found'"
+            [message]="
+              isArchiveView()
+                ? 'Archived parent records will appear here before permanent deletion.'
+                : 'No parent or guardian records match your current search or filter.'
+            "
+            icon="pi pi-users"
+          ></app-empty-state>
+        </ng-template>
+      </ng-container>
+    </div>
+  </section>
+
+  <div class="modal-backdrop" *ngIf="showModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>{{ editing ? 'Review Parent Record' : 'Register Parent Manually' }}</h3>
+          <p>
+            {{
+              editing
+                ? 'Update parent or guardian contact information.'
+                : 'Use manual registration only for special cases. Most parent records are created from student enrollment.'
+            }}
+          </p>
+        </div>
+
+        <button type="button" class="close-btn" (click)="closeModal()">
           <i class="pi pi-times"></i>
         </button>
       </div>
@@ -166,56 +240,54 @@
         <div class="form-grid">
           <div class="form-group">
             <label>First Name</label>
-            <input type="text" placeholder="Enter first name" [(ngModel)]="form.firstName" />
+            <input type="text" [(ngModel)]="form.firstName" placeholder="Enter first name" />
           </div>
 
           <div class="form-group">
             <label>Last Name</label>
-            <input type="text" placeholder="Enter last name" [(ngModel)]="form.lastName" />
+            <input type="text" [(ngModel)]="form.lastName" placeholder="Enter last name" />
           </div>
 
           <div class="form-group">
             <label>Email</label>
-            <input type="email" placeholder="Enter email address" [(ngModel)]="form.email" />
+            <input type="email" [(ngModel)]="form.email" placeholder="Enter email address" />
           </div>
 
           <div class="form-group">
             <label>Contact Number</label>
             <input
               type="text"
-              placeholder="Enter contact number"
               [(ngModel)]="form.contactNumber"
+              placeholder="Enter contact number"
             />
           </div>
 
-          <div class="form-group">
-            <label>Linked Student</label>
-            <input
-              type="text"
-              placeholder="Enter linked student name"
-              [(ngModel)]="form.studentName"
-            />
-          </div>
-
-          <div class="form-group">
+          <div class="form-group full">
             <label>Relationship</label>
-            <input type="text" placeholder="Enter relationship" [(ngModel)]="form.relationship" />
+            <select [(ngModel)]="form.relationship">
+              <option value="">Select relationship</option>
+              <option value="Mother">Mother</option>
+              <option value="Father">Father</option>
+              <option value="Guardian">Guardian</option>
+            </select>
           </div>
 
           <div class="form-group full">
             <label>Status</label>
             <select [(ngModel)]="form.status">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
             </select>
           </div>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="cancel-btn" (click)="showModal = false">Cancel</button>
-        <button class="primary-btn" (click)="saveParent()">
-          {{ editing ? 'Update Parent' : 'Save Parent' }}
+        <button type="button" class="cancel-btn" (click)="closeModal()">Cancel</button>
+
+        <button type="button" class="save-btn" (click)="saveParent()" [disabled]="isSaving">
+          <i *ngIf="isSaving" class="pi pi-spin pi-spinner"></i>
+          <span>{{ editing ? 'Update Record' : 'Save Parent' }}</span>
         </button>
       </div>
     </div>

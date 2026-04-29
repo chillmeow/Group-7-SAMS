@@ -1,0 +1,12 @@
+<div class="empty-state">
+  <div class="icon">
+    <i [class]="icon"></i>
+  </div>
+
+  <h3>{{ title }}</h3>
+  <p>{{ message }}</p>
+
+  <button *ngIf="showAction" class="action-btn" (click)="onAction()">
+    {{ actionLabel }}
+  </button>
+</div>

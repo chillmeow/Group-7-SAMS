@@ -1,0 +1,201 @@
+<section class="student-subjects-page">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Student Portal</p>
+      <h1>My Subjects</h1>
+      <p class="subtitle">
+        View your enrolled subjects, assigned teachers, section, semester, and class schedules.
+      </p>
+    </div>
+
+    <button type="button" class="refresh-btn" (click)="loadStudentSubjects()" [disabled]="loading">
+      <i class="pi pi-refresh"></i>
+      <span>{{ loading ? 'Loading...' : 'Refresh' }}</span>
+    </button>
+  </div>
+
+  <div class="student-profile-card" *ngIf="!loading && !errorMessage">
+    <div class="profile-avatar">
+      {{ studentName ? studentName.charAt(0).toUpperCase() : 'S' }}
+    </div>
+
+    <div class="profile-info">
+      <h2>{{ studentName || 'Student' }}</h2>
+      <p>
+        <span>{{ studentNumber || 'No student number' }}</span>
+        <span>•</span>
+        <span>{{ studentYearLevel || 'No year level' }}</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-book"></i>
+      </div>
+      <div>
+        <p>Total Subjects</p>
+        <h2>{{ totalSubjects }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-briefcase"></i>
+      </div>
+      <div>
+        <p>Teachers</p>
+        <h2>{{ totalTeachers }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-calendar"></i>
+      </div>
+      <div>
+        <p>Schedules</p>
+        <h2>{{ totalSchedules }}</h2>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-check-circle"></i>
+      </div>
+      <div>
+        <p>Active Subjects</p>
+        <h2>{{ activeSubjects }}</h2>
+      </div>
+    </article>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Search subject, teacher, semester..."
+        aria-label="Search student subjects"
+      />
+    </div>
+
+    <div class="filter-group">
+      <select [(ngModel)]="selectedSemester" aria-label="Filter by semester">
+        <option value="all">All Semesters</option>
+        <option *ngFor="let semester of semesters" [value]="semester">
+          {{ semester }}
+        </option>
+      </select>
+
+      <select [(ngModel)]="selectedSchoolYear" aria-label="Filter by school year">
+        <option value="all">All School Years</option>
+        <option *ngFor="let schoolYear of schoolYears" [value]="schoolYear">
+          {{ schoolYear }}
+        </option>
+      </select>
+
+      <button type="button" class="clear-btn" (click)="resetFilters()">
+        <i class="pi pi-filter-slash"></i>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <div class="state-card loading-card" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading your subjects...</p>
+  </div>
+
+  <div class="state-card error-card" *ngIf="!loading && errorMessage">
+    <i class="pi pi-exclamation-triangle"></i>
+    <h3>Unable to load subjects</h3>
+    <p>{{ errorMessage }}</p>
+    <button type="button" (click)="loadStudentSubjects()">Try Again</button>
+  </div>
+
+  <div
+    class="state-card empty-card"
+    *ngIf="!loading && !errorMessage && filteredOfferings.length === 0"
+  >
+    <i class="pi pi-folder-open"></i>
+    <h3>No subjects found</h3>
+    <p>
+      No class offerings are currently assigned to your section, or your filters returned no
+      results.
+    </p>
+    <button type="button" (click)="resetFilters()">Reset Filters</button>
+  </div>
+
+  <div class="subjects-grid" *ngIf="!loading && !errorMessage && filteredOfferings.length > 0">
+    <article
+      class="subject-card"
+      *ngFor="let offering of filteredOfferings; trackBy: trackOffering"
+    >
+      <div class="subject-header">
+        <div class="subject-code">
+          {{ offering.subjectCode }}
+        </div>
+
+        <span
+          class="status-pill"
+          [class.inactive]="(offering.status || '').toLowerCase() !== 'active'"
+        >
+          {{ offering.status || 'active' }}
+        </span>
+      </div>
+
+      <div class="subject-body">
+        <h2>{{ offering.subjectName }}</h2>
+
+        <div class="info-list">
+          <div class="info-item">
+            <i class="pi pi-user"></i>
+            <div>
+              <span>Teacher</span>
+              <strong>{{ offering.teacherName || 'No teacher assigned' }}</strong>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <i class="pi pi-sitemap"></i>
+            <div>
+              <span>Section</span>
+              <strong>{{ offering.sectionName || 'No section' }}</strong>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <i class="pi pi-calendar"></i>
+            <div>
+              <span>Semester</span>
+              <strong>{{ offering.semester || 'No semester' }}</strong>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <i class="pi pi-clock"></i>
+            <div>
+              <span>School Year</span>
+              <strong>{{ offering.schoolYear || 'No school year' }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="schedule-box">
+          <i class="pi pi-map-marker"></i>
+          <span>{{ getSchedulePreview(offering.schedules) }}</span>
+        </div>
+      </div>
+
+      <div class="subject-footer">
+        <a routerLink="/student-attendance" class="attendance-link">
+          <i class="pi pi-calendar-check"></i>
+          View Attendance
+        </a>
+      </div>
+    </article>
+  </div>
+</section>

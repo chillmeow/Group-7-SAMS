@@ -12,4 +12,9 @@ export interface User {
   contactNumber?: string;
   address?: string;
   photoUrl?: string;
+
+  defaultPassword?: string;
+  mustChangePassword?: boolean;
+  accountType?: 'firebase' | 'institutional-demo';
+  createdAt?: string;
 }

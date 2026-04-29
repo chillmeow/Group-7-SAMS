@@ -2,8 +2,11 @@ import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   Component,
   ElementRef,
+  EventEmitter,
   HostListener,
+  Input,
   OnInit,
+  Output,
   PLATFORM_ID,
   ViewChild,
   inject,
@@ -31,6 +34,12 @@ export class Topbar implements OnInit {
   private readonly api = inject(ApiService);
   private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
+
+  @Input() isSidebarCollapsed = false;
+  @Input() isMobile = false;
+  @Input() isMobileSidebarOpen = false;
+
+  @Output() menuToggle = new EventEmitter<void>();
 
   @ViewChild('notifRef') notifRef!: ElementRef;
   @ViewChild('profileRef') profileRef!: ElementRef;
@@ -62,6 +71,7 @@ export class Topbar implements OnInit {
       .subscribe((event: NavigationEnd) => {
         this.updatePageTitle(event.urlAfterRedirects);
         this.currentUser = this.authService.getCurrentUser();
+        this.loadNotifications();
       });
   }
 
@@ -101,6 +111,26 @@ export class Topbar implements OnInit {
     return value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  onMenuToggle(): void {
+    this.menuToggle.emit();
+  }
+
+  getMenuButtonLabel(): string {
+    if (this.isMobile) {
+      return this.isMobileSidebarOpen ? 'Close navigation menu' : 'Open navigation menu';
+    }
+
+    return this.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  }
+
+  getMenuIconClass(): string {
+    if (this.isMobile) {
+      return this.isMobileSidebarOpen ? 'pi-times' : 'pi-bars';
+    }
+
+    return this.isSidebarCollapsed ? 'pi-bars' : 'pi-angle-left';
+  }
+
   loadNotifications(): void {
     if (!this.currentUser?.id) {
       this.notifications = [];
@@ -112,8 +142,8 @@ export class Topbar implements OnInit {
 
     this.api.getNotificationsByUser(this.currentUser.id).subscribe({
       next: (data) => {
-        this.notifications = data;
-        this.unreadCount = data.filter((item) => !item.read).length;
+        this.notifications = data ?? [];
+        this.unreadCount = this.notifications.filter((item) => !item.read).length;
         this.isLoadingNotifications = false;
       },
       error: () => {
@@ -195,12 +225,18 @@ export class Topbar implements OnInit {
   markAsRead(notification: Notification, event?: Event): void {
     event?.stopPropagation();
 
-    if (notification.read) return;
+    if (notification.read || !notification.id) return;
 
     this.api.markNotificationAsRead(notification.id).subscribe({
-      next: () => {
-        notification.read = true;
+      next: (updated) => {
+        notification.read = updated.read;
         this.unreadCount = this.notifications.filter((item) => !item.read).length;
+      },
+      error: () => {
+        this.alertService.warning(
+          'Notification update failed',
+          'Unable to mark as read right now.',
+        );
       },
     });
   }
@@ -208,10 +244,10 @@ export class Topbar implements OnInit {
   markAllAsRead(event: Event): void {
     event.stopPropagation();
 
-    const unreadItems = this.notifications.filter((item) => !item.read);
+    const unreadItems = this.notifications.filter((item) => !item.read && item.id);
 
     unreadItems.forEach((item) => {
-      this.api.markNotificationAsRead(item.id).subscribe({
+      this.api.markNotificationAsRead(item.id!).subscribe({
         next: () => {
           item.read = true;
           this.unreadCount = this.notifications.filter((notif) => !notif.read).length;
@@ -227,6 +263,9 @@ export class Topbar implements OnInit {
       next: () => {
         this.notifications = this.notifications.filter((item) => item.id !== id);
         this.unreadCount = this.notifications.filter((item) => !item.read).length;
+      },
+      error: () => {
+        this.alertService.warning('Delete failed', 'Unable to remove notification right now.');
       },
     });
   }
@@ -286,6 +325,17 @@ export class Topbar implements OnInit {
     }
 
     if (this.searchRef && !this.searchRef.nativeElement.contains(target)) {
+      this.isSearchOpen = false;
+      this.searchQuery = '';
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    this.isProfileOpen = false;
+    this.isNotifOpen = false;
+
+    if (this.isSearchOpen) {
       this.isSearchOpen = false;
       this.searchQuery = '';
     }

@@ -1,0 +1,200 @@
+<section class="attendance-page">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Admin Monitoring</p>
+      <h1>Attendance</h1>
+      <p class="subtitle">
+        Monitor class attendance sessions, student attendance records, and attendance status.
+      </p>
+    </div>
+
+    <button type="button" class="refresh-btn" (click)="loadAttendanceData()">
+      <i class="pi pi-refresh"></i>
+      Refresh
+    </button>
+  </div>
+
+  <div class="summary-grid">
+    <article class="summary-card">
+      <span class="label">Present</span>
+      <strong>{{ totalPresent }}</strong>
+      <small>Valid present records</small>
+    </article>
+
+    <article class="summary-card">
+      <span class="label">Late</span>
+      <strong>{{ totalLate }}</strong>
+      <small>Late attendance records</small>
+    </article>
+
+    <article class="summary-card">
+      <span class="label">Absent</span>
+      <strong>{{ totalAbsent }}</strong>
+      <small>Absence records</small>
+    </article>
+
+    <article class="summary-card">
+      <span class="label">Attendance Rate</span>
+      <strong>{{ attendanceRate }}%</strong>
+      <small>Present + late over total</small>
+    </article>
+  </div>
+
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Date</label>
+      <input type="date" [(ngModel)]="selectedDate" (change)="applyFilters()" />
+    </div>
+
+    <div class="filter-group">
+      <label>Section</label>
+      <select [(ngModel)]="selectedSection" (change)="applyFilters()">
+        <option *ngFor="let section of sectionOptions" [value]="section">
+          {{ section }}
+        </option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Subject</label>
+      <select [(ngModel)]="selectedSubject" (change)="applyFilters()">
+        <option *ngFor="let subject of subjectOptions" [value]="subject">
+          {{ subject }}
+        </option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Session Status</label>
+      <select [(ngModel)]="selectedStatus" (change)="applyFilters()">
+        <option value="All">All</option>
+        <option value="active">Active</option>
+        <option value="closed">Closed</option>
+      </select>
+    </div>
+
+    <button type="button" class="clear-btn" (click)="resetFilters()">Clear</button>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <h2>Class Attendance Sessions</h2>
+        <p>Admin can only monitor records here. Manual attendance taking is not included.</p>
+      </div>
+    </div>
+
+    <div class="loading-state" *ngIf="loading">Loading attendance records...</div>
+
+    <div class="empty-state" *ngIf="!loading && filteredRows.length === 0">
+      No attendance sessions found.
+    </div>
+
+    <div class="table-wrap" *ngIf="!loading && filteredRows.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Section</th>
+            <th>Teacher</th>
+            <th>Status</th>
+            <th>Present</th>
+            <th>Late</th>
+            <th>Absent</th>
+            <th>Rate</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let row of filteredRows">
+            <td>{{ formatDate(row.session.date) }}</td>
+            <td>
+              <strong>{{ row.offering?.subjectCode || 'Unknown' }}</strong>
+              <span>{{ row.offering?.subjectName || 'No subject linked' }}</span>
+            </td>
+            <td>{{ row.offering?.sectionName || '—' }}</td>
+            <td>{{ row.offering?.teacherName || '—' }}</td>
+            <td>
+              <span class="status-pill" [class.active]="row.session.status === 'active'">
+                {{ row.session.status | titlecase }}
+              </span>
+            </td>
+            <td>{{ row.present }}</td>
+            <td>{{ row.late }}</td>
+            <td>{{ row.absent }}</td>
+            <td>{{ row.rate }}%</td>
+            <td>
+              <button type="button" class="view-btn" (click)="viewDetails(row)">View</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="selectedRow" (click)="closeDetails()">
+    <div class="details-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>Attendance Details</h2>
+          <p>
+            {{ selectedRow.offering?.subjectCode || 'Unknown Subject' }}
+            ·
+            {{ selectedRow.offering?.sectionName || 'Unknown Section' }}
+          </p>
+        </div>
+
+        <button type="button" class="close-btn" (click)="closeDetails()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <span>Date</span>
+          <strong>{{ formatDate(selectedRow.session.date) }}</strong>
+        </div>
+
+        <div>
+          <span>Start Time</span>
+          <strong>{{ formatTime(selectedRow.session.startTime) }}</strong>
+        </div>
+
+        <div>
+          <span>Status</span>
+          <strong>{{ selectedRow.session.status | titlecase }}</strong>
+        </div>
+
+        <div>
+          <span>Attendance Rate</span>
+          <strong>{{ selectedRow.rate }}%</strong>
+        </div>
+      </div>
+
+      <div class="records-list">
+        <h3>Student Records</h3>
+
+        <p class="empty-records" *ngIf="selectedRow.records.length === 0">
+          No student attendance records yet.
+        </p>
+
+        <div class="record-item" *ngFor="let record of selectedRow.records">
+          <div>
+            <strong>{{ record.studentId }}</strong>
+            <span>{{ formatTime(record.timeRecorded) }} · {{ record.method | uppercase }}</span>
+          </div>
+
+          <span
+            class="record-status"
+            [class.late]="record.status === 'late'"
+            [class.absent]="record.status === 'absent'"
+          >
+            {{ record.status | titlecase }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

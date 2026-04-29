@@ -1,0 +1,78 @@
+.empty-state {
+  width: 100%;
+  min-height: 200px;
+  border-radius: 20px;
+  border: 1px dashed var(--card-border);
+  background: var(--card-bg-soft);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  text-align: center;
+  padding: 24px;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--card-bg);
+  color: var(--card-muted);
+}
+
+.icon i {
+  font-size: 20px;
+}
+
+.empty-state h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--card-text);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--card-muted);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.action-btn {
+  margin-top: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+
+  background: var(--primary-btn-bg);
+  color: var(--primary-btn-text);
+
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+/* DARK MODE tweak */
+body.dark-mode .empty-state {
+  background: var(--card-bg);
+}

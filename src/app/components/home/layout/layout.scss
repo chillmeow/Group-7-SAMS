@@ -4,6 +4,7 @@
   overflow: hidden;
   background: var(--app-bg);
   transition: background 0.25s ease;
+  position: relative;
 }
 
 .main-shell {
@@ -13,7 +14,11 @@
   overflow-x: hidden;
   scroll-behavior: smooth;
   background: var(--app-bg);
-  transition: background 0.25s ease;
+  transition:
+    background 0.25s ease,
+    margin-left 0.25s ease,
+    width 0.25s ease;
+  min-width: 0;
 }
 
 app-topbar {
@@ -28,4 +33,19 @@ app-topbar {
   box-sizing: border-box;
   background: var(--page-bg);
   transition: background 0.25s ease;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1100;
+  border: none;
+  outline: none;
+}
+
+@media (max-width: 991px) {
+  .dashboard-layout {
+    overflow: hidden;
+  }
 }

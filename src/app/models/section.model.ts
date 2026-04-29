@@ -1,9 +1,15 @@
 export interface Section {
   id?: string;
+  sectionCode: string;
   sectionName: string;
+  program: string;
   yearLevel: string;
-  adviser: string;
+  semester: string;
+  adviserId: string;
+  adviserName: string;
+  schoolYear: string;
   capacity: number;
-  students: number;
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

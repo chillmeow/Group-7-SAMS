@@ -1,11 +1,24 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Injectable } from '@angular/core';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { Observable, from, map, switchMap, throwError } from 'rxjs';
+
+import { db } from '../firebase.config';
 import { User } from '../models/user.model';
 
 export interface Student {
   id: string | number;
   userId?: string | number;
+  parentId?: string | number;
   studentNumber?: string;
   firstName?: string;
   lastName?: string;
@@ -14,16 +27,24 @@ export interface Student {
   sectionId?: string | number;
   yearLevel?: string;
   status?: string;
+
+  parentFirstName?: string;
+  parentLastName?: string;
+  parentEmail?: string;
+  parentContactNumber?: string;
+  parentRelationship?: string;
 }
 
 export interface Teacher {
   id: string | number;
   userId?: string | number;
   employeeId?: string;
+  employeeNo?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
   department?: string;
+  facultyType?: string;
   status?: string;
 }
 
@@ -31,45 +52,69 @@ export interface Parent {
   id: string | number;
   userId?: string | number;
   studentId?: string | number;
+  studentIds?: Array<string | number>;
   relationship?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
+  contactNumber?: string;
   status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Subject {
   id: string | number;
-  subjectCode: string;
-  subjectName: string;
-  units: number;
+  subjectCode?: string;
+  subjectName?: string;
+  program?: string;
+  yearLevel?: string;
+  semester?: string;
+  units?: number;
+  lectureHours?: number;
+  labHours?: number;
+  status?: string;
 }
 
 export interface Section {
   id: string | number;
-  sectionName: string;
-  yearLevel: string;
-  adviser: string;
-  capacity: number;
-  students: number;
-  status: string;
+  sectionName?: string;
+  yearLevel?: string;
+  adviser?: string;
+  adviserId?: string | number;
+  program?: string;
+  capacity?: number;
+  students?: number;
+  status?: string;
 }
 
 export interface ClassOffering {
   id: string | number;
-  subjectId: string | number;
-  teacherId: string | number;
-  sectionId: string | number;
-  room: string;
-  schedule: string;
+  subjectId?: string | number;
+  teacherId?: string | number;
+  sectionId?: string | number;
+  room?: string;
+  schedule?: string;
+  subjectCode?: string;
+  subjectName?: string;
+  offeringCode?: string;
+  status?: string;
 }
 
 export interface Session {
   id: string | number;
-  offeringId: string | number;
+  offeringId?: string | number;
+  classOfferingId?: string | number;
+  instructorId?: string | number;
   date: string;
+  startTime?: string;
+  endTime?: string;
+  sessionCode?: string;
+  qrToken?: string;
   qrCode?: string;
   status: string;
+  lateThresholdMinutes?: number;
+  createdAt?: string;
 }
 
 export interface Attendance {
@@ -77,7 +122,14 @@ export interface Attendance {
   sessionId: string | number;
   studentId: string | number;
   status: string;
+  method?: string;
   time?: string;
+  timeRecorded?: string;
+  timestamp?: string;
+  lateTime?: string;
+  recordedBy?: string;
+  isValid?: boolean;
+  remarks?: string;
 }
 
 export interface Notification {
@@ -95,226 +147,616 @@ export interface Notification {
   providedIn: 'root',
 })
 export class ApiService {
-  private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:3000';
-
   getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.baseUrl}/users`);
+    const ref = collection(db, 'users');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<User, 'id'>),
+        })),
+      ),
+    );
   }
 
   getUserById(id: string | number): Observable<User> {
-    return this.http.get<User>(`${this.baseUrl}/users/${id}`);
+    const ref = doc(db, 'users', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('user-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<User, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createUser(payload: Partial<User>): Observable<User> {
-    return this.http.post<User>(`${this.baseUrl}/users`, payload);
+    const ref = collection(db, 'users');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<User, 'id'>),
+      })),
+    );
   }
 
   updateUser(id: string | number, payload: Partial<User>): Observable<User> {
-    return this.http.patch<User>(`${this.baseUrl}/users/${id}`, payload);
+    const ref = doc(db, 'users', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getUserById(id)),
+    );
   }
 
   deleteUser(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/users/${id}`);
+    return from(deleteDoc(doc(db, 'users', String(id)))).pipe(map(() => void 0));
   }
 
   getStudents(): Observable<Student[]> {
-    return this.http.get<Student[]>(`${this.baseUrl}/students`);
+    const ref = collection(db, 'students');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Student, 'id'>),
+        })),
+      ),
+    );
   }
 
   getStudentById(id: string | number): Observable<Student> {
-    return this.http.get<Student>(`${this.baseUrl}/students/${id}`);
+    const ref = doc(db, 'students', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('student-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Student, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createStudent(payload: Partial<Student>): Observable<Student> {
-    return this.http.post<Student>(`${this.baseUrl}/students`, payload);
+    const ref = collection(db, 'students');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Student, 'id'>),
+      })),
+    );
   }
 
   updateStudent(id: string | number, payload: Partial<Student>): Observable<Student> {
-    return this.http.patch<Student>(`${this.baseUrl}/students/${id}`, payload);
+    const ref = doc(db, 'students', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getStudentById(id)),
+    );
   }
 
   deleteStudent(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/students/${id}`);
+    return from(deleteDoc(doc(db, 'students', String(id)))).pipe(map(() => void 0));
   }
 
   getTeachers(): Observable<Teacher[]> {
-    return this.http.get<Teacher[]>(`${this.baseUrl}/teachers`);
+    const ref = collection(db, 'teachers');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Teacher, 'id'>),
+        })),
+      ),
+    );
   }
 
   getTeacherById(id: string | number): Observable<Teacher> {
-    return this.http.get<Teacher>(`${this.baseUrl}/teachers/${id}`);
+    const ref = doc(db, 'teachers', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('teacher-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Teacher, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createTeacher(payload: Partial<Teacher>): Observable<Teacher> {
-    return this.http.post<Teacher>(`${this.baseUrl}/teachers`, payload);
+    const ref = collection(db, 'teachers');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Teacher, 'id'>),
+      })),
+    );
   }
 
   updateTeacher(id: string | number, payload: Partial<Teacher>): Observable<Teacher> {
-    return this.http.patch<Teacher>(`${this.baseUrl}/teachers/${id}`, payload);
+    const ref = doc(db, 'teachers', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getTeacherById(id)),
+    );
   }
 
   deleteTeacher(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/teachers/${id}`);
+    return from(deleteDoc(doc(db, 'teachers', String(id)))).pipe(map(() => void 0));
   }
 
   getParents(): Observable<Parent[]> {
-    return this.http.get<Parent[]>(`${this.baseUrl}/parents`);
+    const ref = collection(db, 'parents');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Parent, 'id'>),
+        })),
+      ),
+    );
   }
 
   getParentById(id: string | number): Observable<Parent> {
-    return this.http.get<Parent>(`${this.baseUrl}/parents/${id}`);
+    const ref = doc(db, 'parents', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('parent-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Parent, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createParent(payload: Partial<Parent>): Observable<Parent> {
-    return this.http.post<Parent>(`${this.baseUrl}/parents`, payload);
+    const ref = collection(db, 'parents');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Parent, 'id'>),
+      })),
+    );
   }
 
   updateParent(id: string | number, payload: Partial<Parent>): Observable<Parent> {
-    return this.http.patch<Parent>(`${this.baseUrl}/parents/${id}`, payload);
+    const ref = doc(db, 'parents', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getParentById(id)),
+    );
   }
 
   deleteParent(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/parents/${id}`);
+    return from(deleteDoc(doc(db, 'parents', String(id)))).pipe(map(() => void 0));
   }
 
   getSubjects(): Observable<Subject[]> {
-    return this.http.get<Subject[]>(`${this.baseUrl}/subjects`);
+    const ref = collection(db, 'subjects');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Subject, 'id'>),
+        })),
+      ),
+    );
   }
 
   getSubjectById(id: string | number): Observable<Subject> {
-    return this.http.get<Subject>(`${this.baseUrl}/subjects/${id}`);
+    const ref = doc(db, 'subjects', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('subject-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Subject, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createSubject(payload: Partial<Subject>): Observable<Subject> {
-    return this.http.post<Subject>(`${this.baseUrl}/subjects`, payload);
+    const ref = collection(db, 'subjects');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Subject, 'id'>),
+      })),
+    );
   }
 
   updateSubject(id: string | number, payload: Partial<Subject>): Observable<Subject> {
-    return this.http.patch<Subject>(`${this.baseUrl}/subjects/${id}`, payload);
+    const ref = doc(db, 'subjects', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getSubjectById(id)),
+    );
   }
 
   deleteSubject(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/subjects/${id}`);
+    return from(deleteDoc(doc(db, 'subjects', String(id)))).pipe(map(() => void 0));
   }
 
   getSections(): Observable<Section[]> {
-    return this.http.get<Section[]>(`${this.baseUrl}/sections`);
+    const ref = collection(db, 'sections');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Section, 'id'>),
+        })),
+      ),
+    );
   }
 
   getSectionById(id: string | number): Observable<Section> {
-    return this.http.get<Section>(`${this.baseUrl}/sections/${id}`);
+    const ref = doc(db, 'sections', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('section-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Section, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createSection(payload: Partial<Section>): Observable<Section> {
-    return this.http.post<Section>(`${this.baseUrl}/sections`, payload);
+    const ref = collection(db, 'sections');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Section, 'id'>),
+      })),
+    );
   }
 
   updateSection(id: string | number, payload: Partial<Section>): Observable<Section> {
-    return this.http.patch<Section>(`${this.baseUrl}/sections/${id}`, payload);
+    const ref = doc(db, 'sections', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getSectionById(id)),
+    );
   }
 
   deleteSection(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/sections/${id}`);
+    return from(deleteDoc(doc(db, 'sections', String(id)))).pipe(map(() => void 0));
   }
 
   getClassOfferings(): Observable<ClassOffering[]> {
-    return this.http.get<ClassOffering[]>(`${this.baseUrl}/classOfferings`);
+    const ref = collection(db, 'classOfferings');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<ClassOffering, 'id'>),
+        })),
+      ),
+    );
   }
 
   getClassOfferingById(id: string | number): Observable<ClassOffering> {
-    return this.http.get<ClassOffering>(`${this.baseUrl}/classOfferings/${id}`);
+    const ref = doc(db, 'classOfferings', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('class-offering-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<ClassOffering, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createClassOffering(payload: Partial<ClassOffering>): Observable<ClassOffering> {
-    return this.http.post<ClassOffering>(`${this.baseUrl}/classOfferings`, payload);
+    const ref = collection(db, 'classOfferings');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<ClassOffering, 'id'>),
+      })),
+    );
   }
 
   updateClassOffering(
     id: string | number,
     payload: Partial<ClassOffering>,
   ): Observable<ClassOffering> {
-    return this.http.patch<ClassOffering>(`${this.baseUrl}/classOfferings/${id}`, payload);
+    const ref = doc(db, 'classOfferings', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getClassOfferingById(id)),
+    );
   }
 
   deleteClassOffering(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/classOfferings/${id}`);
+    return from(deleteDoc(doc(db, 'classOfferings', String(id)))).pipe(map(() => void 0));
   }
 
   getSessions(): Observable<Session[]> {
-    return this.http.get<Session[]>(`${this.baseUrl}/sessions`);
+    const ref = collection(db, 'sessions');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Session, 'id'>),
+        })),
+      ),
+    );
   }
 
   getSessionById(id: string | number): Observable<Session> {
-    return this.http.get<Session>(`${this.baseUrl}/sessions/${id}`);
+    const ref = doc(db, 'sessions', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('session-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Session, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createSession(payload: Partial<Session>): Observable<Session> {
-    return this.http.post<Session>(`${this.baseUrl}/sessions`, payload);
+    const ref = collection(db, 'sessions');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Session, 'id'>),
+      })),
+    );
   }
 
   updateSession(id: string | number, payload: Partial<Session>): Observable<Session> {
-    return this.http.patch<Session>(`${this.baseUrl}/sessions/${id}`, payload);
+    const ref = doc(db, 'sessions', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getSessionById(id)),
+    );
   }
 
   deleteSession(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/sessions/${id}`);
+    return from(deleteDoc(doc(db, 'sessions', String(id)))).pipe(map(() => void 0));
   }
 
   getAttendance(): Observable<Attendance[]> {
-    return this.http.get<Attendance[]>(`${this.baseUrl}/attendance`);
+    const ref = collection(db, 'attendance');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Attendance, 'id'>),
+        })),
+      ),
+    );
   }
 
   getAttendanceById(id: string | number): Observable<Attendance> {
-    return this.http.get<Attendance>(`${this.baseUrl}/attendance/${id}`);
+    const ref = doc(db, 'attendance', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('attendance-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Attendance, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createAttendance(payload: Partial<Attendance>): Observable<Attendance> {
-    return this.http.post<Attendance>(`${this.baseUrl}/attendance`, payload);
+    const ref = collection(db, 'attendance');
+    const cleanPayload = this.removeId(payload);
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Attendance, 'id'>),
+      })),
+    );
   }
 
   updateAttendance(id: string | number, payload: Partial<Attendance>): Observable<Attendance> {
-    return this.http.patch<Attendance>(`${this.baseUrl}/attendance/${id}`, payload);
+    const ref = doc(db, 'attendance', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getAttendanceById(id)),
+    );
   }
 
   deleteAttendance(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/attendance/${id}`);
+    return from(deleteDoc(doc(db, 'attendance', String(id)))).pipe(map(() => void 0));
   }
 
   getNotifications(): Observable<Notification[]> {
-    return this.http.get<Notification[]>(
-      `${this.baseUrl}/notifications?_sort=createdAt&_order=desc`,
+    const ref = collection(db, 'notifications');
+
+    return from(getDocs(ref)).pipe(
+      map((snapshot) =>
+        snapshot.docs
+          .map((docSnap) => ({
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Notification, 'id'>),
+          }))
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+      ),
     );
   }
 
   getNotificationsByUser(userId: string | number): Observable<Notification[]> {
-    return this.http.get<Notification[]>(
-      `${this.baseUrl}/notifications?userId=${userId}&_sort=createdAt&_order=desc`,
+    const ref = collection(db, 'notifications');
+    const q = query(ref, where('userId', '==', userId));
+
+    return from(getDocs(q)).pipe(
+      map((snapshot) =>
+        snapshot.docs
+          .map((docSnap) => ({
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Notification, 'id'>),
+          }))
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+      ),
     );
   }
 
   getNotificationById(id: string | number): Observable<Notification> {
-    return this.http.get<Notification>(`${this.baseUrl}/notifications/${id}`);
+    const ref = doc(db, 'notifications', String(id));
+
+    return from(getDoc(ref)).pipe(
+      switchMap((docSnap) => {
+        if (!docSnap.exists()) {
+          return throwError(() => new Error('notification-not-found'));
+        }
+
+        return from([
+          {
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Notification, 'id'>),
+          },
+        ]);
+      }),
+    );
   }
 
   createNotification(payload: Partial<Notification>): Observable<Notification> {
-    return this.http.post<Notification>(`${this.baseUrl}/notifications`, payload);
+    const ref = collection(db, 'notifications');
+    const cleanPayload = this.removeId({
+      read: false,
+      type: 'info',
+      createdAt: new Date().toISOString(),
+      ...payload,
+    });
+
+    return from(addDoc(ref, cleanPayload)).pipe(
+      map((newDoc) => ({
+        id: newDoc.id,
+        ...(cleanPayload as Omit<Notification, 'id'>),
+      })),
+    );
   }
 
   updateNotification(
     id: string | number,
     payload: Partial<Notification>,
   ): Observable<Notification> {
-    return this.http.patch<Notification>(`${this.baseUrl}/notifications/${id}`, payload);
+    const ref = doc(db, 'notifications', String(id));
+    const cleanPayload = this.removeId(payload);
+
+    return from(updateDoc(ref, cleanPayload as Record<string, unknown>)).pipe(
+      switchMap(() => this.getNotificationById(id)),
+    );
   }
 
   markNotificationAsRead(id: string | number): Observable<Notification> {
-    return this.http.patch<Notification>(`${this.baseUrl}/notifications/${id}`, {
-      read: true,
-    });
+    return this.updateNotification(id, { read: true });
   }
 
   deleteNotification(id: string | number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/notifications/${id}`);
+    return from(deleteDoc(doc(db, 'notifications', String(id)))).pipe(map(() => void 0));
+  }
+
+  private removeId<T>(payload: T): T {
+    if (!payload || typeof payload !== 'object') {
+      return payload;
+    }
+
+    const clone = { ...(payload as Record<string, unknown>) };
+    delete clone['id'];
+    return clone as T;
   }
 }

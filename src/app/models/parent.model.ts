@@ -1,10 +1,17 @@
 export interface Parent {
-  id?: number;
+  id?: string;
+  userId?: string | null;
+
+  studentId?: string;
+  studentIds?: string[];
+
   firstName: string;
   lastName: string;
   email: string;
   contactNumber: string;
-  studentName: string;
   relationship: string;
   status: string;
+
+  createdAt?: string;
+  updatedAt?: string;
 }

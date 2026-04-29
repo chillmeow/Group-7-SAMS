@@ -1,0 +1,132 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.status-badge i {
+  font-size: 12px;
+}
+
+/* solid variants */
+.status-badge[data-variant='blue'] {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.status-badge[data-variant='purple'] {
+  background: #f5f0ff;
+  color: #7c3aed;
+}
+
+.status-badge[data-variant='green'] {
+  background: #ecfdf5;
+  color: #16a34a;
+}
+
+.status-badge[data-variant='yellow'] {
+  background: #fff7ed;
+  color: #f59e0b;
+}
+
+.status-badge[data-variant='red'] {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.status-badge[data-variant='gray'] {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.status-badge[data-variant='neutral'] {
+  background: var(--card-bg-soft);
+  color: var(--card-text);
+  border-color: var(--card-border);
+}
+
+/* outlined variants */
+.status-badge.outlined[data-variant='blue'] {
+  background: transparent;
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.status-badge.outlined[data-variant='purple'] {
+  background: transparent;
+  color: #7c3aed;
+  border-color: rgba(124, 58, 237, 0.28);
+}
+
+.status-badge.outlined[data-variant='green'] {
+  background: transparent;
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.status-badge.outlined[data-variant='yellow'] {
+  background: transparent;
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.status-badge.outlined[data-variant='red'] {
+  background: transparent;
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.outlined[data-variant='gray'] {
+  background: transparent;
+  color: #4b5563;
+  border-color: rgba(75, 85, 99, 0.22);
+}
+
+.status-badge.outlined[data-variant='neutral'] {
+  background: transparent;
+  color: var(--card-text);
+  border-color: var(--card-border);
+}
+
+/* dark mode refinements */
+body.dark-mode .status-badge[data-variant='blue'] {
+  background: rgba(37, 99, 235, 0.18);
+  color: #93c5fd;
+}
+
+body.dark-mode .status-badge[data-variant='purple'] {
+  background: rgba(124, 58, 237, 0.2);
+  color: #c4b5fd;
+}
+
+body.dark-mode .status-badge[data-variant='green'] {
+  background: rgba(22, 163, 74, 0.2);
+  color: #86efac;
+}
+
+body.dark-mode .status-badge[data-variant='yellow'] {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+body.dark-mode .status-badge[data-variant='red'] {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+body.dark-mode .status-badge[data-variant='gray'] {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}

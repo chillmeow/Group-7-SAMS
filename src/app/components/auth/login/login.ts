@@ -17,7 +17,7 @@ export class Login {
   private readonly router = inject(Router);
   private readonly alertService = inject(AlertService);
 
-  email = '';
+  loginId = '';
   password = '';
   errorMessage = '';
   isLoading = false;
@@ -31,17 +31,17 @@ export class Login {
   login(): void {
     this.errorMessage = '';
 
-    const email = this.email.trim().toLowerCase();
+    const loginId = this.loginId.trim();
     const password = this.password.trim();
 
-    if (!email || !password) {
-      this.alertService.warning('Missing fields', 'Please enter your email and password.');
+    if (!loginId || !password) {
+      this.alertService.warning('Missing fields', 'Please enter your username/email and password.');
       return;
     }
 
     this.isLoading = true;
 
-    this.authService.login(email, password).subscribe({
+    this.authService.login(loginId, password).subscribe({
       next: () => {
         this.isLoading = false;
         this.alertService.success('Login successful', 'Welcome back!');
@@ -50,27 +50,14 @@ export class Login {
       error: (error) => {
         this.isLoading = false;
 
-        console.error('LOGIN ERROR:', error);
-
         let message = 'Unable to login. Please try again.';
 
-        if (error?.code === 'auth/invalid-credential') {
-          message = 'Invalid email or password.';
-        } else if (error?.code === 'auth/user-not-found') {
-          message = 'No account found for this email.';
-        } else if (error?.code === 'auth/wrong-password') {
+        if (error?.message === 'invalid-login') {
+          message = 'No account found for this username or email.';
+        } else if (error?.message === 'invalid-password') {
           message = 'Incorrect password.';
-        } else if (error?.code === 'auth/invalid-email') {
-          message = 'Invalid email format.';
-        } else if (error?.code === 'auth/too-many-requests') {
-          message = 'Too many login attempts. Please wait a moment and try again.';
-        } else if (error?.message === 'firestore-user-not-found') {
-          message = 'Authentication worked, but no matching user profile was found in Firestore.';
-        } else if (
-          error?.code === 'permission-denied' ||
-          error?.code === 'firestore/permission-denied'
-        ) {
-          message = 'Authentication worked, but Firestore denied access to the user profile.';
+        } else if (error?.message === 'account-inactive') {
+          message = 'This account is inactive.';
         } else if (error?.message) {
           message = error.message;
         }

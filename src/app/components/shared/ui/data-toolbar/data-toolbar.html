@@ -1,0 +1,47 @@
+<div class="data-toolbar">
+  <div class="toolbar-left">
+    <div class="search-shell" *ngIf="showSearch">
+      <i class="pi pi-search search-icon" aria-hidden="true"></i>
+
+      <input
+        type="text"
+        class="search-input"
+        [placeholder]="searchPlaceholder"
+        [(ngModel)]="searchValue"
+        (ngModelChange)="onSearchChange($event)"
+      />
+
+      <button
+        *ngIf="searchValue"
+        type="button"
+        class="clear-btn"
+        (click)="clearSearch()"
+        aria-label="Clear search"
+      >
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="toolbar-right">
+    <button *ngIf="showFilter" type="button" class="toolbar-btn secondary" (click)="onFilter()">
+      <i class="pi pi-filter"></i>
+      <span>{{ filterLabel }}</span>
+    </button>
+
+    <button *ngIf="showRefresh" type="button" class="toolbar-btn secondary" (click)="onRefresh()">
+      <i class="pi pi-refresh"></i>
+      <span>{{ refreshLabel }}</span>
+    </button>
+
+    <button
+      *ngIf="showPrimaryAction"
+      type="button"
+      class="toolbar-btn primary"
+      (click)="onPrimaryAction()"
+    >
+      <i [class]="primaryActionIcon"></i>
+      <span>{{ primaryActionLabel }}</span>
+    </button>
+  </div>
+</div>

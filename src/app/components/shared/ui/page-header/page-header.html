@@ -1,0 +1,18 @@
+<div class="page-header">
+  <div class="left">
+    <h1 class="title">{{ title }}</h1>
+    <p class="subtitle" *ngIf="subtitle">{{ subtitle }}</p>
+  </div>
+
+  <div class="actions">
+    <button *ngIf="showSecondary" type="button" class="btn secondary" (click)="onSecondary()">
+      <i *ngIf="secondaryIcon" [class]="secondaryIcon"></i>
+      <span>{{ secondaryLabel }}</span>
+    </button>
+
+    <button *ngIf="showPrimary" type="button" class="btn primary" (click)="onPrimary()">
+      <i *ngIf="primaryIcon" [class]="primaryIcon"></i>
+      <span>{{ primaryLabel }}</span>
+    </button>
+  </div>
+</div>

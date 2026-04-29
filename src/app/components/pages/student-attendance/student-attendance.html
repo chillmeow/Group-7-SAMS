@@ -1,21 +1,96 @@
 <div class="student-page">
-  <section class="header">
-    <h1>My Attendance</h1>
-    <p>Enter session code or scan QR to record attendance.</p>
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Student Attendance</p>
+      <h1>My Attendance</h1>
+      <p>
+        Submit your attendance using the teacher’s session code or scan the QR code shown by your
+        teacher.
+      </p>
+    </div>
+
+    <button type="button" class="refresh-btn" (click)="refresh()">
+      <i class="pi pi-refresh"></i>
+      Refresh
+    </button>
+  </section>
+
+  <section class="profile-card">
+    <div>
+      <span>Logged in as</span>
+      <strong>{{ studentName }}</strong>
+      <small>{{ studentNumber }}</small>
+    </div>
   </section>
 
   <section class="card submit-card">
-    <h3>Record Attendance</h3>
+    <div class="card-header">
+      <div>
+        <h3>Record Attendance</h3>
+        <p>Scan the active QR code or enter the session code given by your teacher.</p>
+      </div>
+    </div>
 
-    <div class="input-group">
+    <div class="mode-tabs">
+      <button type="button" [class.active]="submissionMode === 'code'" (click)="setMode('code')">
+        Session Code
+      </button>
+
+      <button type="button" [class.active]="submissionMode === 'qr'" (click)="setMode('qr')">
+        Scan QR
+      </button>
+    </div>
+
+    <div class="input-group" *ngIf="submissionMode === 'code'">
       <input
         type="text"
-        placeholder="Enter session code (e.g. ATTD-1234)"
+        placeholder="Enter session code, example: ATTD-1234"
         [(ngModel)]="sessionCode"
+        (keyup.enter)="submitAttendance()"
       />
-      <button (click)="submitAttendance()" [disabled]="loading">
+
+      <button type="button" (click)="submitAttendance()" [disabled]="loading">
         {{ loading ? 'Submitting...' : 'Submit' }}
       </button>
+    </div>
+
+    <div class="qr-submit-area" *ngIf="submissionMode === 'qr'">
+      <div class="scanner-actions">
+        <button
+          type="button"
+          class="scan-btn"
+          (click)="startScanner()"
+          [disabled]="scannerOpen || scannerStarting || loading"
+        >
+          <i class="pi pi-camera"></i>
+          {{ scannerStarting ? 'Opening Camera...' : scannerOpen ? 'Scanning...' : 'Open Camera' }}
+        </button>
+
+        <button type="button" class="stop-btn" (click)="stopScanner()" *ngIf="scannerOpen">
+          Stop
+        </button>
+      </div>
+
+      <div class="scanner-box" *ngIf="scannerOpen">
+        <div id="student-qr-reader"></div>
+      </div>
+
+      <div class="manual-token">
+        <label>QR Token fallback</label>
+
+        <div class="input-group">
+          <input
+            type="text"
+            placeholder="Paste QR token here if camera is unavailable"
+            [(ngModel)]="qrToken"
+            (keyup.enter)="submitAttendance()"
+          />
+
+          <button type="button" (click)="submitAttendance()" [disabled]="loading">
+            {{ loading ? 'Submitting...' : 'Submit' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <p class="success" *ngIf="message">{{ message }}</p>
@@ -23,15 +98,34 @@
   </section>
 
   <section class="card history-card">
-    <h3>Attendance History</h3>
+    <div class="card-header">
+      <div>
+        <h3>Attendance History</h3>
+        <p>Your latest attendance submissions appear here.</p>
+      </div>
+    </div>
 
-    <div *ngIf="records.length === 0" class="empty">No attendance records yet.</div>
+    <div class="loading-state" *ngIf="historyLoading">
+      <i class="pi pi-spin pi-spinner"></i>
+      Loading attendance history...
+    </div>
 
-    <div class="history-list">
-      <div class="history-item" *ngFor="let r of records">
+    <div *ngIf="!historyLoading && records.length === 0" class="empty">
+      No attendance records yet.
+    </div>
+
+    <div class="history-list" *ngIf="!historyLoading && records.length > 0">
+      <div class="history-item" *ngFor="let r of records; trackBy: trackByRecord">
         <div>
-          <p class="date">{{ r.timeRecorded | date: 'medium' }}</p>
-          <p class="method">{{ r.method }}</p>
+          <p class="date">{{ formatDateTime(r.timeRecorded) }}</p>
+
+          <p class="method">
+            {{ getMethodLabel($any(r.method)) }}
+          </p>
+
+          <p class="late-time" *ngIf="r.status === 'late' && r.lateTime">
+            Late time: {{ r.lateTime }}
+          </p>
         </div>
 
         <span
