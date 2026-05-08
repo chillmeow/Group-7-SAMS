@@ -8,4 +8,9 @@ export interface Teacher {
   email: string;
   facultyType: string;
   status: string;
+
+  isArchived?: boolean;
+  archivedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

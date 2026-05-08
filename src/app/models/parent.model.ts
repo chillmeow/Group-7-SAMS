@@ -12,6 +12,9 @@ export interface Parent {
   relationship: string;
   status: string;
 
+  isArchived?: boolean;
+  archivedAt?: string;
+
   createdAt?: string;
   updatedAt?: string;
 }

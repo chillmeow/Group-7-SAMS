@@ -210,7 +210,7 @@ export class Topbar implements OnInit {
     this.isNotifOpen = false;
     this.isSearchOpen = false;
 
-    this.alertService.warning('Settings not ready', 'Settings page is not connected yet.');
+    this.router.navigateByUrl('/settings');
   }
 
   toggleTheme(): void {

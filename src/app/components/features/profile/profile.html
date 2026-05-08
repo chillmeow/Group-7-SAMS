@@ -1,220 +1,220 @@
-<section class="profile-page">
-  <div class="page-shell">
-    <div class="profile-hero">
-      <div class="profile-hero__left">
-        <button
-          type="button"
-          class="hero-avatar-btn"
-          (click)="openPhotoViewer()"
-          [class.hero-avatar-btn--clickable]="hasPhoto()"
-          [attr.aria-label]="hasPhoto() ? 'View profile photo' : 'Profile avatar'"
-        >
-          <div class="hero-avatar" *ngIf="!hasPhoto()">
-            {{ getInitials() }}
-          </div>
-
-          <img
-            *ngIf="hasPhoto()"
-            [src]="formData.photoUrl"
-            alt="Profile photo"
-            class="hero-avatar hero-avatar--image"
-          />
-
-          <div class="avatar-overlay" *ngIf="hasPhoto()">
-            <span>View Photo</span>
-          </div>
-        </button>
-
-        <div class="profile-hero__info">
-          <h1>{{ getFullName() }}</h1>
-          <p>{{ formData.email || currentUser?.email }}</p>
-
-          <div class="hero-badges">
-            <span class="badge">{{ getRoleLabel() }}</span>
-            <span class="badge badge--status">{{ getStatusLabel() }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="profile-hero__right">
-        <button
-          type="button"
-          class="save-btn save-btn--hero"
-          (click)="saveProfile()"
-          [disabled]="saving"
-        >
-          {{ saving ? 'Saving...' : 'Save Changes' }}
-        </button>
+<div class="profile-page">
+  <!-- Cover + Avatar -->
+  <div class="cover-wrap">
+    <div class="cover-photo" [style.background]="getCoverStyle()">
+      <div class="cover-picker">
+        @for (color of coverColors; track $index) {
+          <button
+            class="cover-swatch"
+            [style.background]="color"
+            [class.active]="selectedCover === $index"
+            (click)="selectCover($index)"
+            [title]="'Cover ' + ($index + 1)"
+          ></button>
+        }
       </div>
     </div>
 
-    <div class="profile-grid">
-      <div class="profile-main">
-        <div class="profile-card">
-          <div class="card-head">
-            <div>
-              <h2>Personal Information</h2>
-              <p>Update your account details and public-facing information.</p>
-            </div>
-          </div>
+    <div class="avatar-area">
+      <button
+        class="avatar-btn"
+        [class.clickable]="hasPhoto()"
+        (click)="openPhotoViewer()"
+        [attr.aria-label]="hasPhoto() ? 'View photo' : 'Profile avatar'"
+      >
+        @if (hasPhoto()) {
+          <img [src]="currentUser?.photoUrl" alt="Profile photo" class="avatar-img" />
+          <div class="avatar-overlay"><i class="pi pi-eye"></i></div>
+        } @else {
+          <div class="avatar-initials">{{ getInitials() }}</div>
+        }
+      </button>
 
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="firstName">First Name</label>
-              <input id="firstName" name="firstName" type="text" [(ngModel)]="formData.firstName" />
-            </div>
-
-            <div class="form-group">
-              <label for="lastName">Last Name</label>
-              <input id="lastName" name="lastName" type="text" [(ngModel)]="formData.lastName" />
-            </div>
-
-            <div class="form-group">
-              <label for="email">Email</label>
-              <input id="email" name="email" type="email" [(ngModel)]="formData.email" />
-            </div>
-
-            <div class="form-group">
-              <label for="username">Username</label>
-              <input id="username" name="username" type="text" [(ngModel)]="formData.username" />
-            </div>
-
-            <div class="form-group">
-              <label for="contactNumber">Contact Number</label>
-              <input
-                id="contactNumber"
-                name="contactNumber"
-                type="text"
-                [(ngModel)]="formData.contactNumber"
-              />
-            </div>
-
-            <div class="form-group form-group--spacer"></div>
-
-            <div class="form-group form-group--full">
-              <label for="address">Address</label>
-              <textarea
-                id="address"
-                name="address"
-                rows="5"
-                [(ngModel)]="formData.address"
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="section-actions">
-            <button type="button" class="save-btn" (click)="saveProfile()" [disabled]="saving">
-              {{ saving ? 'Saving...' : 'Save Changes' }}
-            </button>
-          </div>
+      <div class="profile-meta">
+        <h1 class="profile-name">{{ getFullName() }}</h1>
+        <div class="profile-badges">
+          <span class="role-badge" [class]="getRoleColor()">{{ getRoleLabel() }}</span>
+          <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+            <span class="status-dot"></span>
+            {{ getStatusLabel() }}
+          </span>
         </div>
       </div>
 
-      <div class="profile-side">
-        <div class="profile-card">
-          <div class="card-head">
-            <div>
-              <h2>Profile Photo</h2>
-              <p>Upload a profile image for your account.</p>
-            </div>
-          </div>
-
-          <div class="photo-card">
-            <button
-              type="button"
-              class="photo-preview-btn"
-              (click)="openPhotoViewer()"
-              [class.photo-preview-btn--clickable]="hasPhoto()"
-              [attr.aria-label]="hasPhoto() ? 'View profile photo' : 'Profile avatar'"
-            >
-              <div class="photo-preview" *ngIf="!hasPhoto()">
-                {{ getInitials() }}
-              </div>
-
-              <img
-                *ngIf="hasPhoto()"
-                [src]="formData.photoUrl"
-                alt="Profile preview"
-                class="photo-preview photo-preview--image"
-              />
-
-              <div class="photo-preview__overlay" *ngIf="hasPhoto()">
-                <span>Click to view</span>
-              </div>
-            </button>
-
-            <label class="upload-btn">
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp"
-                (change)="onFileSelected($event)"
-              />
-              <span>Upload Photo</span>
-            </label>
-
-            <p class="file-name" *ngIf="selectedImageName">{{ selectedImageName }}</p>
-
-            <button type="button" class="secondary-btn" (click)="removePhoto()">
-              Remove Photo
-            </button>
-          </div>
-        </div>
-
-        <div class="profile-card">
-          <div class="card-head">
-            <div>
-              <h2>Account Information</h2>
-              <p>Read-only account details.</p>
-            </div>
-          </div>
-
-          <div class="info-list">
-            <div class="info-row">
-              <span class="label">Role</span>
-              <span class="value">{{ getRoleLabel() }}</span>
-            </div>
-
-            <div class="info-row">
-              <span class="label">Status</span>
-              <span class="value">{{ getStatusLabel() }}</span>
-            </div>
-
-            <div class="info-row">
-              <span class="label">User ID</span>
-              <span class="value">{{ currentUser?.id || '—' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="profile-card profile-card--note">
-          <div class="card-head">
-            <div>
-              <h2>Security Note</h2>
-            </div>
-          </div>
-
-          <p class="security-note">
-            Password changes and actual Firebase login-email changes should be handled in a separate
-            security flow, not inside this basic profile form.
-          </p>
-        </div>
+      <div class="profile-actions">
+        <button class="action-btn primary" (click)="activeTab = 'edit'">
+          <i class="pi pi-pencil"></i> Edit Profile
+        </button>
       </div>
     </div>
   </div>
-</section>
 
-<div class="photo-viewer" *ngIf="showPhotoViewer && hasPhoto()" (click)="closePhotoViewer()">
-  <button
-    type="button"
-    class="photo-viewer__close"
-    (click)="closePhotoViewer(); $event.stopPropagation()"
-    aria-label="Close photo viewer"
-  >
-    ×
-  </button>
+  <!-- Tabs -->
+  <div class="tabs-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'about'" (click)="activeTab = 'about'">
+      About
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'edit'" (click)="activeTab = 'edit'">
+      Edit Profile
+    </button>
+  </div>
 
-  <div class="photo-viewer__content" (click)="$event.stopPropagation()">
-    <img [src]="formData.photoUrl" alt="Full profile photo" class="photo-viewer__image" />
-    <div class="photo-viewer__caption">{{ getFullName() }}</div>
+  <!-- Tab Content -->
+  <div class="tab-content">
+    @if (activeTab === 'about') {
+      <div class="about-grid">
+        <div class="about-col">
+          <div class="info-card">
+            <div class="info-card-title"><i class="pi pi-user"></i> Personal Info</div>
+            <div class="info-list">
+              <div class="info-row">
+                <span class="info-label">Full Name</span>
+                <span class="info-value">{{ getFullName() }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Username</span>
+                <span class="info-value">{{ currentUser?.username || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ currentUser?.email || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Contact</span>
+                <span class="info-value">{{ currentUser?.contactNumber || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Address</span>
+                <span class="info-value">{{ currentUser?.address || '—' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-col">
+          <div class="info-card">
+            <div class="info-card-title"><i class="pi pi-shield"></i> Account Info</div>
+            <div class="info-list">
+              <div class="info-row">
+                <span class="info-label">Role</span>
+                <span class="info-value">
+                  <span class="role-badge sm" [class]="getRoleColor()">{{ getRoleLabel() }}</span>
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="info-value">
+                  <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+                    <span class="status-dot"></span>{{ getStatusLabel() }}
+                  </span>
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Member since</span>
+                <span class="info-value">{{
+                  (currentUser?.createdAt | date: 'MMM d, yyyy') || '—'
+                }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">User ID</span>
+                <span class="info-value id-text">{{ currentUser?.id || '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-card photo-card">
+            <div class="info-card-title"><i class="pi pi-image"></i> Profile Photo</div>
+            <div class="photo-area">
+              @if (hasPhoto()) {
+                <img
+                  [src]="currentUser?.photoUrl"
+                  alt="Profile"
+                  class="photo-thumb"
+                  (click)="openPhotoViewer()"
+                />
+              } @else {
+                <div class="photo-placeholder">{{ getInitials() }}</div>
+              }
+              <div class="photo-btns">
+                <label class="upload-label">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    (change)="onFileSelected($event)"
+                  />
+                  <i class="pi pi-upload"></i> Upload
+                </label>
+                @if (hasPhoto()) {
+                  <button class="remove-photo-btn" (click)="removePhoto()">
+                    <i class="pi pi-trash"></i> Remove
+                  </button>
+                }
+              </div>
+            </div>
+            <p class="photo-hint">PNG, JPG or WEBP · Max 2MB</p>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (activeTab === 'edit') {
+      <div class="edit-card">
+        <div class="edit-header">
+          <h2>Edit Profile</h2>
+          <p>Update your personal information below.</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="formData.firstName" placeholder="First name" />
+          </div>
+          <div class="form-group">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="formData.lastName" placeholder="Last name" />
+          </div>
+          <div class="form-group">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" [(ngModel)]="formData.email" placeholder="Email address" />
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" [(ngModel)]="formData.username" placeholder="Username" />
+          </div>
+          <div class="form-group">
+            <label>Contact Number</label>
+            <input
+              type="text"
+              [(ngModel)]="formData.contactNumber"
+              placeholder="e.g. 09xxxxxxxxx"
+            />
+          </div>
+          <div class="form-group form-group-full">
+            <label>Address</label>
+            <textarea [(ngModel)]="formData.address" rows="3" placeholder="Your address"></textarea>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="cancel-btn" (click)="activeTab = 'about'">Cancel</button>
+          <button class="save-btn" (click)="saveProfile()" [disabled]="saving">
+            <i class="pi pi-check"></i> {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
+      </div>
+    }
   </div>
 </div>
+
+<!-- Photo Viewer -->
+@if (showPhotoViewer && hasPhoto()) {
+  <div class="photo-viewer" (click)="closePhotoViewer()">
+    <button class="viewer-close" (click)="closePhotoViewer(); $event.stopPropagation()">
+      <i class="pi pi-times"></i>
+    </button>
+    <div class="viewer-content" (click)="$event.stopPropagation()">
+      <img [src]="currentUser?.photoUrl" alt="Full photo" class="viewer-img" />
+      <p class="viewer-caption">{{ getFullName() }}</p>
+    </div>
+  </div>
+}

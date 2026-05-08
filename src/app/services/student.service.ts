@@ -76,24 +76,11 @@ export class StudentService {
   }
 
   updateStudent(student: Student): Observable<Student> {
-    if (!student.id) {
-      throw new Error('Student ID is required for update.');
-    }
-
-    const studentRef = doc(db, this.collectionName, student.id);
-    const payload = this.buildStudentPayload(student);
-
-    return from(updateDoc(studentRef, payload)).pipe(
-      map(() => ({
-        id: student.id,
-        ...payload,
-      })),
-    );
+    return from(this.updateStudentSafely(student));
   }
 
   deleteStudent(id: string): Observable<void> {
-    const studentRef = doc(db, this.collectionName, id);
-    return from(deleteDoc(studentRef));
+    return from(this.archiveStudent(id));
   }
 
   generateStudentPortalAccount(student: Student): Observable<GeneratedStudentAccount> {
@@ -122,11 +109,23 @@ export class StudentService {
       throw new Error(`Student number ${payload.studentNumber} already exists.`);
     }
 
-    const studentRef = await addDoc(studentsRef, payload);
+    const now = new Date().toISOString();
+
+    const studentRef = await addDoc(studentsRef, {
+      ...payload,
+      isArchived: false,
+      archivedAt: '',
+      createdAt: now,
+      updatedAt: now,
+    });
 
     let createdStudent: Student = {
       id: studentRef.id,
       ...payload,
+      isArchived: false,
+      archivedAt: '',
+      createdAt: now,
+      updatedAt: now,
     };
 
     if (this.hasCompleteParentDetails(createdStudent)) {
@@ -141,15 +140,74 @@ export class StudentService {
 
       await updateDoc(doc(db, this.collectionName, studentRef.id), {
         parentId: parent.id || '',
+        updatedAt: new Date().toISOString(),
       });
 
       createdStudent = {
         ...createdStudent,
         parentId: parent.id || '',
+        updatedAt: new Date().toISOString(),
       };
     }
 
     return createdStudent;
+  }
+
+  private async updateStudentSafely(student: Student): Promise<Student> {
+    if (!student.id) {
+      throw new Error('Student ID is required for update.');
+    }
+
+    const studentRef = doc(db, this.collectionName, student.id);
+    const existingDoc = await getDoc(studentRef);
+
+    if (!existingDoc.exists()) {
+      throw new Error('Student record not found.');
+    }
+
+    const payload = this.buildStudentPayload(student);
+    const duplicateStudent = await this.findStudentByStudentNumber(payload.studentNumber);
+
+    if (duplicateStudent && duplicateStudent.id !== student.id) {
+      throw new Error(
+        `Student number ${payload.studentNumber} already belongs to another student.`,
+      );
+    }
+
+    const updatedPayload = {
+      ...payload,
+      isArchived: student.isArchived ?? false,
+      archivedAt: student.archivedAt ?? '',
+      createdAt: student.createdAt ?? (existingDoc.data() as Student).createdAt ?? '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(studentRef, updatedPayload);
+
+    return {
+      id: student.id,
+      ...updatedPayload,
+    };
+  }
+
+  private async archiveStudent(id: string): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Student ID is required.');
+    }
+
+    const studentRef = doc(db, this.collectionName, id);
+    const studentSnapshot = await getDoc(studentRef);
+
+    if (!studentSnapshot.exists()) {
+      throw new Error('Student record not found.');
+    }
+
+    await updateDoc(studentRef, {
+      status: 'archived',
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async createPortalAccountsForStudentAndParent(
@@ -178,11 +236,13 @@ export class StudentService {
 
     await updateDoc(doc(db, this.collectionName, latestStudent.id), {
       parentId: parent.id || '',
+      updatedAt: new Date().toISOString(),
     });
 
     const updatedStudent: Student = {
       ...latestStudent,
       parentId: parent.id || '',
+      updatedAt: new Date().toISOString(),
     };
 
     const studentAccount = await this.createStudentUserAccount(updatedStudent);
@@ -242,12 +302,14 @@ export class StudentService {
       userId,
       email,
       parentId: student.parentId || '',
+      updatedAt: new Date().toISOString(),
     });
 
     const updatedStudent: Student = {
       ...student,
       userId,
       email,
+      updatedAt: new Date().toISOString(),
     };
 
     if (shouldSendStudentEmail) {
@@ -480,6 +542,8 @@ export class StudentService {
           continue;
         }
 
+        const now = new Date().toISOString();
+
         const studentRef = await addDoc(collection(db, this.collectionName), {
           userId: '',
           parentId: '',
@@ -495,6 +559,10 @@ export class StudentService {
           parentEmail,
           parentContactNumber,
           parentRelationship,
+          isArchived: false,
+          archivedAt: '',
+          createdAt: now,
+          updatedAt: now,
         });
 
         const createdStudent: Student = {
@@ -513,6 +581,10 @@ export class StudentService {
           parentEmail,
           parentContactNumber,
           parentRelationship,
+          isArchived: false,
+          archivedAt: '',
+          createdAt: now,
+          updatedAt: now,
         };
 
         if (this.hasCompleteParentDetails(createdStudent)) {
@@ -527,9 +599,11 @@ export class StudentService {
 
           await updateDoc(doc(db, this.collectionName, studentRef.id), {
             parentId: parent.id || '',
+            updatedAt: new Date().toISOString(),
           });
 
           createdStudent.parentId = parent.id || '';
+          createdStudent.updatedAt = new Date().toISOString();
         }
 
         await this.createPortalAccountsForStudentAndParent(createdStudent);
@@ -620,6 +694,11 @@ export class StudentService {
       parentEmail: student.parentEmail?.trim().toLowerCase() || '',
       parentContactNumber: student.parentContactNumber?.trim() || '',
       parentRelationship: student.parentRelationship?.trim() || '',
+
+      isArchived: student.isArchived ?? false,
+      archivedAt: student.archivedAt ?? '',
+      createdAt: student.createdAt ?? '',
+      updatedAt: student.updatedAt ?? '',
     };
   }
 

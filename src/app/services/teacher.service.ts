@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -62,36 +63,15 @@ export class TeacherService {
   }
 
   addTeacher(teacher: Teacher): Observable<Teacher> {
-    const teachersRef = collection(db, this.collectionName);
-    const payload = this.buildTeacherPayload(teacher);
-
-    return from(addDoc(teachersRef, payload)).pipe(
-      map((docRef) => ({
-        id: docRef.id,
-        ...payload,
-      })),
-    );
+    return from(this.addTeacherSafely(teacher));
   }
 
   updateTeacher(teacher: Teacher): Observable<Teacher> {
-    if (!teacher.id) {
-      throw new Error('Teacher ID is required for update.');
-    }
-
-    const teacherRef = doc(db, this.collectionName, teacher.id);
-    const payload = this.buildTeacherPayload(teacher);
-
-    return from(updateDoc(teacherRef, payload)).pipe(
-      map(() => ({
-        id: teacher.id,
-        ...payload,
-      })),
-    );
+    return from(this.updateTeacherSafely(teacher));
   }
 
   deleteTeacher(id: string): Observable<void> {
-    const teacherRef = doc(db, this.collectionName, id);
-    return from(deleteDoc(teacherRef));
+    return from(this.archiveTeacher(id));
   }
 
   importTeachersFromExcel(file: File): Observable<FacultyBulkImportResult> {
@@ -126,6 +106,113 @@ export class TeacherService {
     const paddedNumber = String(sequenceNumber).padStart(4, '0');
 
     return `${prefix}-${year}-${paddedNumber}`;
+  }
+
+  private async addTeacherSafely(teacher: Teacher): Promise<Teacher> {
+    const teachersRef = collection(db, this.collectionName);
+    const payload = this.buildTeacherPayload(teacher);
+
+    const existingEmail = await this.findTeacherByEmail(payload.email);
+
+    if (existingEmail) {
+      throw new Error(`Faculty email ${payload.email} already exists.`);
+    }
+
+    if (payload.employeeNo) {
+      const existingEmployeeNo = await this.findTeacherByEmployeeNo(payload.employeeNo);
+
+      if (existingEmployeeNo) {
+        throw new Error(`Faculty ID ${payload.employeeNo} already exists.`);
+      }
+    }
+
+    const now = new Date().toISOString();
+
+    const finalPayload: Omit<Teacher, 'id'> = {
+      ...payload,
+      isArchived: false,
+      archivedAt: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const docRef = await addDoc(teachersRef, finalPayload);
+
+    return {
+      id: docRef.id,
+      ...finalPayload,
+    };
+  }
+
+  private async updateTeacherSafely(teacher: Teacher): Promise<Teacher> {
+    if (!teacher.id) {
+      throw new Error('Teacher ID is required for update.');
+    }
+
+    const teacherRef = doc(db, this.collectionName, teacher.id);
+    const existingDoc = await getDoc(teacherRef);
+
+    if (!existingDoc.exists()) {
+      throw new Error('Teacher record not found.');
+    }
+
+    const existingTeacher = {
+      id: existingDoc.id,
+      ...existingDoc.data(),
+    } as Teacher;
+
+    const payload = this.buildTeacherPayload(teacher);
+
+    const duplicateEmail = await this.findTeacherByEmail(payload.email);
+
+    if (duplicateEmail && duplicateEmail.id !== teacher.id) {
+      throw new Error(`Faculty email ${payload.email} already belongs to another faculty member.`);
+    }
+
+    if (payload.employeeNo) {
+      const duplicateEmployeeNo = await this.findTeacherByEmployeeNo(payload.employeeNo);
+
+      if (duplicateEmployeeNo && duplicateEmployeeNo.id !== teacher.id) {
+        throw new Error(
+          `Faculty ID ${payload.employeeNo} already belongs to another faculty member.`,
+        );
+      }
+    }
+
+    const updatedPayload: Omit<Teacher, 'id'> = {
+      ...payload,
+      isArchived: teacher.isArchived ?? existingTeacher.isArchived ?? false,
+      archivedAt: teacher.archivedAt ?? existingTeacher.archivedAt ?? '',
+      createdAt: teacher.createdAt ?? existingTeacher.createdAt ?? '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(teacherRef, updatedPayload);
+
+    return {
+      id: teacher.id,
+      ...updatedPayload,
+    };
+  }
+
+  private async archiveTeacher(id: string): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Teacher ID is required.');
+    }
+
+    const teacherRef = doc(db, this.collectionName, id);
+    const teacherSnapshot = await getDoc(teacherRef);
+
+    if (!teacherSnapshot.exists()) {
+      throw new Error('Teacher record not found.');
+    }
+
+    await updateDoc(teacherRef, {
+      status: 'archived',
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async processExcelImport(file: File): Promise<FacultyBulkImportResult> {
@@ -207,6 +294,18 @@ export class TeacherService {
         const employeeNo = this.generateFacultyId(facultyType, baseCount + currentLocalCount + 1);
         localCounters.set(normalizedType, currentLocalCount + 1);
 
+        const existingEmployeeNo = await this.findTeacherByEmployeeNo(employeeNo);
+
+        if (existingEmployeeNo) {
+          result.skipped++;
+          result.errors.push(
+            `Skipped ${email}: generated faculty ID ${employeeNo} already exists.`,
+          );
+          continue;
+        }
+
+        const now = new Date().toISOString();
+
         const teacherPayload: Omit<Teacher, 'id'> = {
           employeeNo,
           userId: '',
@@ -216,6 +315,10 @@ export class TeacherService {
           email,
           facultyType,
           status: status.toLowerCase(),
+          isArchived: false,
+          archivedAt: '',
+          createdAt: now,
+          updatedAt: now,
         };
 
         await addDoc(collection(db, this.collectionName), teacherPayload);
@@ -303,12 +406,14 @@ export class TeacherService {
     await updateDoc(doc(db, this.collectionName, teacher.id), {
       userId: userRef.id,
       email,
+      updatedAt: new Date().toISOString(),
     });
 
     const updatedTeacher: Teacher = {
       ...teacher,
       userId: userRef.id,
       email,
+      updatedAt: new Date().toISOString(),
     };
 
     await this.sendFacultyAccountEmail({
@@ -382,7 +487,24 @@ export class TeacherService {
 
   private async findTeacherByEmail(email: string): Promise<Teacher | null> {
     const teachersRef = collection(db, this.collectionName);
-    const teacherQuery = query(teachersRef, where('email', '==', email));
+    const teacherQuery = query(teachersRef, where('email', '==', email.trim().toLowerCase()));
+    const snapshot = await getDocs(teacherQuery);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const docSnap = snapshot.docs[0];
+
+    return {
+      id: docSnap.id,
+      ...docSnap.data(),
+    } as Teacher;
+  }
+
+  private async findTeacherByEmployeeNo(employeeNo: string): Promise<Teacher | null> {
+    const teachersRef = collection(db, this.collectionName);
+    const teacherQuery = query(teachersRef, where('employeeNo', '==', employeeNo.trim()));
     const snapshot = await getDocs(teacherQuery);
 
     if (snapshot.empty) {
@@ -410,6 +532,10 @@ export class TeacherService {
       email: teacher.email.trim().toLowerCase(),
       facultyType,
       status: teacher.status?.trim() || 'active',
+      isArchived: teacher.isArchived ?? false,
+      archivedAt: teacher.archivedAt ?? '',
+      createdAt: teacher.createdAt ?? '',
+      updatedAt: teacher.updatedAt ?? '',
     };
   }
 

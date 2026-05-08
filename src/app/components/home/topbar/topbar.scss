@@ -249,6 +249,12 @@
 .notif-body {
   max-height: 360px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .notif-list {

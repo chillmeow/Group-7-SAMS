@@ -8,7 +8,12 @@ export const roleGuard: CanActivateFn = (route) => {
 
   const currentUser = authService.getCurrentUser();
 
-  if (!currentUser || !currentUser.id) {
+  if (
+    !currentUser ||
+    !currentUser.id ||
+    !currentUser.role ||
+    String(currentUser.status || 'active').toLowerCase() !== 'active'
+  ) {
     router.navigate(['/login']);
     return false;
   }
@@ -19,16 +24,13 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  const userRole = String(currentUser.role || '')
-    .trim()
-    .toLowerCase();
-
+  const userRole = String(currentUser.role).trim().toLowerCase();
   const normalizedAllowedRoles = allowedRoles.map((role) => String(role).trim().toLowerCase());
 
   if (normalizedAllowedRoles.includes(userRole)) {
     return true;
   }
 
-  router.navigate(['/dashboard']);
+  router.navigate(['/unauthorized']);
   return false;
 };

@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
 import { ApiService } from '../../../services/api.service';
 import { AuthService } from '../../../services/auth.service';
 import { AlertService } from '../../../services/alert.service';
@@ -20,9 +19,19 @@ export class ProfileComponent implements OnInit {
   private readonly alertService = inject(AlertService);
 
   currentUser: User | null = null;
+  activeTab: 'about' | 'edit' = 'about';
   saving = false;
-  selectedImageName = '';
   showPhotoViewer = false;
+
+  coverColors = [
+    'linear-gradient(135deg, #1e3a8a, #3b82f6)',
+    'linear-gradient(135deg, #065f46, #10b981)',
+    'linear-gradient(135deg, #7c2d12, #f97316)',
+    'linear-gradient(135deg, #4c1d95, #8b5cf6)',
+    'linear-gradient(135deg, #831843, #ec4899)',
+    'linear-gradient(135deg, #0f172a, #334155)',
+  ];
+  selectedCover = 0;
 
   formData: Partial<User> = {
     firstName: '',
@@ -34,27 +43,33 @@ export class ProfileComponent implements OnInit {
     photoUrl: '',
   };
 
-  ngOnInit(): void {
-    const user = this.authService.getCurrentUser();
-    this.currentUser = user;
-
-    if (user) {
+  ngOnInit() {
+    this.currentUser = this.authService.getCurrentUser();
+    const savedCover = localStorage.getItem('sams-cover-' + this.currentUser?.id);
+    if (savedCover) this.selectedCover = parseInt(savedCover);
+    if (this.currentUser) {
       this.formData = {
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        username: user.username || '',
-        contactNumber: user.contactNumber || '',
-        address: user.address || '',
-        photoUrl: user.photoUrl || '',
+        firstName: this.currentUser.firstName || '',
+        lastName: this.currentUser.lastName || '',
+        email: this.currentUser.email || '',
+        username: this.currentUser.username || '',
+        contactNumber: this.currentUser.contactNumber || '',
+        address: this.currentUser.address || '',
+        photoUrl: this.currentUser.photoUrl || '',
       };
     }
   }
 
   getFullName(): string {
-    const first = this.formData.firstName?.trim() || this.currentUser?.firstName || '';
-    const last = this.formData.lastName?.trim() || this.currentUser?.lastName || '';
-    return `${first} ${last}`.trim() || 'User';
+    return (
+      `${this.currentUser?.firstName || ''} ${this.currentUser?.lastName || ''}`.trim() || 'User'
+    );
+  }
+
+  getInitials(): string {
+    const f = this.currentUser?.firstName?.charAt(0)?.toUpperCase() || '';
+    const l = this.currentUser?.lastName?.charAt(0)?.toUpperCase() || '';
+    return `${f}${l}` || 'U';
   }
 
   getRoleLabel(): string {
@@ -62,58 +77,63 @@ export class ProfileComponent implements OnInit {
     return role.charAt(0).toUpperCase() + role.slice(1);
   }
 
+  getRoleColor(): string {
+    const map: Record<string, string> = {
+      admin: 'role-admin',
+      teacher: 'role-teacher',
+      student: 'role-student',
+      parent: 'role-parent',
+    };
+    return map[this.currentUser?.role || ''] || 'role-admin';
+  }
+
   getStatusLabel(): string {
     return this.currentUser?.status === 'inactive' ? 'Inactive' : 'Active';
   }
 
-  getInitials(): string {
-    const first = this.formData.firstName?.charAt(0)?.toUpperCase() || '';
-    const last = this.formData.lastName?.charAt(0)?.toUpperCase() || '';
-    return `${first}${last}` || 'U';
+  getCoverStyle(): string {
+    return this.coverColors[this.selectedCover];
+  }
+
+  selectCover(index: number) {
+    this.selectedCover = index;
+    localStorage.setItem('sams-cover-' + this.currentUser?.id, String(index));
   }
 
   hasPhoto(): boolean {
-    return !!this.formData.photoUrl;
+    return !!this.currentUser?.photoUrl;
   }
 
-  openPhotoViewer(): void {
-    if (!this.formData.photoUrl) return;
+  openPhotoViewer() {
+    if (!this.hasPhoto()) return;
     this.showPhotoViewer = true;
     document.body.style.overflow = 'hidden';
   }
 
-  closePhotoViewer(): void {
+  closePhotoViewer() {
     this.showPhotoViewer = false;
     document.body.style.overflow = '';
   }
 
   @HostListener('document:keydown.escape')
-  onEscapeKey(): void {
-    if (this.showPhotoViewer) {
-      this.closePhotoViewer();
-    }
+  onEscape() {
+    if (this.showPhotoViewer) this.closePhotoViewer();
   }
 
-  onFileSelected(event: Event): void {
+  onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-
     if (!file) return;
 
     const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      this.alertService.error('Invalid file', 'Please upload a PNG, JPG, JPEG, or WEBP image.');
-      input.value = '';
+      this.alertService.error('Invalid file', 'Please upload a PNG, JPG or WEBP image.');
       return;
     }
-
     if (file.size > 2 * 1024 * 1024) {
       this.alertService.error('File too large', 'Please upload an image below 2MB.');
-      input.value = '';
       return;
     }
-
-    this.selectedImageName = file.name;
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -122,59 +142,42 @@ export class ProfileComponent implements OnInit {
     reader.readAsDataURL(file);
   }
 
-  removePhoto(): void {
+  removePhoto() {
     this.formData.photoUrl = '';
-    this.selectedImageName = '';
   }
 
-  saveProfile(): void {
-    if (!this.currentUser?.id) {
-      this.alertService.error('Save failed', 'No logged-in user found.');
-      return;
-    }
+  saveProfile() {
+    if (!this.currentUser?.id) return;
 
-    const payload: Partial<User> = {
-      firstName: this.formData.firstName?.trim() || '',
-      lastName: this.formData.lastName?.trim() || '',
-      email: this.formData.email?.trim() || '',
-      username: this.formData.username?.trim() || '',
-      contactNumber: this.formData.contactNumber?.trim() || '',
-      address: this.formData.address?.trim() || '',
-      photoUrl: this.formData.photoUrl?.trim() || '',
-    };
-
-    if (!payload.firstName || !payload.lastName || !payload.email) {
-      this.alertService.warning(
-        'Missing required fields',
-        'First name, last name, and email are required.',
-      );
+    if (!this.formData.firstName || !this.formData.lastName || !this.formData.email) {
+      this.alertService.warning('Missing fields', 'First name, last name, and email are required.');
       return;
     }
 
     this.saving = true;
 
+    const payload: Partial<User> = {
+      firstName: this.formData.firstName?.trim(),
+      lastName: this.formData.lastName?.trim(),
+      email: this.formData.email?.trim(),
+      username: this.formData.username?.trim(),
+      contactNumber: this.formData.contactNumber?.trim(),
+      address: this.formData.address?.trim(),
+      photoUrl: this.formData.photoUrl?.trim(),
+    };
+
     this.api.updateUser(this.currentUser.id, payload).subscribe({
       next: (updatedUser) => {
-        const mergedUser = this.authService.updateCurrentUser({
-          ...this.currentUser,
-          ...payload,
-          ...updatedUser,
-        });
-
-        this.currentUser = mergedUser;
+        this.currentUser = this.authService.updateCurrentUser({ ...payload, ...updatedUser });
         this.saving = false;
-
-        this.alertService.success('Profile updated', 'Your profile has been updated successfully.');
+        this.activeTab = 'about';
+        this.alertService.success('Profile updated', 'Your profile has been saved successfully.');
       },
       error: () => {
-        const mergedUser = this.authService.updateCurrentUser(payload);
-        this.currentUser = mergedUser;
+        this.currentUser = this.authService.updateCurrentUser(payload);
         this.saving = false;
-
-        this.alertService.warning(
-          'Saved to session only',
-          'The profile updated locally, but the database update did not complete.',
-        );
+        this.activeTab = 'about';
+        this.alertService.warning('Saved locally', 'Profile updated in session only.');
       },
     });
   }

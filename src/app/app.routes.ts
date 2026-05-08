@@ -18,6 +18,7 @@ import { ParentsComponent } from './components/pages/parents/parents';
 import { SectionsComponent } from './components/pages/sections/sections';
 import { ClassOfferingsComponent } from './components/pages/class-offerings/class-offerings';
 import { ProfileComponent } from './components/features/profile/profile';
+import { SettingsComponent } from './components/pages/settings/settings';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -36,6 +37,13 @@ export const routes: Routes = [
       {
         path: 'profile',
         component: ProfileComponent,
+        canActivate: [roleGuard],
+        data: { roles: ['admin', 'teacher', 'student', 'parent'] },
+      },
+
+      {
+        path: 'settings',
+        component: SettingsComponent,
         canActivate: [roleGuard],
         data: { roles: ['admin', 'teacher', 'student', 'parent'] },
       },

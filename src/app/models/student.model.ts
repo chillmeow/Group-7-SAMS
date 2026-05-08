@@ -15,4 +15,9 @@ export interface Student {
   parentEmail?: string;
   parentContactNumber?: string;
   parentRelationship?: string;
+
+  isArchived?: boolean;
+  archivedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

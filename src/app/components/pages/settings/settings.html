@@ -1,0 +1,192 @@
+<div class="settings-page">
+  <div class="settings-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-sub">Manage your account preferences and security.</p>
+  </div>
+
+  <div class="settings-layout">
+    <div class="settings-nav">
+      <button
+        class="nav-item"
+        [class.active]="activeTab === 'password'"
+        (click)="setTab('password')"
+      >
+        <i class="pi pi-lock"></i>
+        <span>Password</span>
+      </button>
+      <button
+        class="nav-item"
+        [class.active]="activeTab === 'appearance'"
+        (click)="setTab('appearance')"
+      >
+        <i class="pi pi-palette"></i>
+        <span>Appearance</span>
+      </button>
+      <button class="nav-item" [class.active]="activeTab === 'account'" (click)="setTab('account')">
+        <i class="pi pi-user"></i>
+        <span>Account</span>
+      </button>
+    </div>
+
+    <div class="settings-content">
+      @if (activeTab === 'password') {
+        <div class="settings-card">
+          <div class="card-header">
+            <h2>Change Password</h2>
+            <p>Update your account password. Use at least 6 characters.</p>
+          </div>
+
+          <div class="form-stack">
+            <div class="form-group">
+              <label>Current Password</label>
+              <div class="input-wrap">
+                <input
+                  [type]="showCurrent ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.currentPassword"
+                  placeholder="Enter current password"
+                />
+                <button type="button" class="eye-btn" (click)="showCurrent = !showCurrent">
+                  <i [class]="showCurrent ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>New Password</label>
+              <div class="input-wrap">
+                <input
+                  [type]="showNew ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.newPassword"
+                  placeholder="Enter new password"
+                />
+                <button type="button" class="eye-btn" (click)="showNew = !showNew">
+                  <i [class]="showNew ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <div class="input-wrap">
+                <input
+                  [type]="showConfirm ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.confirmPassword"
+                  placeholder="Confirm new password"
+                />
+                <button type="button" class="eye-btn" (click)="showConfirm = !showConfirm">
+                  <i [class]="showConfirm ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="primary-btn" (click)="changePassword()" [disabled]="saving">
+                {{ saving ? 'Saving...' : 'Update Password' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeTab === 'appearance') {
+        <div class="settings-card">
+          <div class="card-header">
+            <h2>Appearance</h2>
+            <p>Customize how SAMS looks for you.</p>
+          </div>
+
+          <div class="appearance-row">
+            <div class="appearance-info">
+              <div class="appearance-icon">
+                <i [class]="isDarkMode ? 'pi pi-moon' : 'pi pi-sun'"></i>
+              </div>
+              <div>
+                <div class="appearance-label">{{ isDarkMode ? 'Dark Mode' : 'Light Mode' }}</div>
+                <div class="appearance-sub">
+                  {{ isDarkMode ? 'Easy on the eyes at night.' : 'Classic bright interface.' }}
+                </div>
+              </div>
+            </div>
+            <button class="toggle-btn" [class.active]="isDarkMode" (click)="toggleTheme()">
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+
+          <div class="appearance-preview" [class.dark-preview]="isDarkMode">
+            <div class="preview-topbar">
+              <div class="preview-dot"></div>
+              <div class="preview-title">SAMS Preview</div>
+            </div>
+            <div class="preview-body">
+              <div class="preview-sidebar"></div>
+              <div class="preview-content">
+                <div class="preview-card"></div>
+                <div class="preview-card"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeTab === 'account') {
+        <div class="settings-card">
+          <div class="card-header">
+            <h2>Account Information</h2>
+            <p>Your account details and current status.</p>
+          </div>
+
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-label">Full Name</span>
+              <span class="info-value"
+                >{{ currentUser?.firstName }} {{ currentUser?.lastName }}</span
+              >
+            </div>
+            <div class="info-row">
+              <span class="info-label">Email</span>
+              <span class="info-value">{{ currentUser?.email || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Username</span>
+              <span class="info-value">{{ currentUser?.username || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Role</span>
+              <span class="info-value">
+                <span class="role-badge">{{ getRoleLabel() }}</span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Status</span>
+              <span class="info-value">
+                <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+                  {{ getStatusLabel() }}
+                </span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">User ID</span>
+              <span class="info-value id-text">{{ currentUser?.id || '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card danger-card">
+          <div class="card-header">
+            <h2>Danger Zone</h2>
+            <p>Irreversible actions for your account.</p>
+          </div>
+          <div class="danger-row">
+            <div>
+              <div class="danger-label">Deactivate Account</div>
+              <div class="danger-sub">
+                Your account will be marked inactive and you will be logged out.
+              </div>
+            </div>
+            <button class="danger-btn" (click)="deactivateAccount()">Deactivate</button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

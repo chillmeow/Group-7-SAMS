@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -44,6 +44,10 @@ export class ClassOfferingService {
             semester: data['semester'] || '',
             schedules: Array.isArray(data['schedules']) ? data['schedules'] : [],
             status: data['status'] || 'active',
+
+            isArchived: data['isArchived'] || false,
+            archivedAt: data['archivedAt'] || '',
+
             createdAt: data['createdAt'] || '',
             updatedAt: data['updatedAt'] || '',
           } as ClassOffering;
@@ -65,8 +69,7 @@ export class ClassOfferingService {
   }
 
   deleteClassOffering(id: string): Observable<void> {
-    const offeringRef = doc(db, this.collectionName, id);
-    return from(deleteDoc(offeringRef));
+    return from(this.archiveClassOffering(id));
   }
 
   private async addClassOfferingSafely(offering: ClassOffering): Promise<ClassOffering> {
@@ -93,6 +96,18 @@ export class ClassOfferingService {
       throw new Error('Class offering ID is required for update.');
     }
 
+    const offeringRef = doc(db, this.collectionName, offering.id);
+    const existingDoc = await getDoc(offeringRef);
+
+    if (!existingDoc.exists()) {
+      throw new Error('Class offering record not found.');
+    }
+
+    const existingOfferingData = {
+      id: existingDoc.id,
+      ...existingDoc.data(),
+    } as ClassOffering;
+
     const payload = this.buildOfferingPayload(offering, false);
     const existingOffering = await this.findOfferingByCode(payload.offeringCode);
 
@@ -102,13 +117,40 @@ export class ClassOfferingService {
       );
     }
 
-    const offeringRef = doc(db, this.collectionName, offering.id);
-    await updateDoc(offeringRef, payload);
+    const updatedPayload: Omit<ClassOffering, 'id'> = {
+      ...payload,
+      isArchived: offering.isArchived ?? existingOfferingData.isArchived ?? false,
+      archivedAt: offering.archivedAt ?? existingOfferingData.archivedAt ?? '',
+      createdAt: offering.createdAt ?? existingOfferingData.createdAt ?? '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(offeringRef, updatedPayload);
 
     return {
       id: offering.id,
-      ...payload,
+      ...updatedPayload,
     };
+  }
+
+  private async archiveClassOffering(id: string): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Class offering ID is required.');
+    }
+
+    const offeringRef = doc(db, this.collectionName, id);
+    const offeringSnapshot = await getDoc(offeringRef);
+
+    if (!offeringSnapshot.exists()) {
+      throw new Error('Class offering record not found.');
+    }
+
+    await updateDoc(offeringRef, {
+      status: 'archived',
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async findOfferingByCode(offeringCode: string): Promise<ClassOffering | null> {
@@ -158,6 +200,10 @@ export class ClassOfferingService {
       schedules: this.cleanSchedules(offering.schedules || []),
 
       status: (offering.status || 'active').trim().toLowerCase(),
+
+      isArchived: offering.isArchived ?? false,
+      archivedAt: offering.archivedAt ?? '',
+
       createdAt: isNew ? now : offering.createdAt || now,
       updatedAt: now,
     };

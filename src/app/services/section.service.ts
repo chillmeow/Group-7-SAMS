@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -42,6 +42,10 @@ export class SectionService {
             schoolYear: data['schoolYear'] || '',
             capacity: Number(data['capacity'] || 0),
             status: data['status'] || 'active',
+
+            isArchived: data['isArchived'] || false,
+            archivedAt: data['archivedAt'] || '',
+
             createdAt: data['createdAt'] || '',
             updatedAt: data['updatedAt'] || '',
           } as Section;
@@ -63,8 +67,7 @@ export class SectionService {
   }
 
   deleteSection(id: string): Observable<void> {
-    const sectionRef = doc(db, this.collectionName, id);
-    return from(deleteDoc(sectionRef));
+    return from(this.archiveSection(id));
   }
 
   private async addSectionSafely(section: Section): Promise<Section> {
@@ -89,6 +92,18 @@ export class SectionService {
       throw new Error('Section ID is required for update.');
     }
 
+    const sectionRef = doc(db, this.collectionName, section.id);
+    const existingDoc = await getDoc(sectionRef);
+
+    if (!existingDoc.exists()) {
+      throw new Error('Section record not found.');
+    }
+
+    const existingSectionData = {
+      id: existingDoc.id,
+      ...existingDoc.data(),
+    } as Section;
+
     const payload = this.buildSectionPayload(section, false);
     const existingSection = await this.findSectionByCode(payload.sectionCode);
 
@@ -96,13 +111,40 @@ export class SectionService {
       throw new Error(`${this.getReadableSection(payload)} already exists.`);
     }
 
-    const sectionRef = doc(db, this.collectionName, section.id);
-    await updateDoc(sectionRef, payload);
+    const updatedPayload: Omit<Section, 'id'> = {
+      ...payload,
+      isArchived: section.isArchived ?? existingSectionData.isArchived ?? false,
+      archivedAt: section.archivedAt ?? existingSectionData.archivedAt ?? '',
+      createdAt: section.createdAt ?? existingSectionData.createdAt ?? '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(sectionRef, updatedPayload);
 
     return {
       id: section.id,
-      ...payload,
+      ...updatedPayload,
     };
+  }
+
+  private async archiveSection(id: string): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Section ID is required.');
+    }
+
+    const sectionRef = doc(db, this.collectionName, id);
+    const sectionSnapshot = await getDoc(sectionRef);
+
+    if (!sectionSnapshot.exists()) {
+      throw new Error('Section record not found.');
+    }
+
+    await updateDoc(sectionRef, {
+      status: 'archived',
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async findSectionByCode(sectionCode: string): Promise<Section | null> {
@@ -152,6 +194,10 @@ export class SectionService {
       schoolYear,
       capacity,
       status: (section.status || 'active').trim().toLowerCase(),
+
+      isArchived: section.isArchived ?? false,
+      archivedAt: section.archivedAt ?? '',
+
       createdAt: isNew ? now : section.createdAt || now,
       updatedAt: now,
     };

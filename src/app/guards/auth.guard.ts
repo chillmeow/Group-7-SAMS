@@ -8,7 +8,13 @@ export const authGuard: CanActivateFn = () => {
 
   const currentUser = authService.getCurrentUser();
 
-  if (currentUser && currentUser.id && currentUser.email) {
+  if (
+    currentUser &&
+    currentUser.id &&
+    currentUser.email &&
+    currentUser.role &&
+    String(currentUser.status || 'active').toLowerCase() === 'active'
+  ) {
     return true;
   }
 

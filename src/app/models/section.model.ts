@@ -10,6 +10,10 @@ export interface Section {
   schoolYear: string;
   capacity: number;
   status: string;
+
+  isArchived?: boolean;
+  archivedAt?: string;
+
   createdAt?: string;
   updatedAt?: string;
 }

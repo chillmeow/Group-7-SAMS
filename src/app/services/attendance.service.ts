@@ -1,14 +1,15 @@
 import { Injectable } from '@angular/core';
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
+  runTransaction,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { Observable, from, map, switchMap, throwError } from 'rxjs';
 
@@ -63,11 +64,16 @@ export class AttendanceService {
       lateThresholdMinutes: 10,
     };
 
-    return from(addDoc(this.sessionsCollection, payload)).pipe(
-      map((ref) => ({
-        id: ref.id,
-        ...payload,
-      })),
+    return from(
+      runTransaction(db, async (transaction) => {
+        const sessionRef = doc(this.sessionsCollection);
+        transaction.set(sessionRef, payload);
+
+        return {
+          id: sessionRef.id,
+          ...payload,
+        };
+      }),
     );
   }
 
@@ -233,12 +239,10 @@ export class AttendanceService {
         throw new Error(`Session ID ${sessionId} was not found.`);
       }
 
-      const alreadyExists = await this.checkDuplicateOnce(sessionId, studentId);
+      const session = this.mapSession(sessionSnap.id, sessionSnap.data());
 
-      if (alreadyExists) {
-        throw new Error(
-          `Attendance already exists for student ${studentId} in session ${sessionId}.`,
-        );
+      if (session.status !== 'active' && session.status !== 'closed') {
+        throw new Error(`Session ID ${sessionId} has an invalid status.`);
       }
 
       const payload: AttendanceRecord = {
@@ -259,7 +263,7 @@ export class AttendanceService {
         payload.remarks = record.remarks.trim();
       }
 
-      const saved = await this.createRecordOnce(payload);
+      const saved = await this.createRecordTransactionally(payload);
       imported.push(saved);
     }
 
@@ -295,13 +299,11 @@ export class AttendanceService {
       ...offeringSnap.data(),
     } as ClassOffering;
 
-    if (!offering.sectionId) {
+    if (!offering.sectionId && !(offering as any).sectionName) {
       throw new Error('Class offering has no linked section.');
     }
 
-    const studentsSnapshot = await getDocs(
-      query(this.studentsCollection, where('sectionId', '==', offering.sectionId)),
-    );
+    const studentsSnapshot = await getDocs(this.studentsCollection);
 
     const sectionStudents = studentsSnapshot.docs
       .map(
@@ -311,7 +313,12 @@ export class AttendanceService {
             ...docSnap.data(),
           }) as Student,
       )
-      .filter((student) => student.status !== 'inactive' && student.status !== 'archived');
+      .filter(
+        (student) =>
+          student.status !== 'inactive' &&
+          student.status !== 'archived' &&
+          this.studentMatchesOfferingSection(student, offering),
+      );
 
     const recordsSnapshot = await getDocs(
       query(this.recordsCollection, where('sessionId', '==', sessionId)),
@@ -325,6 +332,9 @@ export class AttendanceService {
     );
 
     const now = new Date().toISOString();
+    const endTime = new Date().toISOString();
+
+    const absentRecords: AttendanceRecord[] = [];
 
     for (const student of sectionStudents) {
       if (!student.id) continue;
@@ -335,7 +345,7 @@ export class AttendanceService {
         continue;
       }
 
-      const absentRecord: AttendanceRecord = {
+      absentRecords.push({
         sessionId,
         studentId,
         status: 'absent',
@@ -344,18 +354,39 @@ export class AttendanceService {
         recordedBy: session.instructorId,
         isValid: true,
         remarks: 'Auto-marked absent when the attendance session was closed.',
-      };
+      });
 
-      await this.createRecordOnce(absentRecord);
       recordedStudentIds.add(studentId);
     }
 
-    const endTime = new Date().toISOString();
+    const batches: ReturnType<typeof writeBatch>[] = [];
+    let currentBatch = writeBatch(db);
+    let operationCount = 0;
 
-    await updateDoc(sessionRef, {
+    for (const record of absentRecords) {
+      const recordId = this.buildAttendanceRecordId(record.sessionId, record.studentId);
+      const recordRef = doc(this.recordsCollection, recordId);
+      const payload = this.stripEmptyFields(this.stripId(record));
+
+      currentBatch.set(recordRef, payload);
+      operationCount++;
+
+      if (operationCount >= 450) {
+        batches.push(currentBatch);
+        currentBatch = writeBatch(db);
+        operationCount = 0;
+      }
+    }
+
+    currentBatch.update(sessionRef, {
       status: 'closed',
       endTime,
     });
+    batches.push(currentBatch);
+
+    for (const batch of batches) {
+      await batch.commit();
+    }
 
     return {
       ...session,
@@ -385,12 +416,6 @@ export class AttendanceService {
       throw new Error('This attendance session is already closed.');
     }
 
-    const alreadyExists = await this.checkDuplicateOnce(session.id!, studentId);
-
-    if (alreadyExists) {
-      throw new Error('Attendance already recorded for this session.');
-    }
-
     const validation = await this.checkStudentBelongsToSession(session, studentId);
 
     if (!validation.belongs) {
@@ -402,7 +427,7 @@ export class AttendanceService {
 
     const status = this.computeAttendanceStatus(session);
 
-    return this.createRecordOnce({
+    return this.createRecordTransactionally({
       sessionId: session.id!,
       studentId,
       status,
@@ -426,10 +451,10 @@ export class AttendanceService {
       throw new Error('Attendance session not found.');
     }
 
-    const alreadyExists = await this.checkDuplicateOnce(sessionId, studentId);
+    const session = this.mapSession(sessionSnap.id, sessionSnap.data());
 
-    if (alreadyExists) {
-      throw new Error('Attendance already recorded for this student.');
+    if (session.status !== 'active' && session.status !== 'closed') {
+      throw new Error('This attendance session cannot accept manual attendance.');
     }
 
     const payload: AttendanceRecord = {
@@ -450,7 +475,7 @@ export class AttendanceService {
       payload.remarks = remarks.trim();
     }
 
-    return this.createRecordOnce(payload);
+    return this.createRecordTransactionally(payload);
   }
 
   private async approveRequestSafely(
@@ -458,61 +483,98 @@ export class AttendanceService {
     instructorId: string,
   ): Promise<AttendanceRecord> {
     const requestRef = doc(this.requestsCollection, requestId);
-    const requestSnap = await getDoc(requestRef);
+    const requestSnapForLookup = await getDoc(requestRef);
 
-    if (!requestSnap.exists()) {
+    if (!requestSnapForLookup.exists()) {
       throw new Error('Attendance request not found.');
     }
 
-    const request = this.mapRequest(requestSnap.id, requestSnap.data());
+    const requestForLookup = this.mapRequest(requestSnapForLookup.id, requestSnapForLookup.data());
 
-    if (request.status !== 'pending') {
-      throw new Error('This attendance request has already been reviewed.');
-    }
+    const legacyRecord = await this.findExistingAttendanceRecord(
+      requestForLookup.sessionId,
+      requestForLookup.studentId,
+    );
 
-    const sessionSnap = await getDoc(doc(this.sessionsCollection, request.sessionId));
+    return runTransaction(db, async (transaction) => {
+      const requestSnap = await transaction.get(requestRef);
 
-    if (!sessionSnap.exists()) {
-      throw new Error('Attendance session not found.');
-    }
+      if (!requestSnap.exists()) {
+        throw new Error('Attendance request not found.');
+      }
 
-    const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+      const request = this.mapRequest(requestSnap.id, requestSnap.data());
 
-    if (session.instructorId !== instructorId) {
-      throw new Error('You are not allowed to review this attendance request.');
-    }
+      if (request.status !== 'pending') {
+        throw new Error('This attendance request has already been reviewed.');
+      }
 
-    const alreadyExists = await this.checkDuplicateOnce(request.sessionId, request.studentId);
+      const sessionRef = doc(this.sessionsCollection, request.sessionId);
+      const sessionSnap = await transaction.get(sessionRef);
 
-    if (alreadyExists) {
-      await updateDoc(requestRef, {
+      if (!sessionSnap.exists()) {
+        throw new Error('Attendance session not found.');
+      }
+
+      const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+
+      if (session.instructorId !== instructorId) {
+        throw new Error('You are not allowed to review this attendance request.');
+      }
+
+      const reviewedAt = new Date().toISOString();
+
+      if (legacyRecord) {
+        transaction.update(requestRef, {
+          status: 'approved',
+          reviewedAt,
+          reviewedBy: instructorId,
+        });
+
+        return legacyRecord;
+      }
+
+      const recordId = this.buildAttendanceRecordId(request.sessionId, request.studentId);
+      const recordRef = doc(this.recordsCollection, recordId);
+      const existingRecordSnap = await transaction.get(recordRef);
+
+      if (existingRecordSnap.exists()) {
+        transaction.update(requestRef, {
+          status: 'approved',
+          reviewedAt,
+          reviewedBy: instructorId,
+        });
+
+        return this.mapRecord(existingRecordSnap.id, existingRecordSnap.data());
+      }
+
+      const status = this.computeAttendanceStatus(session);
+
+      const payload: AttendanceRecord = {
+        sessionId: request.sessionId,
+        studentId: request.studentId,
+        status,
+        method: 'teacher_assisted',
+        timeRecorded: reviewedAt,
+        recordedBy: instructorId,
+        isValid: true,
+      };
+
+      const cleanedPayload = this.stripEmptyFields(this.stripId(payload));
+
+      transaction.set(recordRef, cleanedPayload);
+
+      transaction.update(requestRef, {
         status: 'approved',
-        reviewedAt: new Date().toISOString(),
+        reviewedAt,
         reviewedBy: instructorId,
       });
 
-      throw new Error('Attendance is already recorded for this student.');
-    }
-
-    const status = this.computeAttendanceStatus(session);
-
-    const record = await this.createRecordOnce({
-      sessionId: request.sessionId,
-      studentId: request.studentId,
-      status,
-      method: 'teacher_assisted',
-      timeRecorded: new Date().toISOString(),
-      recordedBy: instructorId,
-      isValid: true,
+      return {
+        id: recordId,
+        ...(cleanedPayload as Omit<AttendanceRecord, 'id'>),
+      };
     });
-
-    await updateDoc(requestRef, {
-      status: 'approved',
-      reviewedAt: new Date().toISOString(),
-      reviewedBy: instructorId,
-    });
-
-    return record;
   }
 
   private async rejectRequestSafely(
@@ -520,44 +582,48 @@ export class AttendanceService {
     instructorId: string,
   ): Promise<AttendanceRequest> {
     const requestRef = doc(this.requestsCollection, requestId);
-    const requestSnap = await getDoc(requestRef);
 
-    if (!requestSnap.exists()) {
-      throw new Error('Attendance request not found.');
-    }
+    return runTransaction(db, async (transaction) => {
+      const requestSnap = await transaction.get(requestRef);
 
-    const request = this.mapRequest(requestSnap.id, requestSnap.data());
+      if (!requestSnap.exists()) {
+        throw new Error('Attendance request not found.');
+      }
 
-    if (request.status !== 'pending') {
-      throw new Error('This attendance request has already been reviewed.');
-    }
+      const request = this.mapRequest(requestSnap.id, requestSnap.data());
 
-    const sessionSnap = await getDoc(doc(this.sessionsCollection, request.sessionId));
+      if (request.status !== 'pending') {
+        throw new Error('This attendance request has already been reviewed.');
+      }
 
-    if (!sessionSnap.exists()) {
-      throw new Error('Attendance session not found.');
-    }
+      const sessionRef = doc(this.sessionsCollection, request.sessionId);
+      const sessionSnap = await transaction.get(sessionRef);
 
-    const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+      if (!sessionSnap.exists()) {
+        throw new Error('Attendance session not found.');
+      }
 
-    if (session.instructorId !== instructorId) {
-      throw new Error('You are not allowed to review this attendance request.');
-    }
+      const session = this.mapSession(sessionSnap.id, sessionSnap.data());
 
-    const reviewedAt = new Date().toISOString();
+      if (session.instructorId !== instructorId) {
+        throw new Error('You are not allowed to review this attendance request.');
+      }
 
-    await updateDoc(requestRef, {
-      status: 'rejected',
-      reviewedAt,
-      reviewedBy: instructorId,
+      const reviewedAt = new Date().toISOString();
+
+      transaction.update(requestRef, {
+        status: 'rejected',
+        reviewedAt,
+        reviewedBy: instructorId,
+      });
+
+      return {
+        ...request,
+        status: 'rejected',
+        reviewedAt,
+        reviewedBy: instructorId,
+      };
     });
-
-    return {
-      ...request,
-      status: 'rejected',
-      reviewedAt,
-      reviewedBy: instructorId,
-    };
   }
 
   private async checkStudentBelongsToSession(
@@ -599,65 +665,176 @@ export class AttendanceService {
     }
 
     return {
-      belongs:
-        !!student.sectionId && !!offering.sectionId && student.sectionId === offering.sectionId,
+      belongs: this.studentMatchesOfferingSection(student, offering),
       student,
       offering,
     };
+  }
+
+  private studentMatchesOfferingSection(student: Student, offering: ClassOffering): boolean {
+    const studentSectionId = this.normalizeText((student as any).sectionId);
+    const studentSectionName = this.normalizeText((student as any).sectionName);
+    const studentSection = this.normalizeText((student as any).section);
+
+    const offeringSectionId = this.normalizeText((offering as any).sectionId);
+    const offeringSectionName = this.normalizeText((offering as any).sectionName);
+    const offeringSection = this.normalizeText((offering as any).section);
+
+    const studentValues = [studentSectionId, studentSectionName, studentSection].filter(Boolean);
+    const offeringValues = [offeringSectionId, offeringSectionName, offeringSection].filter(
+      Boolean,
+    );
+
+    for (const studentValue of studentValues) {
+      for (const offeringValue of offeringValues) {
+        if (studentValue === offeringValue) {
+          return true;
+        }
+
+        if (offeringValue.endsWith(studentValue)) {
+          return true;
+        }
+
+        if (studentValue.endsWith(offeringValue)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   private async createPendingRequestOnce(
     session: AttendanceSession,
     studentId: string,
   ): Promise<AttendanceRequest> {
-    const existingQuery = query(
-      this.requestsCollection,
-      where('sessionId', '==', session.id!),
-      where('studentId', '==', studentId),
-      where('status', '==', 'pending'),
-    );
+    const requestId = this.buildAttendanceRequestId(session.id!, studentId);
+    const requestRef = doc(this.requestsCollection, requestId);
 
-    const existingSnapshot = await getDocs(existingQuery);
+    return runTransaction(db, async (transaction) => {
+      const requestSnap = await transaction.get(requestRef);
 
-    if (!existingSnapshot.empty) {
-      return this.mapRequest(existingSnapshot.docs[0].id, existingSnapshot.docs[0].data());
+      if (requestSnap.exists()) {
+        const existingRequest = this.mapRequest(requestSnap.id, requestSnap.data());
+
+        if (existingRequest.status === 'pending') {
+          return existingRequest;
+        }
+
+        if (existingRequest.status === 'approved') {
+          throw new Error('Attendance request has already been approved.');
+        }
+
+        if (existingRequest.status === 'rejected') {
+          throw new Error('Attendance request has already been rejected.');
+        }
+      }
+
+      const payload: Omit<AttendanceRequest, 'id'> = {
+        sessionId: session.id!,
+        studentId,
+        classOfferingId: session.classOfferingId,
+        reason: 'section_mismatch',
+        status: 'pending',
+        requestedAt: new Date().toISOString(),
+      };
+
+      transaction.set(requestRef, this.stripEmptyFields(payload));
+
+      return {
+        id: requestId,
+        ...payload,
+      };
+    });
+  }
+
+  private async createRecordTransactionally(record: AttendanceRecord): Promise<AttendanceRecord> {
+    const sessionId = String(record.sessionId || '').trim();
+    const studentId = String(record.studentId || '').trim();
+
+    if (!sessionId || !studentId) {
+      throw new Error('Attendance record has missing session ID or student ID.');
     }
 
-    const payload: Omit<AttendanceRequest, 'id'> = {
-      sessionId: session.id!,
-      studentId,
-      classOfferingId: session.classOfferingId,
-      reason: 'section_mismatch',
-      status: 'pending',
-      requestedAt: new Date().toISOString(),
-    };
+    const legacyRecord = await this.findExistingAttendanceRecord(sessionId, studentId);
 
-    const requestRef = await addDoc(this.requestsCollection, payload);
+    if (legacyRecord) {
+      throw new Error('Attendance already recorded for this session.');
+    }
 
-    return {
-      id: requestRef.id,
-      ...payload,
-    };
+    const recordId = this.buildAttendanceRecordId(sessionId, studentId);
+    const recordRef = doc(this.recordsCollection, recordId);
+    const sessionRef = doc(this.sessionsCollection, sessionId);
+    const cleanedPayload = this.stripEmptyFields(this.stripId(record));
+
+    return runTransaction(db, async (transaction) => {
+      const sessionSnap = await transaction.get(sessionRef);
+
+      if (!sessionSnap.exists()) {
+        throw new Error('Attendance session not found.');
+      }
+
+      const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+
+      if (session.status !== 'active' && record.status !== 'absent') {
+        throw new Error('This attendance session is already closed.');
+      }
+
+      const existingRecordSnap = await transaction.get(recordRef);
+
+      if (existingRecordSnap.exists()) {
+        throw new Error('Attendance already recorded for this session.');
+      }
+
+      transaction.set(recordRef, cleanedPayload);
+
+      return {
+        id: recordId,
+        ...(cleanedPayload as Omit<AttendanceRecord, 'id'>),
+      };
+    });
   }
 
-  private async createRecordOnce(record: AttendanceRecord): Promise<AttendanceRecord> {
-    const payload = this.stripEmptyFields(this.stripId(record));
-    const ref = await addDoc(this.recordsCollection, payload);
+  private async findExistingAttendanceRecord(
+    sessionId: string,
+    studentId: string,
+  ): Promise<AttendanceRecord | null> {
+    const q = query(
+      this.recordsCollection,
+      where('sessionId', '==', sessionId),
+      where('studentId', '==', studentId),
+    );
 
-    return {
-      id: ref.id,
-      ...(payload as Omit<AttendanceRecord, 'id'>),
-    };
-  }
-
-  private async checkDuplicateOnce(sessionId: string, studentId: string): Promise<boolean> {
-    const q = query(this.recordsCollection, where('sessionId', '==', sessionId));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.some((docSnap) => {
-      const data = docSnap.data() as AttendanceRecord;
-      return data.studentId === studentId;
-    });
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const firstDoc = snapshot.docs[0];
+    return this.mapRecord(firstDoc.id, firstDoc.data());
+  }
+
+  private buildAttendanceRecordId(sessionId: string, studentId: string): string {
+    return `${this.safeDocId(sessionId)}_${this.safeDocId(studentId)}`;
+  }
+
+  private buildAttendanceRequestId(sessionId: string, studentId: string): string {
+    return `${this.safeDocId(sessionId)}_${this.safeDocId(studentId)}_request`;
+  }
+
+  private safeDocId(value: string): string {
+    return String(value || '')
+      .trim()
+      .replace(/\//g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  private normalizeText(value: unknown): string {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
   }
 
   private computeAttendanceStatus(session: AttendanceSession): 'present' | 'late' {

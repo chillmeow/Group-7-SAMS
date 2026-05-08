@@ -134,10 +134,11 @@ export interface Attendance {
 
 export interface Notification {
   id: string | number;
-  userId: string | number;
+  userId?: string | number;
+  targetUserId?: string | number;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'info' | 'success' | 'warning' | 'error' | 'attendance' | 'request' | 'system' | 'message';
   read: boolean;
   createdAt: string;
   link?: string;
@@ -680,7 +681,7 @@ export class ApiService {
 
   getNotificationsByUser(userId: string | number): Observable<Notification[]> {
     const ref = collection(db, 'notifications');
-    const q = query(ref, where('userId', '==', userId));
+    const q = query(ref, where('targetUserId', '==', String(userId)));
 
     return from(getDocs(q)).pipe(
       map((snapshot) =>

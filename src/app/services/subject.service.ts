@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -47,6 +47,8 @@ export class SubjectService {
               lectureHours: Number(docSnap.data()['lectureHours']) || 0,
               labHours: Number(docSnap.data()['labHours']) || 0,
               status: docSnap.data()['status'] || 'active',
+              isArchived: docSnap.data()['isArchived'] || false,
+              archivedAt: docSnap.data()['archivedAt'] || '',
               createdAt: docSnap.data()['createdAt'] || '',
               updatedAt: docSnap.data()['updatedAt'] || '',
             }) as Subject,
@@ -68,8 +70,7 @@ export class SubjectService {
   }
 
   deleteSubject(id: string): Observable<void> {
-    const subjectRef = doc(db, this.collectionName, id);
-    return from(deleteDoc(subjectRef));
+    return from(this.archiveSubject(id));
   }
 
   importSubjectsFromExcel(file: File): Observable<SubjectBulkImportResult> {
@@ -99,6 +100,18 @@ export class SubjectService {
       throw new Error('Subject ID is required for update.');
     }
 
+    const subjectRef = doc(db, this.collectionName, subject.id);
+    const existingDoc = await getDoc(subjectRef);
+
+    if (!existingDoc.exists()) {
+      throw new Error('Subject record not found.');
+    }
+
+    const existingSubjectData = {
+      id: existingDoc.id,
+      ...existingDoc.data(),
+    } as Subject;
+
     const payload = this.buildSubjectPayload(subject, false);
     const existingSubject = await this.findSubjectByCode(payload.subjectCode);
 
@@ -106,13 +119,40 @@ export class SubjectService {
       throw new Error(`Subject code ${payload.subjectCode} already exists.`);
     }
 
-    const subjectRef = doc(db, this.collectionName, subject.id);
-    await updateDoc(subjectRef, payload);
+    const updatedPayload: Omit<Subject, 'id'> = {
+      ...payload,
+      isArchived: subject.isArchived ?? existingSubjectData.isArchived ?? false,
+      archivedAt: subject.archivedAt ?? existingSubjectData.archivedAt ?? '',
+      createdAt: subject.createdAt ?? existingSubjectData.createdAt ?? '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(subjectRef, updatedPayload);
 
     return {
       id: subject.id,
-      ...payload,
+      ...updatedPayload,
     };
+  }
+
+  private async archiveSubject(id: string): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Subject ID is required.');
+    }
+
+    const subjectRef = doc(db, this.collectionName, id);
+    const subjectSnapshot = await getDoc(subjectRef);
+
+    if (!subjectSnapshot.exists()) {
+      throw new Error('Subject record not found.');
+    }
+
+    await updateDoc(subjectRef, {
+      status: 'archived',
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async processExcelImport(file: File): Promise<SubjectBulkImportResult> {
@@ -305,6 +345,10 @@ export class SubjectService {
       lectureHours: Number(subject.lectureHours) || 0,
       labHours: Number(subject.labHours) || 0,
       status: (subject.status || 'active').trim().toLowerCase(),
+
+      isArchived: subject.isArchived ?? false,
+      archivedAt: subject.archivedAt ?? '',
+
       createdAt: isNew ? now : subject.createdAt || now,
       updatedAt: now,
     };

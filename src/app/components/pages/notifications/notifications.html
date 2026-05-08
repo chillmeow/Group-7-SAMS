@@ -1,1 +1,58 @@
-<p>notifications works!</p>
+<div class="notifications-page">
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Notifications</h1>
+      @if (unreadCount > 0) {
+        <span class="unread-badge">{{ unreadCount }} unread</span>
+      }
+    </div>
+    @if (unreadCount > 0) {
+      <button class="mark-all-btn" (click)="markAllRead()">Mark all as read</button>
+    }
+  </div>
+
+  @if (isLoading) {
+    <div class="empty-state">
+      <div class="spinner"></div>
+      <p>Loading notifications...</p>
+    </div>
+  } @else if (notifications.length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      </div>
+      <p class="empty-title">No notifications yet</p>
+      <p class="empty-sub">
+        You're all caught up! Notifications will appear here when there's activity.
+      </p>
+    </div>
+  } @else {
+    <div class="notif-list">
+      @for (notif of notifications; track notif.id) {
+        <div class="notif-card" [class.unread]="!notif.isRead" (click)="markAsRead(notif)">
+          <div class="notif-dot" [class]="'dot-' + getTypeColor(notif.type)"></div>
+          <div class="notif-body">
+            <div class="notif-top">
+              <span class="notif-title">{{ notif.title }}</span>
+              <span class="notif-tag" [class]="'tag-' + getTypeColor(notif.type)">
+                {{ getTypeLabel(notif.type) }}
+              </span>
+            </div>
+            <p class="notif-message">{{ notif.message }}</p>
+            <span class="notif-time">{{ notif.createdAt | date: 'MMM d, y · h:mm a' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
