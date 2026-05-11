@@ -263,7 +263,7 @@ export class StudentService {
       throw new Error('Student email is required to create a portal account.');
     }
 
-    const defaultPassword = `Sams@${username}`;
+    const defaultPassword = this.generateRandomPassword();
 
     const usersRef = collection(db, this.usersCollectionName);
     const usernameQuery = query(usersRef, where('username', '==', username));
@@ -287,7 +287,7 @@ export class StudentService {
         role: 'student',
         status: 'active',
         defaultPassword,
-        mustChangePassword: true,
+        mustChangePassword: false,
         accountType: 'institutional-demo',
         createdAt: new Date().toISOString(),
       };
@@ -369,7 +369,7 @@ export class StudentService {
         role: 'parent',
         status: 'active',
         defaultPassword: parentPassword,
-        mustChangePassword: true,
+        mustChangePassword: false,
         accountType: 'institutional-demo',
         createdAt: new Date().toISOString(),
       };

@@ -1,33 +1,61 @@
 <section class="dashboard-page">
-  <div class="dashboard-header">
-    <div>
+  <header class="dashboard-hero">
+    <div class="hero-copy">
+      <span class="hero-eyebrow">{{ roleLabel }} Portal</span>
+
       <h1>Welcome, {{ displayName }}</h1>
-      <p>{{ roleLabel }} Portal</p>
+
+      <ng-container [ngSwitch]="currentRole">
+        <p *ngSwitchCase="'admin'">
+          Monitor institutional attendance activity, school records, and system-wide reports from
+          one organized workspace.
+        </p>
+
+        <p *ngSwitchCase="'teacher'">
+          Manage attendance sessions, assigned classes, reports, and class communication in one
+          place.
+        </p>
+
+        <p *ngSwitchCase="'student'">
+          Track your attendance, enrolled subjects, and class communication through your student
+          portal.
+        </p>
+
+        <p *ngSwitchCase="'parent'">
+          Monitor your child’s attendance status, attendance history, and important attendance
+          concerns.
+        </p>
+
+        <p *ngSwitchDefault>
+          Access your attendance monitoring workspace and available SAMS modules.
+        </p>
+      </ng-container>
     </div>
 
     <button type="button" class="refresh-btn" (click)="loadDashboard()" [disabled]="isLoading">
-      <i class="pi pi-refresh"></i>
-      {{ isLoading ? 'Loading...' : 'Refresh' }}
+      <i class="pi" [ngClass]="isLoading ? 'pi-spin pi-spinner' : 'pi-refresh'"></i>
+      <span>{{ isLoading ? 'Loading...' : 'Refresh' }}</span>
     </button>
-  </div>
+  </header>
 
-  <div class="alert error" *ngIf="errorMessage">
-    {{ errorMessage }}
+  <div class="alert error" *ngIf="errorMessage" role="alert">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <span>{{ errorMessage }}</span>
   </div>
 
   <div class="loading-card" *ngIf="isLoading">
-    <i class="pi pi-spin pi-spinner"></i>
-    Loading dashboard data...
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <span>Loading dashboard data...</span>
   </div>
 
   <ng-container *ngIf="!isLoading">
-    <section class="stats-grid">
+    <section class="stats-grid" aria-label="Important dashboard numbers">
       <article
         class="stat-card"
         *ngFor="let stat of stats; trackBy: trackByStat"
         [ngClass]="stat.tone"
       >
-        <div class="stat-icon">
+        <div class="stat-icon" aria-hidden="true">
           <i [class]="stat.icon"></i>
         </div>
 
@@ -39,34 +67,73 @@
       </article>
     </section>
 
-    <section class="dashboard-board">
+    <section class="dashboard-board" aria-label="Dashboard quick access">
       <div class="board-header">
-        <h2>Dashboard</h2>
+        <div>
+          <span class="board-kicker">Quick Access</span>
+          <h2>{{ roleLabel }} Workspace</h2>
 
-        <a routerLink="/reports" class="view-btn" *ngIf="currentRole === 'admin'"> View Reports </a>
+          <ng-container [ngSwitch]="currentRole">
+            <p *ngSwitchCase="'admin'">
+              Open the main administrative modules needed for monitoring and school record
+              management.
+            </p>
+
+            <p *ngSwitchCase="'teacher'">
+              Continue with the most important teaching and attendance tasks.
+            </p>
+
+            <p *ngSwitchCase="'student'">
+              Access your attendance tools and student monitoring pages.
+            </p>
+
+            <p *ngSwitchCase="'parent'">
+              View the most important attendance monitoring pages for your child.
+            </p>
+
+            <p *ngSwitchDefault>Open the available modules assigned to your account.</p>
+          </ng-container>
+        </div>
+
+        <a
+          routerLink="/admin-management/reports-analytics"
+          class="view-btn"
+          *ngIf="currentRole === 'admin'"
+        >
+          <i class="pi pi-chart-bar" aria-hidden="true"></i>
+          <span>View Reports</span>
+        </a>
       </div>
 
       <div class="card-grid" *ngIf="cards.length > 0; else emptyDashboard">
-        <article
+        <a
           class="dashboard-card"
           *ngFor="let card of cards; trackBy: trackByCard"
           [ngClass]="card.tone"
           [routerLink]="card.route"
         >
-          <div class="card-top">
-            <h3>{{ card.title }}</h3>
-            <span>{{ card.status }}</span>
+          <div class="card-content">
+            <div class="card-top">
+              <h3>{{ card.title }}</h3>
+              <span class="status-pill">{{ card.status }}</span>
+            </div>
+
+            <p>{{ card.purpose }}</p>
           </div>
 
-          <p><strong>Purpose:</strong> {{ card.purpose }}</p>
-          <p><strong>Date:</strong> {{ card.date }}</p>
-
-          <button type="button" class="details-btn">View Details</button>
-        </article>
+          <div class="card-footer">
+            <span>Open module</span>
+            <i class="pi pi-arrow-right" aria-hidden="true"></i>
+          </div>
+        </a>
       </div>
 
       <ng-template #emptyDashboard>
-        <div class="empty-state">No dashboard records available.</div>
+        <div class="empty-state">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <h3>No dashboard records available</h3>
+          <p>There are no quick access items available for this account yet.</p>
+        </div>
       </ng-template>
     </section>
   </ng-container>

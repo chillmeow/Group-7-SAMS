@@ -91,7 +91,7 @@ export class Topbar implements OnInit {
       dashboard: 'Dashboard',
       profile: 'Profile',
       students: 'Students',
-      teachers: 'Teachers',
+      teachers: 'Instructors',
       parents: 'Parents',
       subjects: 'Subjects',
       sections: 'Sections',
@@ -102,6 +102,7 @@ export class Topbar implements OnInit {
       notifications: 'Notifications',
       messages: 'Messages',
       settings: 'Settings',
+      faqs: 'FAQs',
     };
 
     this.pageTitle = titleMap[segment] || this.toTitleCase(segment);
@@ -195,10 +196,7 @@ export class Topbar implements OnInit {
     event?.preventDefault();
     event?.stopPropagation();
 
-    this.isProfileOpen = false;
-    this.isNotifOpen = false;
-    this.isSearchOpen = false;
-
+    this.closeAllDropdowns();
     this.router.navigateByUrl('/profile');
   }
 
@@ -206,11 +204,23 @@ export class Topbar implements OnInit {
     event?.preventDefault();
     event?.stopPropagation();
 
+    this.closeAllDropdowns();
+    this.router.navigateByUrl('/settings');
+  }
+
+  openFaqs(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    this.closeAllDropdowns();
+    this.router.navigateByUrl('/faqs');
+  }
+
+  private closeAllDropdowns(): void {
     this.isProfileOpen = false;
     this.isNotifOpen = false;
     this.isSearchOpen = false;
-
-    this.router.navigateByUrl('/settings');
+    this.searchQuery = '';
   }
 
   toggleTheme(): void {
@@ -294,8 +304,73 @@ export class Topbar implements OnInit {
   }
 
   getUserRoleLabel(): string {
-    const role = this.currentUser?.role || 'user';
-    return role.charAt(0).toUpperCase() + role.slice(1);
+    const role = String(this.currentUser?.role || 'user').toLowerCase();
+
+    if (role === 'admin') {
+      return 'Administrator';
+    }
+
+    if (role === 'teacher') {
+      return this.getFacultyTypeLabel();
+    }
+
+    if (role === 'student') {
+      return 'Student';
+    }
+
+    if (role === 'parent') {
+      return 'Parent';
+    }
+
+    return 'User';
+  }
+
+  private getFacultyTypeLabel(): string {
+    const userData = this.currentUser as
+      | (User & {
+          facultyType?: string;
+          instructorType?: string;
+          teacherType?: string;
+          academicRank?: string;
+          designation?: string;
+          position?: string;
+          title?: string;
+        })
+      | null;
+
+    const possibleFacultyLabel =
+      userData?.facultyType ||
+      userData?.instructorType ||
+      userData?.teacherType ||
+      userData?.academicRank ||
+      userData?.designation ||
+      userData?.position ||
+      userData?.title ||
+      '';
+
+    const normalized = String(possibleFacultyLabel).trim().toLowerCase();
+
+    if (!normalized) {
+      return 'Faculty';
+    }
+
+    const labelMap: Record<string, string> = {
+      teacher: 'Faculty',
+      faculty: 'Faculty',
+      instructor: 'Instructor',
+      professor: 'Professor',
+      'assistant professor': 'Assistant Professor',
+      'associate professor': 'Associate Professor',
+      lecturer: 'Lecturer',
+      adviser: 'Adviser',
+      coordinator: 'Coordinator',
+    };
+
+    if (labelMap[normalized]) {
+      return labelMap[normalized];
+    }
+
+    return this.toTitleCase(normalized);
   }
 
   async logout(event: Event): Promise<void> {

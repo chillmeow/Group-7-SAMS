@@ -6,6 +6,7 @@ import {
   EventEmitter,
   HostBinding,
   Input,
+  OnDestroy,
   OnInit,
   Output,
   QueryList,
@@ -13,7 +14,7 @@ import {
   inject,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
-import { filter } from 'rxjs';
+import { Subscription, filter } from 'rxjs';
 
 import { AuthService } from '../../../services/auth.service';
 import { UserRole } from '../../../models/user.model';
@@ -24,6 +25,12 @@ interface NavItem {
   route: string;
 }
 
+interface AdminManagementItem {
+  label: string;
+  icon: string;
+  route?: string;
+}
+
 @Component({
   selector: 'app-sidenav',
   standalone: true,
@@ -31,9 +38,11 @@ interface NavItem {
   templateUrl: './sidenav.html',
   styleUrl: './sidenav.scss',
 })
-export class Sidenav implements OnInit, AfterViewInit {
+export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+
+  private routerSubscription?: Subscription;
 
   @Input() collapsed = false;
   @Input() isMobile = false;
@@ -64,21 +73,63 @@ export class Sidenav implements OnInit, AfterViewInit {
   menuItems: NavItem[] = [];
   focusedIndex = 0;
 
+  readonly adminManagementItems: AdminManagementItem[] = [
+    {
+      label: 'Manage Users',
+      icon: 'pi pi-users',
+      route: '/admin-management/manage-users',
+    },
+    {
+      label: 'Manage Students',
+      icon: 'pi pi-graduation-cap',
+      route: '/admin-management/manage-students',
+    },
+    {
+      label: 'Manage Instructors',
+      icon: 'pi pi-briefcase',
+      route: '/admin-management/manage-instructors',
+    },
+    {
+      label: 'Manage Parents',
+      icon: 'pi pi-user-plus',
+      route: '/admin-management/manage-parents',
+    },
+    {
+      label: 'Manage Sections',
+      icon: 'pi pi-sitemap',
+      route: '/admin-management/manage-sections',
+    },
+    {
+      label: 'Reports & Analytics',
+      icon: 'pi pi-chart-bar',
+      route: '/admin-management/reports-analytics',
+    },
+  ];
+
   ngOnInit(): void {
     this.currentRole = this.authService.getUserRole();
     this.menuItems = this.getMenuByRole(this.currentRole);
 
-    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
-      this.syncFocusedIndexWithRoute();
-    });
+    this.routerSubscription = this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe(() => {
+        this.syncFocusedIndexWithRoute();
+      });
   }
 
   ngAfterViewInit(): void {
     queueMicrotask(() => this.syncFocusedIndexWithRoute());
   }
 
+  ngOnDestroy(): void {
+    this.routerSubscription?.unsubscribe();
+  }
+
   onToggleCollapse(): void {
-    if (this.isMobile) return;
+    if (this.isMobile) {
+      return;
+    }
+
     this.toggleCollapse.emit();
   }
 
@@ -91,101 +142,99 @@ export class Sidenav implements OnInit, AfterViewInit {
   }
 
   onNavKeydown(event: KeyboardEvent): void {
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        this.navigateByStep(1);
-        break;
-
-      case 'ArrowUp':
-        event.preventDefault();
-        this.navigateByStep(-1);
-        break;
-
-      case 'Home':
-        event.preventDefault();
-        this.navigateToIndex(0);
-        break;
-
-      case 'End':
-        event.preventDefault();
-        this.navigateToIndex(this.menuItems.length - 1);
-        break;
-
-      case 'Enter':
-      case ' ':
-      case 'Spacebar':
-        event.preventDefault();
-        break;
-
-      case 'Escape':
-        if (this.isMobile && this.mobileOpen) {
-          event.preventDefault();
-          this.requestClose.emit();
-        }
-        break;
+    /*
+     * The nav container receives keyboard events from child links.
+     * If the focused target is already a link, let onItemKeydown handle it
+     * to avoid double movement when pressing ArrowUp or ArrowDown.
+     */
+    if (this.isNavigationLinkTarget(event.target)) {
+      return;
     }
+
+    if (!this.isSidebarNavigationKey(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.handleSidebarNavigationKey(event);
   }
 
   onItemKeydown(event: KeyboardEvent, index: number): void {
     this.focusedIndex = index;
 
+    /*
+     * Do not block Enter.
+     * Browser/routerLink should handle Enter naturally like a real link.
+     */
+    if (!this.isSidebarNavigationKey(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.handleSidebarNavigationKey(event);
+  }
+
+  private handleSidebarNavigationKey(event: KeyboardEvent): void {
     switch (event.key) {
       case 'ArrowDown':
-        event.preventDefault();
-        this.navigateByStep(1);
+        this.focusLinkByStep(1);
         break;
 
       case 'ArrowUp':
-        event.preventDefault();
-        this.navigateByStep(-1);
+        this.focusLinkByStep(-1);
         break;
 
       case 'Home':
-        event.preventDefault();
-        this.navigateToIndex(0);
+        this.focusLinkAtIndex(0);
         break;
 
       case 'End':
-        event.preventDefault();
-        this.navigateToIndex(this.menuItems.length - 1);
-        break;
-
-      case 'Enter':
-      case ' ':
-      case 'Spacebar':
-        event.preventDefault();
+        this.focusLinkAtIndex(this.getNavLinkElements().length - 1);
         break;
 
       case 'Escape':
         if (this.isMobile && this.mobileOpen) {
-          event.preventDefault();
           this.requestClose.emit();
         }
         break;
     }
   }
 
-  private navigateByStep(step: number): void {
-    if (!this.menuItems.length) return;
+  private focusLinkByStep(step: number): void {
+    const links = this.getNavLinkElements();
 
-    const nextIndex = (this.focusedIndex + step + this.menuItems.length) % this.menuItems.length;
-    this.navigateToIndex(nextIndex);
+    if (!links.length) {
+      return;
+    }
+
+    const safeCurrentIndex =
+      this.focusedIndex >= 0 && this.focusedIndex < links.length ? this.focusedIndex : 0;
+
+    const nextIndex = (safeCurrentIndex + step + links.length) % links.length;
+
+    this.focusLinkAtIndex(nextIndex);
   }
 
-  private navigateToIndex(index: number): void {
-    if (!this.menuItems[index]) return;
+  private focusLinkAtIndex(index: number): void {
+    const links = this.getNavLinkElements();
+
+    if (!links.length || !links[index]) {
+      return;
+    }
 
     this.focusedIndex = index;
-    const targetItem = this.menuItems[index];
 
-    this.router.navigateByUrl(targetItem.route).then(() => {
-      queueMicrotask(() => {
-        this.navLinks?.get(index)?.nativeElement?.focus();
-      });
-
-      this.handleItemClick();
+    queueMicrotask(() => {
+      links[index]?.focus();
     });
+  }
+
+  private getNavLinkElements(): HTMLAnchorElement[] {
+    return this.navLinks?.toArray().map((link) => link.nativeElement) ?? [];
   }
 
   private syncFocusedIndexWithRoute(): void {
@@ -196,6 +245,24 @@ export class Sidenav implements OnInit, AfterViewInit {
     this.focusedIndex = currentIndex >= 0 ? currentIndex : 0;
   }
 
+  private isSidebarNavigationKey(key: string): boolean {
+    return (
+      key === 'ArrowDown' ||
+      key === 'ArrowUp' ||
+      key === 'Home' ||
+      key === 'End' ||
+      key === 'Escape'
+    );
+  }
+
+  private isNavigationLinkTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    return !!target.closest('a');
+  }
+
   private getMenuByRole(role: UserRole | null): NavItem[] {
     const baseMenu: NavItem[] = [{ label: 'Dashboard', icon: 'pi pi-home', route: '/dashboard' }];
 
@@ -203,14 +270,9 @@ export class Sidenav implements OnInit, AfterViewInit {
       case 'admin':
         return [
           ...baseMenu,
-          { label: 'Students', icon: 'pi pi-users', route: '/students' },
-          { label: 'Teachers', icon: 'pi pi-briefcase', route: '/teachers' },
-          { label: 'Parents', icon: 'pi pi-user-plus', route: '/parents' },
           { label: 'Subjects', icon: 'pi pi-book', route: '/subjects' },
-          { label: 'Sections', icon: 'pi pi-sitemap', route: '/sections' },
           { label: 'Class Offerings', icon: 'pi pi-calendar', route: '/offerings' },
           { label: 'Attendance', icon: 'pi pi-calendar-clock', route: '/admin-attendance' },
-          { label: 'Reports', icon: 'pi pi-chart-bar', route: '/reports' },
         ];
 
       case 'teacher':

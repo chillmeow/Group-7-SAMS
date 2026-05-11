@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -7,6 +8,7 @@ import {
   getDocs,
   query,
   runTransaction,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -14,11 +16,28 @@ import {
 import { Observable, from, map, switchMap, throwError } from 'rxjs';
 
 import { db } from '../firebase.config';
-import { AttendanceSession } from '../models/attendance-session.model';
+import { AttendanceCloseReason, AttendanceSession } from '../models/attendance-session.model';
 import { AttendanceRecord, AttendanceStatus } from '../models/attendance-record.model';
 import { AttendanceRequest } from '../models/attendance-request.model';
 import { Student } from '../models/student.model';
 import { ClassOffering } from '../models/class-offering.model';
+
+export interface CreateAttendanceSessionOptions {
+  durationMinutes?: number;
+  lateThresholdMinutes?: number;
+  qrRotationSeconds?: number;
+}
+
+export interface HistoricalAttendanceImportPayload {
+  classOfferingId: string;
+  instructorId: string;
+  attendanceDate: string;
+  records: Array<Partial<AttendanceRecord> & { studentId: string; status: AttendanceStatus }>;
+  startTime?: string;
+  endTime?: string;
+  lateThresholdMinutes?: number;
+  remarks?: string;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -29,6 +48,13 @@ export class AttendanceService {
   private readonly requestsCollection = collection(db, 'attendanceRequests');
   private readonly studentsCollection = collection(db, 'students');
   private readonly classOfferingsCollection = collection(db, 'classOfferings');
+
+  private readonly defaultQrRotationSeconds = 30;
+  private readonly minQrRotationSeconds = 15;
+  private readonly maxQrRotationSeconds = 120;
+
+  private readonly defaultDurationMinutes = 30;
+  private readonly defaultLateThresholdMinutes = 10;
 
   getSessions(): Observable<AttendanceSession[]> {
     return from(getDocs(this.sessionsCollection)).pipe(
@@ -49,36 +75,89 @@ export class AttendanceService {
     );
   }
 
-  createSession(classOfferingId: string, instructorId: string): Observable<AttendanceSession> {
+  createSession(
+    classOfferingId: string,
+    instructorId: string,
+    options: CreateAttendanceSessionOptions | number = {},
+  ): Observable<AttendanceSession> {
+    const cleanClassOfferingId = String(classOfferingId || '').trim();
+    const cleanInstructorId = String(instructorId || '').trim();
+
+    if (!cleanClassOfferingId) {
+      return throwError(
+        () => new Error('Please select a class before starting an attendance session.'),
+      );
+    }
+
+    if (!cleanInstructorId) {
+      return throwError(() => new Error('Unable to identify the teacher starting this session.'));
+    }
+
+    const normalizedOptions = this.normalizeCreateSessionOptions(options);
     const now = new Date();
+    const nowIso = now.toISOString();
+
+    const durationMinutes = this.normalizePositiveNumber(
+      normalizedOptions.durationMinutes,
+      this.defaultDurationMinutes,
+    );
+
+    const lateThresholdMinutes = this.normalizePositiveNumber(
+      normalizedOptions.lateThresholdMinutes,
+      this.defaultLateThresholdMinutes,
+    );
+
+    const qrRotationSeconds = this.normalizeQrRotationSeconds(normalizedOptions.qrRotationSeconds);
+
+    const sessionRef = doc(this.sessionsCollection);
 
     const payload: Omit<AttendanceSession, 'id'> = {
-      classOfferingId,
-      instructorId,
-      date: now.toISOString().split('T')[0],
-      startTime: now.toISOString(),
+      classOfferingId: cleanClassOfferingId,
+      instructorId: cleanInstructorId,
+      date: nowIso.split('T')[0],
+      startTime: nowIso,
       sessionCode: this.generateSessionCode(),
       qrToken: this.generateQrToken(),
+      qrTokenUpdatedAt: nowIso,
+      qrRotationSeconds,
+      durationMinutes,
+      autoCloseAt: new Date(now.getTime() + durationMinutes * 60_000).toISOString(),
+      mode: 'live',
       status: 'active',
-      createdAt: now.toISOString(),
-      lateThresholdMinutes: 10,
+      createdAt: nowIso,
+      lateThresholdMinutes,
     };
 
-    return from(
-      runTransaction(db, async (transaction) => {
-        const sessionRef = doc(this.sessionsCollection);
-        transaction.set(sessionRef, payload);
+    const session: AttendanceSession = {
+      id: sessionRef.id,
+      ...payload,
+    };
 
-        return {
-          id: sessionRef.id,
-          ...payload,
-        };
-      }),
-    );
+    return new Observable<AttendanceSession>((observer) => {
+      observer.next(session);
+      observer.complete();
+
+      setDoc(sessionRef, this.stripEmptyFields(payload)).catch((error) => {
+        console.error('BACKGROUND CREATE SESSION ERROR:', error);
+      });
+
+      return () => {};
+    });
   }
 
-  closeSession(sessionId: string): Observable<AttendanceSession> {
-    return from(this.closeSessionAndMarkAbsentees(sessionId));
+  rotateSessionQrToken(sessionId: string): Observable<AttendanceSession> {
+    return from(this.refreshSessionQrTokenSafely(sessionId));
+  }
+
+  closeSession(
+    sessionId: string,
+    closeReason: AttendanceCloseReason = 'manual_close',
+  ): Observable<AttendanceSession> {
+    return from(this.closeSessionAndMarkAbsentees(sessionId, closeReason));
+  }
+
+  closeExpiredSession(sessionId: string): Observable<AttendanceSession> {
+    return from(this.closeExpiredSessionIfNeeded(sessionId));
   }
 
   deleteSession(id: string): Observable<void> {
@@ -140,6 +219,12 @@ export class AttendanceService {
 
   importAttendanceRecords(records: AttendanceRecord[]): Observable<AttendanceRecord[]> {
     return from(this.importAttendanceRecordsSafely(records));
+  }
+
+  importHistoricalAttendanceRecords(
+    payload: HistoricalAttendanceImportPayload,
+  ): Observable<{ session: AttendanceSession; records: AttendanceRecord[] }> {
+    return from(this.importHistoricalAttendanceRecordsSafely(payload));
   }
 
   submitViaQR(qrToken: string, studentId: string): Observable<AttendanceRecord> {
@@ -211,6 +296,93 @@ export class AttendanceService {
     return from(this.rejectRequestSafely(requestId, instructorId));
   }
 
+  private async importHistoricalAttendanceRecordsSafely(
+    payload: HistoricalAttendanceImportPayload,
+  ): Promise<{ session: AttendanceSession; records: AttendanceRecord[] }> {
+    const classOfferingId = String(payload.classOfferingId || '').trim();
+    const instructorId = String(payload.instructorId || '').trim();
+    const attendanceDate = String(payload.attendanceDate || '').trim();
+
+    if (!classOfferingId) {
+      throw new Error('Please select a class before importing historical attendance.');
+    }
+
+    if (!instructorId) {
+      throw new Error('Unable to identify the teacher importing this attendance file.');
+    }
+
+    if (!attendanceDate) {
+      throw new Error('Please select the attendance date for the imported file.');
+    }
+
+    if (!payload.records.length) {
+      throw new Error('The uploaded attendance file has no valid records to import.');
+    }
+
+    const offeringSnap = await getDoc(doc(this.classOfferingsCollection, classOfferingId));
+
+    if (!offeringSnap.exists()) {
+      throw new Error('Selected class offering was not found.');
+    }
+
+    const nowIso = new Date().toISOString();
+    const startTime = this.buildDateTimeIso(attendanceDate, payload.startTime || '08:00');
+    const endTime = payload.endTime
+      ? this.buildDateTimeIso(attendanceDate, payload.endTime)
+      : this.buildDateTimeIso(attendanceDate, '23:59');
+
+    const sessionPayload: Omit<AttendanceSession, 'id'> = {
+      classOfferingId,
+      instructorId,
+      date: attendanceDate,
+      startTime,
+      endTime,
+      sessionCode: this.generateSessionCode(),
+      qrToken: this.generateQrToken(),
+      qrTokenUpdatedAt: nowIso,
+      qrRotationSeconds: this.defaultQrRotationSeconds,
+      durationMinutes: 0,
+      autoCloseAt: endTime,
+      mode: 'imported_excel',
+      status: 'closed',
+      closeReason: 'historical_import',
+      createdAt: nowIso,
+      lateThresholdMinutes: this.normalizePositiveNumber(
+        payload.lateThresholdMinutes,
+        this.defaultLateThresholdMinutes,
+      ),
+    };
+
+    const sessionRef = await addDoc(this.sessionsCollection, this.stripEmptyFields(sessionPayload));
+
+    const session: AttendanceSession = {
+      id: sessionRef.id,
+      ...sessionPayload,
+    };
+
+    const recordsToImport: AttendanceRecord[] = payload.records.map((record) => ({
+      sessionId: session.id!,
+      studentId: String(record.studentId || '').trim(),
+      status: record.status,
+      method: 'imported_excel',
+      timeRecorded:
+        record.timeRecorded ||
+        this.buildDateTimeIso(attendanceDate, this.extractTimeOnly(record.lateTime) || '08:00'),
+      lateTime: record.status === 'late' ? record.lateTime : undefined,
+      recordedBy: instructorId,
+      isValid: true,
+      remarks: record.remarks || payload.remarks || 'Historical attendance import.',
+    }));
+
+    try {
+      const records = await this.importAttendanceRecordsSafely(recordsToImport);
+      return { session, records };
+    } catch (error) {
+      await deleteDoc(doc(this.sessionsCollection, session.id!));
+      throw error;
+    }
+  }
+
   private async importAttendanceRecordsSafely(
     records: AttendanceRecord[],
   ): Promise<AttendanceRecord[]> {
@@ -245,13 +417,17 @@ export class AttendanceService {
         throw new Error(`Session ID ${sessionId} has an invalid status.`);
       }
 
+      if (record.method !== 'imported_excel') {
+        throw new Error('Imported attendance records must use imported_excel as method.');
+      }
+
       const payload: AttendanceRecord = {
         sessionId,
         studentId,
         status: record.status,
         method: 'imported_excel',
         timeRecorded: record.timeRecorded || new Date().toISOString(),
-        recordedBy: record.recordedBy || 'admin_import',
+        recordedBy: record.recordedBy || session.instructorId || 'teacher_import',
         isValid: true,
       };
 
@@ -270,7 +446,93 @@ export class AttendanceService {
     return imported;
   }
 
-  private async closeSessionAndMarkAbsentees(sessionId: string): Promise<AttendanceSession> {
+  private async refreshSessionQrTokenSafely(sessionId: string): Promise<AttendanceSession> {
+    const cleanSessionId = String(sessionId || '').trim();
+
+    if (!cleanSessionId) {
+      throw new Error('Missing attendance session ID.');
+    }
+
+    const sessionRef = doc(this.sessionsCollection, cleanSessionId);
+    const sessionSnapBeforeRotation = await getDoc(sessionRef);
+
+    if (!sessionSnapBeforeRotation.exists()) {
+      throw new Error('Attendance session not found.');
+    }
+
+    const sessionBeforeRotation = this.mapSession(
+      sessionSnapBeforeRotation.id,
+      sessionSnapBeforeRotation.data(),
+    );
+
+    if (this.isSessionExpired(sessionBeforeRotation)) {
+      return this.closeSessionAndMarkAbsentees(cleanSessionId, 'auto_duration_expired');
+    }
+
+    return runTransaction(db, async (transaction) => {
+      const sessionSnap = await transaction.get(sessionRef);
+
+      if (!sessionSnap.exists()) {
+        throw new Error('Attendance session not found.');
+      }
+
+      const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+
+      if (session.status !== 'active') {
+        throw new Error(
+          'QR and session code rotation is only available for active attendance sessions.',
+        );
+      }
+
+      if (session.mode === 'imported_excel') {
+        throw new Error('Historical imported sessions do not use QR or session code rotation.');
+      }
+
+      const nowIso = new Date().toISOString();
+      const nextQrToken = this.generateQrToken();
+      const nextSessionCode = this.generateSessionCode();
+      const rotationSeconds = this.normalizeQrRotationSeconds(session.qrRotationSeconds);
+
+      const updatePayload: Partial<AttendanceSession> = {
+        qrToken: nextQrToken,
+        sessionCode: nextSessionCode,
+        qrTokenUpdatedAt: nowIso,
+        qrRotationSeconds: rotationSeconds,
+      };
+
+      transaction.update(sessionRef, updatePayload);
+
+      return {
+        ...session,
+        ...updatePayload,
+      };
+    });
+  }
+
+  private async closeExpiredSessionIfNeeded(sessionId: string): Promise<AttendanceSession> {
+    const sessionSnap = await getDoc(doc(this.sessionsCollection, sessionId));
+
+    if (!sessionSnap.exists()) {
+      throw new Error('Attendance session not found.');
+    }
+
+    const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+
+    if (session.status === 'closed') {
+      return session;
+    }
+
+    if (!this.isSessionExpired(session)) {
+      return session;
+    }
+
+    return this.closeSessionAndMarkAbsentees(sessionId, 'auto_duration_expired');
+  }
+
+  private async closeSessionAndMarkAbsentees(
+    sessionId: string,
+    closeReason: AttendanceCloseReason = 'manual_close',
+  ): Promise<AttendanceSession> {
     const sessionRef = doc(this.sessionsCollection, sessionId);
     const sessionSnap = await getDoc(sessionRef);
 
@@ -317,6 +579,7 @@ export class AttendanceService {
         (student) =>
           student.status !== 'inactive' &&
           student.status !== 'archived' &&
+          !student.isArchived &&
           this.studentMatchesOfferingSection(student, offering),
       );
 
@@ -332,7 +595,8 @@ export class AttendanceService {
     );
 
     const now = new Date().toISOString();
-    const endTime = new Date().toISOString();
+    const endTime =
+      closeReason === 'auto_duration_expired' && session.autoCloseAt ? session.autoCloseAt : now;
 
     const absentRecords: AttendanceRecord[] = [];
 
@@ -350,10 +614,13 @@ export class AttendanceService {
         studentId,
         status: 'absent',
         method: 'manual',
-        timeRecorded: now,
+        timeRecorded: endTime,
         recordedBy: session.instructorId,
         isValid: true,
-        remarks: 'Auto-marked absent when the attendance session was closed.',
+        remarks:
+          closeReason === 'auto_duration_expired'
+            ? 'Auto-marked absent when the session duration expired.'
+            : 'Auto-marked absent when the attendance session was closed.',
       });
 
       recordedStudentIds.add(studentId);
@@ -381,6 +648,7 @@ export class AttendanceService {
     currentBatch.update(sessionRef, {
       status: 'closed',
       endTime,
+      closeReason,
     });
     batches.push(currentBatch);
 
@@ -392,6 +660,7 @@ export class AttendanceService {
       ...session,
       status: 'closed',
       endTime,
+      closeReason,
     };
   }
 
@@ -407,13 +676,20 @@ export class AttendanceService {
     const sessionDoc = snapshot.docs[0];
 
     if (!sessionDoc) {
-      throw new Error(method === 'qr' ? 'Invalid QR code.' : 'Invalid session code.');
+      throw new Error(
+        method === 'qr' ? 'Invalid or expired QR code.' : 'Invalid or expired session code.',
+      );
     }
 
     const session = this.mapSession(sessionDoc.id, sessionDoc.data());
 
     if (session.status !== 'active') {
       throw new Error('This attendance session is already closed.');
+    }
+
+    if (this.isSessionExpired(session)) {
+      await this.closeSessionAndMarkAbsentees(session.id!, 'auto_duration_expired');
+      throw new Error('This attendance session has already expired.');
     }
 
     const validation = await this.checkStudentBelongsToSession(session, studentId);
@@ -453,8 +729,13 @@ export class AttendanceService {
 
     const session = this.mapSession(sessionSnap.id, sessionSnap.data());
 
-    if (session.status !== 'active' && session.status !== 'closed') {
-      throw new Error('This attendance session cannot accept manual attendance.');
+    if (session.status !== 'active') {
+      throw new Error('Manual attendance is only available while the live session is active.');
+    }
+
+    if (this.isSessionExpired(session)) {
+      await this.closeSessionAndMarkAbsentees(sessionId, 'auto_duration_expired');
+      throw new Error('This attendance session has already expired.');
     }
 
     const payload: AttendanceRecord = {
@@ -520,6 +801,14 @@ export class AttendanceService {
 
       if (session.instructorId !== instructorId) {
         throw new Error('You are not allowed to review this attendance request.');
+      }
+
+      if (session.status !== 'active') {
+        throw new Error('This attendance session is already closed.');
+      }
+
+      if (this.isSessionExpired(session)) {
+        throw new Error('This attendance session has already expired.');
       }
 
       const reviewedAt = new Date().toISOString();
@@ -645,7 +934,7 @@ export class AttendanceService {
       ...studentSnap.data(),
     } as Student;
 
-    if (student.status === 'inactive' || student.status === 'archived') {
+    if (student.status === 'inactive' || student.status === 'archived' || student.isArchived) {
       throw new Error('Your student account is not active for attendance.');
     }
 
@@ -660,7 +949,7 @@ export class AttendanceService {
       ...offeringSnap.data(),
     } as ClassOffering;
 
-    if (offering.status === 'inactive' || offering.status === 'archived') {
+    if (offering.status === 'inactive' || offering.status === 'archived' || offering.isArchived) {
       throw new Error('This class offering is not active.');
     }
 
@@ -775,8 +1064,10 @@ export class AttendanceService {
       }
 
       const session = this.mapSession(sessionSnap.id, sessionSnap.data());
+      const isImportedExcelRecord = record.method === 'imported_excel';
+      const isAutoAbsentRecord = record.status === 'absent' && record.method === 'manual';
 
-      if (session.status !== 'active' && record.status !== 'absent') {
+      if (session.status !== 'active' && !isImportedExcelRecord && !isAutoAbsentRecord) {
         throw new Error('This attendance session is already closed.');
       }
 
@@ -815,6 +1106,90 @@ export class AttendanceService {
     return this.mapRecord(firstDoc.id, firstDoc.data());
   }
 
+  private isSessionExpired(session: AttendanceSession): boolean {
+    if (session.status !== 'active') return false;
+    if (!session.autoCloseAt) return false;
+
+    const autoCloseAt = new Date(session.autoCloseAt).getTime();
+    if (Number.isNaN(autoCloseAt)) return false;
+
+    return Date.now() >= autoCloseAt;
+  }
+
+  private normalizeCreateSessionOptions(
+    options: CreateAttendanceSessionOptions | number,
+  ): CreateAttendanceSessionOptions {
+    if (typeof options === 'number') {
+      return {
+        durationMinutes: options,
+      };
+    }
+
+    return options || {};
+  }
+
+  private normalizePositiveNumber(value: unknown, fallback: number): number {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return fallback;
+    }
+
+    return Math.round(parsed);
+  }
+
+  private normalizeQrRotationSeconds(value: unknown): number {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return this.defaultQrRotationSeconds;
+    }
+
+    const rounded = Math.round(parsed);
+
+    if (rounded < this.minQrRotationSeconds) {
+      return this.minQrRotationSeconds;
+    }
+
+    if (rounded > this.maxQrRotationSeconds) {
+      return this.maxQrRotationSeconds;
+    }
+
+    return rounded;
+  }
+
+  private extractTimeOnly(value: unknown): string {
+    const text = String(value || '').trim();
+
+    if (/^\d{2}:\d{2}$/.test(text)) {
+      return text;
+    }
+
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+
+    return `${hour}:${minute}`;
+  }
+
+  private buildDateTimeIso(dateValue: string, timeValue: string): string {
+    const cleanDate = String(dateValue || '').trim();
+    const cleanTime = String(timeValue || '00:00').trim();
+    const time = /^\d{2}:\d{2}$/.test(cleanTime) ? cleanTime : '00:00';
+    const date = new Date(`${cleanDate}T${time}:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return new Date().toISOString();
+    }
+
+    return date.toISOString();
+  }
+
   private buildAttendanceRecordId(sessionId: string, studentId: string): string {
     return `${this.safeDocId(sessionId)}_${this.safeDocId(studentId)}`;
   }
@@ -840,8 +1215,8 @@ export class AttendanceService {
   private computeAttendanceStatus(session: AttendanceSession): 'present' | 'late' {
     const now = new Date();
     const start = new Date(session.startTime);
-    const lateThresholdMinutes = session.lateThresholdMinutes ?? 10;
-    const lateLimit = new Date(start.getTime() + lateThresholdMinutes * 60000);
+    const lateThresholdMinutes = session.lateThresholdMinutes ?? this.defaultLateThresholdMinutes;
+    const lateLimit = new Date(start.getTime() + lateThresholdMinutes * 60_000);
 
     return now > lateLimit ? 'late' : 'present';
   }

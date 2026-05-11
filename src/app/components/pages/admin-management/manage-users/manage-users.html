@@ -1,0 +1,370 @@
+<section class="manage-users-page">
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Admin Management</span>
+      <h1>Manage Users</h1>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="loading || bulkGenerating"
+        (click)="loadRecords()"
+      >
+        <i class="pi pi-refresh" [class.spin]="loading" aria-hidden="true"></i>
+        <span>{{ loading ? 'Refreshing...' : 'Refresh' }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="primary-btn"
+        [disabled]="
+          loading ||
+          bulkGenerating ||
+          !!processingRecordId ||
+          archiveView === 'archived' ||
+          (activeTab !== 'parents' && activeTabActionablePendingCount === 0)
+        "
+        (click)="generateAllPendingForCurrentTab()"
+      >
+        <i
+          class="pi"
+          [ngClass]="bulkGenerating ? 'pi-spin pi-spinner' : 'pi-users'"
+          aria-hidden="true"
+        ></i>
+        <span>{{ generateAllLabel }}</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="error-card" *ngIf="loadError" role="alert">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <span>{{ loadError }}</span>
+  </section>
+
+  <section class="summary-grid" aria-label="User account summary">
+    <article
+      class="summary-card"
+      *ngFor="let item of summaryCards; trackBy: trackByIndex"
+      [ngClass]="item.tone"
+    >
+      <div class="summary-icon" aria-hidden="true">
+        <i [class]="item.icon"></i>
+      </div>
+
+      <div class="summary-copy">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <section class="workspace-card">
+    <div class="workspace-header">
+      <div>
+        <span class="section-kicker">Account Workspace</span>
+        <h2>{{ activeTabLabel }}</h2>
+      </div>
+
+      <div class="workspace-metrics">
+        <span>{{ activeTabGeneratedCount }} generated</span>
+        <span>{{ activeTabPendingCount }} pending</span>
+        <span>{{ activeTabActionablePendingCount }} ready</span>
+        <span>{{ activeTabArchivedCount }} archived</span>
+      </div>
+    </div>
+
+    <div class="tab-row" role="tablist" aria-label="User categories">
+      <button
+        type="button"
+        class="tab-btn"
+        *ngFor="let tab of tabs; trackBy: trackByIndex"
+        [class.active]="activeTab === tab.id"
+        [disabled]="bulkGenerating"
+        (click)="setActiveTab(tab.id)"
+      >
+        <i [class]="tab.icon" aria-hidden="true"></i>
+
+        <span>{{ tab.label }}</span>
+
+        <strong>{{ getTabCount(tab.id) }}</strong>
+
+        <small *ngIf="getTabPendingCount(tab.id) > 0">
+          {{ getTabPendingCount(tab.id) }} pending
+        </small>
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="view-switcher" aria-label="Account lifecycle filter">
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="archiveView === 'active'"
+          [disabled]="bulkGenerating"
+          (click)="setArchiveView('active')"
+        >
+          <i class="pi pi-user-check" aria-hidden="true"></i>
+          <span>Active</span>
+          <strong>{{ activeTabActiveCount }}</strong>
+        </button>
+
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="archiveView === 'archived'"
+          [disabled]="bulkGenerating"
+          (click)="setArchiveView('archived')"
+        >
+          <i class="pi pi-archive" aria-hidden="true"></i>
+          <span>Archive</span>
+          <strong>{{ activeTabArchivedCount }}</strong>
+        </button>
+      </div>
+
+      <label class="search-box">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search name, username, email, or status..."
+          aria-label="Search user records"
+          [disabled]="bulkGenerating"
+        />
+      </label>
+
+      <div class="view-switcher" aria-label="Record appearance">
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="viewMode === 'detailed'"
+          (click)="setViewMode('detailed')"
+        >
+          <i class="pi pi-list" aria-hidden="true"></i>
+          <span>Detailed</span>
+        </button>
+
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="viewMode === 'catalog'"
+          (click)="setViewMode('catalog')"
+        >
+          <i class="pi pi-th-large" aria-hidden="true"></i>
+          <span>Catalog</span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="secondary-btn small"
+        [disabled]="loading || bulkGenerating || !searchTerm"
+        (click)="searchTerm = ''"
+      >
+        <i class="pi pi-times" aria-hidden="true"></i>
+        <span>Clear</span>
+      </button>
+    </div>
+
+    <div class="bulk-progress-card" *ngIf="bulkGenerating">
+      <div class="bulk-progress-copy">
+        <span>Bulk generation running</span>
+        <strong>{{ bulkProgress }} of {{ bulkTotal }} processed</strong>
+      </div>
+
+      <div class="progress-track" aria-hidden="true">
+        <span [style.width.%]="bulkProgressPercent"></span>
+      </div>
+    </div>
+
+    <div class="loading-state" *ngIf="loading">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading user records...</p>
+    </div>
+
+    <div class="empty-state" *ngIf="!loading && filteredRecords.length === 0">
+      <div class="empty-icon" aria-hidden="true">
+        <i class="pi pi-users"></i>
+      </div>
+
+      <h3>No {{ activeTabLabel.toLowerCase() }} found</h3>
+      <p>Try clearing the search field or refreshing the records.</p>
+    </div>
+
+    <div
+      class="records-list"
+      [class.catalog-view]="viewMode === 'catalog'"
+      *ngIf="!loading && filteredRecords.length > 0"
+    >
+      <article
+        class="record-card"
+        *ngFor="let record of filteredRecords; trackBy: trackByRecord"
+        [class.catalog-card]="viewMode === 'catalog'"
+        [class.generated-card]="record.accountGenerated"
+        [class.warning-card]="hasRequirementWarning(record)"
+        [class.archived-card]="isArchivedRecord(record)"
+      >
+        <div class="record-main">
+          <div class="identity-block">
+            <div class="avatar" [ngClass]="getRoleClass(record)" aria-hidden="true">
+              {{ record.initials }}
+            </div>
+
+            <div class="identity-copy">
+              <div class="name-row">
+                <h3>{{ record.fullName }}</h3>
+
+                <span class="role-pill">
+                  {{ record.roleLabel }}
+                </span>
+              </div>
+
+              <p>{{ record.details }}</p>
+            </div>
+          </div>
+
+          <div class="status-group">
+            <span class="status-pill" [ngClass]="getStatusClass(record)">
+              {{ record.status }}
+            </span>
+
+            <span class="account-pill" [ngClass]="getAccountStatusClass(record)">
+              <i
+                class="pi"
+                [class.pi-check-circle]="record.accountGenerated"
+                [class.pi-clock]="!record.accountGenerated"
+                aria-hidden="true"
+              ></i>
+              {{ record.accountStatus }}
+            </span>
+          </div>
+        </div>
+
+        <div class="record-details" *ngIf="viewMode === 'detailed'; else catalogDetails">
+          <div class="detail-item">
+            <span>Username</span>
+            <strong>{{ record.username }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <span>Email</span>
+            <strong>{{ record.email }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <span>Linked Info</span>
+            <strong>{{ record.linkedInfo }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <span>Updated</span>
+            <strong>{{ record.updatedAt }}</strong>
+          </div>
+        </div>
+
+        <ng-template #catalogDetails>
+          <div class="catalog-info-grid">
+            <div class="catalog-info-item half">
+              <span>Username</span>
+              <strong>{{ record.username }}</strong>
+            </div>
+
+            <div class="catalog-info-item half">
+              <span>Role</span>
+              <strong>{{ record.roleLabel }}</strong>
+            </div>
+
+            <div class="catalog-info-item full">
+              <span>Email</span>
+              <strong>{{ record.email }}</strong>
+            </div>
+
+            <div class="catalog-info-item full">
+              <span>Linked Info</span>
+              <strong>{{ record.linkedInfo }}</strong>
+            </div>
+          </div>
+        </ng-template>
+
+        <div
+          class="requirement-note"
+          *ngIf="viewMode === 'detailed' || hasRequirementWarning(record)"
+          [class.ready]="hasRequiredGenerationInfo(record)"
+        >
+          <i
+            class="pi"
+            [class.pi-check-circle]="record.accountGenerated || hasRequiredGenerationInfo(record)"
+            [class.pi-info-circle]="!record.accountGenerated && !hasRequiredGenerationInfo(record)"
+            aria-hidden="true"
+          ></i>
+          <span>{{ getRequirementNote(record) }}</span>
+        </div>
+
+        <div class="record-actions" *ngIf="archiveView === 'active'; else archivedActions">
+          <button
+            type="button"
+            class="generate-btn"
+            [class.done]="record.accountGenerated"
+            [class.info-only]="record.role === 'parent' || hasRequirementWarning(record)"
+            [disabled]="isGenerateButtonDisabled(record)"
+            [title]="getGenerateButtonTitle(record)"
+            (click)="generateAccount(record)"
+          >
+            <i [class]="getGenerateButtonIcon(record)" aria-hidden="true"></i>
+            <span>{{ getGenerateButtonLabel(record) }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="secondary-btn lifecycle-btn"
+            [disabled]="!canRunLifecycleAction(record)"
+            title="Move this account to Archive and deactivate the linked portal login"
+            (click)="archiveRecord(record)"
+          >
+            <i
+              class="pi"
+              [ngClass]="processingRecordId === record.id ? 'pi-spin pi-spinner' : 'pi-archive'"
+              aria-hidden="true"
+            ></i>
+            <span>{{ getArchiveButtonLabel(record) }}</span>
+          </button>
+        </div>
+
+        <ng-template #archivedActions>
+          <div class="record-actions archive-actions">
+            <button
+              type="button"
+              class="generate-btn restore-btn"
+              [disabled]="!canRunLifecycleAction(record)"
+              title="Restore this account to the active user list"
+              (click)="restoreRecord(record)"
+            >
+              <i
+                class="pi"
+                [ngClass]="processingRecordId === record.id ? 'pi-spin pi-spinner' : 'pi-refresh'"
+                aria-hidden="true"
+              ></i>
+              <span>{{ getRestoreButtonLabel(record) }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="generate-btn danger-btn"
+              [disabled]="!canRunLifecycleAction(record)"
+              title="Permanently delete this archived record"
+              (click)="deleteRecordPermanently(record)"
+            >
+              <i
+                class="pi"
+                [ngClass]="processingRecordId === record.id ? 'pi-spin pi-spinner' : 'pi-trash'"
+                aria-hidden="true"
+              ></i>
+              <span>{{ getDeleteButtonLabel(record) }}</span>
+            </button>
+          </div>
+        </ng-template>
+      </article>
+    </div>
+  </section>
+</section>

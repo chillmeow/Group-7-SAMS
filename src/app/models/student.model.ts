@@ -1,14 +1,18 @@
 export interface Student {
   id?: string;
-  userId: string;
+
+  userId?: string;
   parentId?: string;
+
   studentNumber: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
+
+  program?: string;
   sectionId: string;
   yearLevel: string;
-  status: string;
+  status?: string;
 
   parentFirstName?: string;
   parentLastName?: string;

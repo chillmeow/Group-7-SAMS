@@ -1,176 +1,498 @@
-<div class="reports-page">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">ANALYTICS & MONITORING</p>
+<section class="faculty-reports-page">
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Faculty Portal</span>
       <h1>Reports</h1>
-      <p class="subtitle">
-        Review real attendance records, identify risk patterns, and generate academic monitoring
-        reports.
-      </p>
+      <p>Attendance reports for your handled classes, subjects, and sections only.</p>
     </div>
 
     <div class="header-actions">
-      <button class="secondary-btn" (click)="generateReport()" [disabled]="isLoading">
-        <i class="pi pi-refresh"></i>
-        {{ isLoading ? 'Loading...' : 'Refresh Report' }}
+      <button type="button" class="secondary-btn" [disabled]="isLoading" (click)="loadReports()">
+        <i class="pi pi-refresh" [class.spin]="isLoading" aria-hidden="true"></i>
+        <span>Refresh</span>
       </button>
 
-      <button class="primary-btn" *ngIf="canExportReports" (click)="exportPdf()">
-        <i class="pi pi-file-pdf"></i>
-        Export PDF
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="!canExportReports"
+        (click)="exportExcel()"
+      >
+        <i class="pi pi-file-excel" aria-hidden="true"></i>
+        <span>Export Excel</span>
       </button>
 
-      <button class="primary-btn alt" *ngIf="canExportReports" (click)="exportExcel()">
-        <i class="pi pi-file-excel"></i>
-        Export Excel
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="!canExportReports"
+        (click)="exportPdf()"
+      >
+        <i class="pi pi-file-pdf" aria-hidden="true"></i>
+        <span>Export PDF</span>
+      </button>
+
+      <button
+        type="button"
+        class="primary-btn"
+        [disabled]="!canGenerateReportRecord"
+        (click)="generateFacultyReportRecord()"
+      >
+        <i
+          class="pi"
+          [ngClass]="isReportSaving ? 'pi-spin pi-spinner' : 'pi-file-plus'"
+          aria-hidden="true"
+        ></i>
+        <span>{{ isReportSaving ? 'Generating...' : 'Generate Report' }}</span>
       </button>
     </div>
+  </header>
+
+  <section class="message-card error" *ngIf="errorMessage">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <span>{{ errorMessage }}</span>
   </section>
 
-  <div class="alert error" *ngIf="errorMessage">
-    {{ errorMessage }}
-  </div>
+  <section class="message-card success" *ngIf="successMessage">
+    <i class="pi pi-check-circle" aria-hidden="true"></i>
+    <span>{{ successMessage }}</span>
+  </section>
+
+  <section class="filter-card">
+    <div class="filter-header">
+      <div>
+        <span class="section-kicker">Report Filters</span>
+        <h2>{{ reportPeriodLabel }}</h2>
+      </div>
+
+      <div class="filter-actions">
+        <button
+          type="button"
+          class="secondary-btn small"
+          [disabled]="isLoading"
+          (click)="resetFilters()"
+        >
+          <i class="pi pi-filter-slash" aria-hidden="true"></i>
+          <span>Reset</span>
+        </button>
+
+        <button
+          type="button"
+          class="danger-outline-btn small"
+          [disabled]="!canClearRecords"
+          (click)="clearFilteredRecords()"
+        >
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          <span>Clear Records</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-grid">
+      <label class="form-group">
+        <span>Year</span>
+        <select [(ngModel)]="selectedYear" (ngModelChange)="applyFilters()">
+          <option value="">All Years</option>
+          <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span>Month</span>
+        <select [(ngModel)]="selectedMonth" (ngModelChange)="applyFilters()">
+          <option value="">All Months</option>
+          <option *ngFor="let month of months" [value]="month.value">{{ month.label }}</option>
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span>Program</span>
+        <select [(ngModel)]="selectedProgram" (ngModelChange)="applyFilters()">
+          <option value="">All Programs</option>
+          <option *ngFor="let program of programs" [value]="program">{{ program }}</option>
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span>Subject</span>
+        <select [(ngModel)]="selectedSubject" (ngModelChange)="applyFilters()">
+          <option value="">All Subjects</option>
+          <option *ngFor="let subject of subjects" [value]="subject">{{ subject }}</option>
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span>Section</span>
+        <select [(ngModel)]="selectedSection" (ngModelChange)="applyFilters()">
+          <option value="">All Sections</option>
+          <option *ngFor="let section of sections" [value]="section">{{ section }}</option>
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span>Status</span>
+        <select [(ngModel)]="selectedStatus" (ngModelChange)="applyFilters()">
+          <option value="">All Status</option>
+          <option value="present">Present</option>
+          <option value="late">Late</option>
+          <option value="absent">Absent</option>
+          <option value="excused">Excused</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="search-box">
+      <i class="pi pi-search" aria-hidden="true"></i>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="applyFilters()"
+        placeholder="Search student, student number, subject, section, status, or method..."
+        aria-label="Search faculty report records"
+      />
+    </label>
+  </section>
 
   <div class="loading-state" *ngIf="isLoading">
-    <i class="pi pi-spin pi-spinner"></i>
-    Loading real-time report data...
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <p>Loading faculty reports...</p>
   </div>
 
   <ng-container *ngIf="!isLoading">
-    <section class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-top">
-          <span>Total Students Covered</span>
-          <div class="icon blue">
-            <i class="pi pi-users"></i>
-          </div>
+    <section class="summary-grid">
+      <article class="summary-card blue">
+        <div class="summary-icon" aria-hidden="true">
+          <i class="pi pi-users"></i>
         </div>
-        <h2>{{ totalStudents }}</h2>
-        <p>Students with attendance records in this report</p>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-top">
-          <span>Attendance Sessions</span>
-          <div class="icon green">
-            <i class="pi pi-calendar"></i>
-          </div>
+        <div class="summary-copy">
+          <span>Students Covered</span>
+          <strong>{{ totalStudents }}</strong>
         </div>
-        <h2>{{ totalAttendanceSessions }}</h2>
-        <p>Total monitored class sessions</p>
-      </div>
+      </article>
 
-      <div class="stat-card">
-        <div class="stat-top">
-          <span>Overall Attendance Rate</span>
-          <div class="icon violet">
-            <i class="pi pi-chart-line"></i>
-          </div>
+      <article class="summary-card purple">
+        <div class="summary-icon" aria-hidden="true">
+          <i class="pi pi-calendar"></i>
         </div>
-        <h2>{{ overallAttendanceRate }}%</h2>
-        <p>Present, late, and excused over total records</p>
-      </div>
+        <div class="summary-copy">
+          <span>Sessions</span>
+          <strong>{{ totalAttendanceSessions }}</strong>
+        </div>
+      </article>
 
-      <div class="stat-card">
-        <div class="stat-top">
+      <article class="summary-card green">
+        <div class="summary-icon" aria-hidden="true">
+          <i class="pi pi-chart-line"></i>
+        </div>
+        <div class="summary-copy">
+          <span>Attendance Rate</span>
+          <strong>{{ overallAttendanceRate }}%</strong>
+        </div>
+      </article>
+
+      <article class="summary-card red">
+        <div class="summary-icon" aria-hidden="true">
+          <i class="pi pi-user-minus"></i>
+        </div>
+        <div class="summary-copy">
           <span>Total Absences</span>
-          <div class="icon red">
-            <i class="pi pi-exclamation-circle"></i>
-          </div>
+          <strong>{{ totalAbsences }}</strong>
         </div>
-        <h2>{{ totalAbsences }}</h2>
-        <p>Actual absence records from attendance data</p>
-      </div>
+      </article>
     </section>
 
-    <section class="filter-panel">
-      <div class="search-box">
-        <i class="pi pi-search"></i>
-        <input
-          type="text"
-          [(ngModel)]="searchTerm"
-          (input)="applyFilters()"
-          placeholder="Search by student, subject, teacher, or section..."
-        />
-      </div>
+    <section class="status-grid">
+      <article class="status-card present">
+        <div class="status-topline">
+          <span>Present</span>
+          <strong>{{ totalPresent }}</strong>
+        </div>
+        <div class="progress-track">
+          <span [style.width.%]="totalRecords ? (totalPresent / totalRecords) * 100 : 0"></span>
+        </div>
+      </article>
 
-      <div class="filter-grid">
-        <div class="field">
-          <label>Section</label>
-          <select [(ngModel)]="selectedSection" (change)="applyFilters()">
-            <option value="">All Sections</option>
-            <option *ngFor="let section of sections" [value]="section">
-              {{ section }}
-            </option>
-          </select>
+      <article class="status-card late">
+        <div class="status-topline">
+          <span>Late</span>
+          <strong>{{ totalLate }}</strong>
+        </div>
+        <div class="progress-track">
+          <span [style.width.%]="totalRecords ? (totalLate / totalRecords) * 100 : 0"></span>
+        </div>
+      </article>
+
+      <article class="status-card absent">
+        <div class="status-topline">
+          <span>Absent</span>
+          <strong>{{ totalAbsences }}</strong>
+        </div>
+        <div class="progress-track">
+          <span [style.width.%]="totalRecords ? (totalAbsences / totalRecords) * 100 : 0"></span>
+        </div>
+      </article>
+
+      <article class="status-card excused">
+        <div class="status-topline">
+          <span>Excused</span>
+          <strong>{{ totalExcused }}</strong>
+        </div>
+        <div class="progress-track">
+          <span [style.width.%]="totalRecords ? (totalExcused / totalRecords) * 100 : 0"></span>
+        </div>
+      </article>
+    </section>
+
+    <section class="report-records-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Generated Faculty Reports</span>
+          <h2>Saved Report Records</h2>
+          <p>
+            Save report snapshots for your handled classes, then archive old reports without
+            deleting raw attendance records.
+          </p>
         </div>
 
-        <div class="field">
-          <label>Subject</label>
-          <select [(ngModel)]="selectedSubject" (change)="applyFilters()">
-            <option value="">All Subjects</option>
-            <option *ngFor="let subject of subjects" [value]="subject">
-              {{ subject }}
-            </option>
-          </select>
-        </div>
+        <div class="report-record-tabs">
+          <button
+            type="button"
+            class="record-tab"
+            [class.active]="reportRecordView === 'active'"
+            [disabled]="isReportSaving || !!processingGeneratedReportId"
+            (click)="setReportRecordView('active')"
+          >
+            <i class="pi pi-folder-open" aria-hidden="true"></i>
+            <span>Active</span>
+            <strong>{{ activeGeneratedReportsCount }}</strong>
+          </button>
 
-        <div class="field">
-          <label>Month</label>
-          <input type="month" [(ngModel)]="selectedMonth" (change)="onMonthChange()" />
-        </div>
-
-        <div class="field action-field">
-          <button class="secondary-btn full" (click)="resetFilters()">
-            <i class="pi pi-refresh"></i>
-            Reset Filters
+          <button
+            type="button"
+            class="record-tab"
+            [class.active]="reportRecordView === 'archived'"
+            [disabled]="isReportSaving || !!processingGeneratedReportId"
+            (click)="setReportRecordView('archived')"
+          >
+            <i class="pi pi-archive" aria-hidden="true"></i>
+            <span>Archive</span>
+            <strong>{{ archivedGeneratedReportsCount }}</strong>
           </button>
         </div>
       </div>
+
+      <div class="report-record-toolbar">
+        <label class="search-box">
+          <i class="pi pi-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            [(ngModel)]="reportRecordSearch"
+            placeholder="Search saved reports by title, period, scope, or status..."
+            aria-label="Search saved faculty reports"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="secondary-btn small"
+          [disabled]="!reportRecordSearch"
+          (click)="reportRecordSearch = ''"
+        >
+          <i class="pi pi-times" aria-hidden="true"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+
+      <div class="empty-state compact" *ngIf="visibleGeneratedReports.length === 0">
+        <i class="pi pi-folder" aria-hidden="true"></i>
+        <h3>
+          {{
+            reportRecordView === 'archived'
+              ? 'No archived faculty reports'
+              : 'No active saved faculty reports yet'
+          }}
+        </h3>
+        <p>
+          {{
+            reportRecordView === 'archived'
+              ? 'Archived faculty report snapshots will appear here.'
+              : 'Use Generate Report to save the current filtered faculty report.'
+          }}
+        </p>
+      </div>
+
+      <div class="generated-report-groups" *ngIf="visibleGeneratedReports.length > 0">
+        <section
+          class="generated-report-group"
+          *ngFor="let group of generatedReportGroups; trackBy: trackByGeneratedReportGroup"
+        >
+          <div class="group-title">
+            <span>{{ group.label }}</span>
+            <strong>{{ group.reports.length }} report(s)</strong>
+          </div>
+
+          <div class="generated-report-list">
+            <article
+              class="generated-report-card"
+              *ngFor="let report of group.reports; trackBy: trackByGeneratedReport"
+              [ngClass]="getGeneratedReportStatusClass(report)"
+            >
+              <div class="generated-report-main">
+                <div>
+                  <span class="report-type-pill">Faculty Report</span>
+                  <h3>{{ report.title }}</h3>
+                  <p>{{ report.periodLabel }} • {{ report.filterLabel }}</p>
+                </div>
+
+                <span class="status-pill" [ngClass]="getGeneratedReportStatusClass(report)">
+                  {{ report.status === 'archived' ? 'Archived' : 'Active' }}
+                </span>
+              </div>
+
+              <div class="generated-report-meta">
+                <div class="meta-item">
+                  <span>Generated</span>
+                  <strong>{{ getGeneratedReportDateLabel(report) }}</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Attendance Rate</span>
+                  <strong>{{ report.attendanceRate }}%</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Records</span>
+                  <strong>{{ report.totalRecords }}</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Sessions</span>
+                  <strong>{{ report.totalSessions }}</strong>
+                </div>
+              </div>
+
+              <div class="generated-report-breakdown">
+                <span class="mini-pill present">Present: {{ report.presentCount }}</span>
+                <span class="mini-pill late">Late: {{ report.lateCount }}</span>
+                <span class="mini-pill absent">Absent: {{ report.absentCount }}</span>
+                <span class="mini-pill excused">Excused: {{ report.excusedCount }}</span>
+              </div>
+
+              <div class="generated-report-actions">
+                <button
+                  type="button"
+                  class="secondary-btn small"
+                  (click)="exportGeneratedReport(report)"
+                >
+                  <i class="pi pi-download" aria-hidden="true"></i>
+                  <span>Export</span>
+                </button>
+
+                <ng-container *ngIf="reportRecordView === 'active'; else archiveReportActions">
+                  <button
+                    type="button"
+                    class="secondary-btn small archive-btn"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="archiveGeneratedReport(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id
+                          ? 'pi-spin pi-spinner'
+                          : 'pi-archive'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Archive</span>
+                  </button>
+                </ng-container>
+
+                <ng-template #archiveReportActions>
+                  <button
+                    type="button"
+                    class="secondary-btn small restore-btn"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="restoreGeneratedReport(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id ? 'pi-spin pi-spinner' : 'pi-undo'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Restore</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="danger-btn small"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="deleteGeneratedReportPermanently(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id
+                          ? 'pi-spin pi-spinner'
+                          : 'pi-trash'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Delete</span>
+                  </button>
+                </ng-template>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
     </section>
 
-    <section class="content-grid">
-      <div class="card table-card">
-        <div class="card-header">
+    <section class="workspace-grid">
+      <article class="workspace-card">
+        <div class="workspace-header">
           <div>
-            <h3>Attendance Summary by Class</h3>
-            <p>{{ filteredAttendanceSummary.length }} class record(s)</p>
+            <span class="section-kicker">Class Summary</span>
+            <h2>Handled Class Attendance</h2>
           </div>
         </div>
 
-        <div class="table-wrapper" *ngIf="filteredAttendanceSummary.length > 0; else noSummary">
-          <table class="report-table">
+        <div
+          class="table-wrapper"
+          *ngIf="filteredAttendanceSummary.length > 0; else noClassSummary"
+        >
+          <table>
             <thead>
               <tr>
+                <th>Program</th>
                 <th>Subject</th>
                 <th>Section</th>
-                <th>Teacher</th>
                 <th>Students</th>
                 <th>Sessions</th>
                 <th>Present</th>
                 <th>Late</th>
                 <th>Absent</th>
-                <th>Excused</th>
                 <th>Rate</th>
               </tr>
             </thead>
 
             <tbody>
               <tr *ngFor="let row of filteredAttendanceSummary">
+                <td>{{ row.program }}</td>
                 <td>
                   <strong>{{ row.subject }}</strong>
                 </td>
                 <td>{{ row.section }}</td>
-                <td>{{ row.teacher }}</td>
                 <td>{{ row.totalStudents }}</td>
                 <td>{{ row.totalSessions }}</td>
                 <td>{{ row.presentCount }}</td>
                 <td>{{ row.lateCount }}</td>
                 <td>{{ row.absentCount }}</td>
-                <td>{{ row.excusedCount }}</td>
                 <td>
-                  <span class="rate-badge" [ngClass]="getRateClass(row.presentRate)">
-                    {{ row.presentRate }}%
+                  <span class="rate-pill" [ngClass]="getRateClass(row.attendanceRate)">
+                    {{ row.attendanceRate }}%
                   </span>
                 </td>
               </tr>
@@ -178,56 +500,187 @@
           </table>
         </div>
 
-        <ng-template #noSummary>
-          <div class="empty-state small">
-            <i class="pi pi-chart-bar"></i>
-            <h4>No Summary Data</h4>
-            <p>No report rows match your current filters.</p>
+        <ng-template #noClassSummary>
+          <div class="empty-state compact">
+            <i class="pi pi-chart-bar" aria-hidden="true"></i>
+            <h3>No class summary available</h3>
+            <p>No handled class records match the selected filters.</p>
           </div>
         </ng-template>
-      </div>
+      </article>
 
-      <div class="card side-card">
-        <div class="card-header">
+      <article class="workspace-card">
+        <div class="workspace-header">
           <div>
-            <h3>Students With Attendance Concerns</h3>
-            <p>{{ filteredStudentRisks.length }} student(s)</p>
+            <span class="section-kicker">Student Monitoring</span>
+            <h2>Students Needing Attention</h2>
           </div>
         </div>
 
-        <div class="risk-list" *ngIf="filteredStudentRisks.length > 0; else noRisk">
-          <div class="risk-item" *ngFor="let item of filteredStudentRisks">
-            <div class="risk-main">
-              <div class="avatar">
-                {{ item.studentName.charAt(0) }}
+        <div
+          class="student-list"
+          *ngIf="filteredStudentConcerns.length > 0; else noStudentConcerns"
+        >
+          <article class="student-risk-card" *ngFor="let student of filteredStudentConcerns">
+            <div class="student-risk-main">
+              <div>
+                <h3>{{ student.studentName }}</h3>
+                <p>{{ student.studentNo }} • {{ student.section }}</p>
               </div>
 
-              <div class="risk-info">
-                <h4>{{ item.studentName }}</h4>
-                <p>{{ item.studentNo }} · {{ item.section }}</p>
-              </div>
-            </div>
-
-            <div class="risk-stats">
-              <span class="mini-badge absent">{{ item.absences }} Absences</span>
-              <span class="mini-badge late">{{ item.lates }} Lates</span>
-              <span class="mini-badge excused">{{ item.excused }} Excused</span>
-              <span class="mini-badge total">{{ item.totalRecords }} Total</span>
-              <span class="mini-badge rate" [ngClass]="getRateClass(item.attendanceRate)">
-                {{ item.attendanceRate }}%
+              <span class="rate-pill" [ngClass]="getRateClass(student.attendanceRate)">
+                {{ student.attendanceRate }}%
               </span>
             </div>
-          </div>
+
+            <div class="student-risk-stats">
+              <span>Present: {{ student.presentCount }}</span>
+              <span>Late: {{ student.lateCount }}</span>
+              <span>Absent: {{ student.absentCount }}</span>
+              <span>Excused: {{ student.excusedCount }}</span>
+            </div>
+          </article>
         </div>
 
-        <ng-template #noRisk>
-          <div class="empty-state small">
-            <i class="pi pi-check-circle"></i>
-            <h4>No Risk Data</h4>
-            <p>No student attendance concern found for the current filters.</p>
+        <ng-template #noStudentConcerns>
+          <div class="empty-state compact">
+            <i class="pi pi-check-circle" aria-hidden="true"></i>
+            <h3>No students flagged</h3>
+            <p>No absence, late, or low-rate concern found in the selected filters.</p>
           </div>
         </ng-template>
+      </article>
+    </section>
+
+    <section class="records-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Report Directory</span>
+          <h2>Organized Attendance Logs</h2>
+          <p>
+            Records are grouped by month, subject, section, and session so faculty can monitor
+            classes without mixing logs.
+          </p>
+        </div>
+
+        <span class="metric-pill">{{ filteredDetailedRecords.length }} record(s)</span>
+      </div>
+
+      <div class="empty-state compact" *ngIf="reportDirectory.length === 0">
+        <i class="pi pi-database" aria-hidden="true"></i>
+        <h3>No detailed attendance records</h3>
+        <p>No attendance logs match the selected filters.</p>
+      </div>
+
+      <div class="report-directory" *ngIf="reportDirectory.length > 0">
+        <section
+          class="directory-month"
+          *ngFor="let month of reportDirectory; trackBy: trackByMonthDirectory"
+        >
+          <div class="directory-month-header">
+            <div>
+              <h3>{{ month.monthLabel }}</h3>
+              <p>
+                {{ month.totalRecords }} record(s) • {{ month.classGroups.length }} class group(s)
+              </p>
+            </div>
+
+            <div class="directory-metrics">
+              <span class="rate-pill" [ngClass]="getRateClass(month.attendanceRate)">
+                {{ month.attendanceRate }}%
+              </span>
+              <span class="mini-pill present">Present: {{ month.presentCount }}</span>
+              <span class="mini-pill late">Late: {{ month.lateCount }}</span>
+              <span class="mini-pill absent">Absent: {{ month.absentCount }}</span>
+              <span class="mini-pill excused">Excused: {{ month.excusedCount }}</span>
+            </div>
+          </div>
+
+          <div class="directory-class-list">
+            <article
+              class="directory-class-card"
+              *ngFor="let classGroup of month.classGroups; trackBy: trackByClassGroup"
+            >
+              <div class="directory-class-header">
+                <div>
+                  <span class="class-program">{{ classGroup.program }}</span>
+                  <h4>{{ classGroup.subject }} • {{ classGroup.section }}</h4>
+                  <p>
+                    {{ classGroup.sessionGroups.length }} session(s) •
+                    {{ classGroup.totalRecords }} record(s)
+                  </p>
+                </div>
+
+                <div class="directory-metrics compact-metrics">
+                  <span class="rate-pill" [ngClass]="getRateClass(classGroup.attendanceRate)">
+                    {{ classGroup.attendanceRate }}%
+                  </span>
+                  <span class="mini-pill present">P: {{ classGroup.presentCount }}</span>
+                  <span class="mini-pill late">L: {{ classGroup.lateCount }}</span>
+                  <span class="mini-pill absent">A: {{ classGroup.absentCount }}</span>
+                  <span class="mini-pill excused">E: {{ classGroup.excusedCount }}</span>
+                </div>
+              </div>
+
+              <div class="session-list">
+                <article
+                  class="session-card"
+                  *ngFor="let session of classGroup.sessionGroups; trackBy: trackBySessionGroup"
+                >
+                  <div class="session-header">
+                    <div>
+                      <h5>{{ session.sessionLabel }}</h5>
+                      <p>{{ session.totalRecords }} student record(s)</p>
+                    </div>
+
+                    <div class="directory-metrics compact-metrics">
+                      <span class="rate-pill" [ngClass]="getRateClass(session.attendanceRate)">
+                        {{ session.attendanceRate }}%
+                      </span>
+                      <span class="mini-pill present">P: {{ session.presentCount }}</span>
+                      <span class="mini-pill late">L: {{ session.lateCount }}</span>
+                      <span class="mini-pill absent">A: {{ session.absentCount }}</span>
+                      <span class="mini-pill excused">E: {{ session.excusedCount }}</span>
+                    </div>
+                  </div>
+
+                  <div class="table-wrapper session-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Student</th>
+                          <th>Student No.</th>
+                          <th>Status</th>
+                          <th>Method</th>
+                          <th>Time Recorded</th>
+                          <th>Remarks</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        <tr *ngFor="let record of session.records; trackBy: trackByDetailedRecord">
+                          <td>
+                            <strong>{{ record.studentName }}</strong>
+                          </td>
+                          <td>{{ record.studentNo }}</td>
+                          <td>
+                            <span class="status-pill" [ngClass]="record.status">
+                              {{ getStatusLabel(record.status) }}
+                            </span>
+                          </td>
+                          <td>{{ getMethodLabel(record.method) }}</td>
+                          <td>{{ formatDateTime(record.timeRecorded) }}</td>
+                          <td>{{ record.remarks }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              </div>
+            </article>
+          </div>
+        </section>
       </div>
     </section>
   </ng-container>
-</div>
+</section>

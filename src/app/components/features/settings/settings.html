@@ -1,0 +1,341 @@
+<section class="settings-page">
+  <header class="settings-hero">
+    <div class="hero-avatar" aria-hidden="true">
+      {{ getInitials() }}
+    </div>
+
+    <div class="hero-copy">
+      <span class="eyebrow">Account Settings</span>
+      <h1>Settings</h1>
+      <p>Manage your login preferences, password, and display options.</p>
+
+      <div class="hero-badges">
+        <span class="role-badge" [ngClass]="getRoleClass()">
+          <i [class]="getRoleIcon()" aria-hidden="true"></i>
+          {{ getRoleLabel() }}
+        </span>
+
+        <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+          <span class="status-dot"></span>
+          {{ getStatusLabel() }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <section class="settings-layout">
+    <nav class="settings-nav" aria-label="Settings navigation">
+      <button
+        type="button"
+        class="nav-item"
+        [class.active]="activeTab === 'login'"
+        (click)="setTab('login')"
+      >
+        <i class="pi pi-key" aria-hidden="true"></i>
+        <span>Login</span>
+      </button>
+
+      <button
+        type="button"
+        class="nav-item"
+        [class.active]="activeTab === 'appearance'"
+        (click)="setTab('appearance')"
+      >
+        <i class="pi pi-palette" aria-hidden="true"></i>
+        <span>Appearance</span>
+      </button>
+
+      <button
+        type="button"
+        class="nav-item"
+        [class.active]="activeTab === 'account'"
+        (click)="setTab('account')"
+      >
+        <i class="pi pi-user" aria-hidden="true"></i>
+        <span>Account</span>
+      </button>
+    </nav>
+
+    <main class="settings-content">
+      @if (activeTab === 'login') {
+        <section class="settings-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Login Username</span>
+              <h2>Change Username</h2>
+              <p>Use a username that is easy for you to remember when signing in.</p>
+            </div>
+
+            <i class="pi pi-user-edit" aria-hidden="true"></i>
+          </div>
+
+          <div class="form-grid">
+            <label class="form-group">
+              <span>{{ getUsernameLabel() }}</span>
+              <input
+                type="text"
+                [(ngModel)]="usernameForm.newUsername"
+                placeholder="Enter new username"
+                autocomplete="username"
+              />
+            </label>
+
+            <label class="form-group">
+              <span>Current Password</span>
+
+              <div class="input-wrap">
+                <input
+                  [type]="showUsernamePassword ? 'text' : 'password'"
+                  [(ngModel)]="usernameForm.currentPassword"
+                  placeholder="Confirm current password"
+                  autocomplete="current-password"
+                />
+
+                <button
+                  type="button"
+                  class="eye-btn"
+                  (click)="showUsernamePassword = !showUsernamePassword"
+                  aria-label="Toggle password visibility"
+                >
+                  <i [class]="showUsernamePassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              class="primary-btn"
+              (click)="updateUsername()"
+              [disabled]="savingUsername"
+            >
+              <i
+                class="pi"
+                [ngClass]="savingUsername ? 'pi-spin pi-spinner' : 'pi-check'"
+                aria-hidden="true"
+              ></i>
+              <span>{{ savingUsername ? 'Saving...' : 'Update Username' }}</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Password Security</span>
+              <h2>Change Password</h2>
+              <p>Use at least 6 characters. Keep your password private.</p>
+            </div>
+
+            <i class="pi pi-lock" aria-hidden="true"></i>
+          </div>
+
+          <div class="form-stack">
+            <label class="form-group">
+              <span>Current Password</span>
+
+              <div class="input-wrap">
+                <input
+                  [type]="showCurrentPassword ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.currentPassword"
+                  placeholder="Enter current password"
+                  autocomplete="current-password"
+                />
+
+                <button
+                  type="button"
+                  class="eye-btn"
+                  (click)="showCurrentPassword = !showCurrentPassword"
+                  aria-label="Toggle password visibility"
+                >
+                  <i [class]="showCurrentPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </label>
+
+            <label class="form-group">
+              <span>New Password</span>
+
+              <div class="input-wrap">
+                <input
+                  [type]="showNewPassword ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.newPassword"
+                  placeholder="Enter new password"
+                  autocomplete="new-password"
+                />
+
+                <button
+                  type="button"
+                  class="eye-btn"
+                  (click)="showNewPassword = !showNewPassword"
+                  aria-label="Toggle password visibility"
+                >
+                  <i [class]="showNewPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </label>
+
+            <label class="form-group">
+              <span>Confirm New Password</span>
+
+              <div class="input-wrap">
+                <input
+                  [type]="showConfirmPassword ? 'text' : 'password'"
+                  [(ngModel)]="passwordForm.confirmPassword"
+                  placeholder="Confirm new password"
+                  autocomplete="new-password"
+                />
+
+                <button
+                  type="button"
+                  class="eye-btn"
+                  (click)="showConfirmPassword = !showConfirmPassword"
+                  aria-label="Toggle password visibility"
+                >
+                  <i [class]="showConfirmPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                </button>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              class="primary-btn"
+              (click)="changePassword()"
+              [disabled]="savingPassword"
+            >
+              <i
+                class="pi"
+                [ngClass]="savingPassword ? 'pi-spin pi-spinner' : 'pi-check'"
+                aria-hidden="true"
+              ></i>
+              <span>{{ savingPassword ? 'Saving...' : 'Update Password' }}</span>
+            </button>
+          </div>
+        </section>
+      }
+
+      @if (activeTab === 'appearance') {
+        <section class="settings-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Display Preference</span>
+              <h2>Appearance</h2>
+              <p>Choose the display mode that is comfortable for you.</p>
+            </div>
+
+            <i class="pi pi-palette" aria-hidden="true"></i>
+          </div>
+
+          <div class="appearance-row">
+            <div class="appearance-info">
+              <div class="appearance-icon">
+                <i [class]="isDarkMode ? 'pi pi-moon' : 'pi pi-sun'" aria-hidden="true"></i>
+              </div>
+
+              <div>
+                <strong>{{ isDarkMode ? 'Dark Mode' : 'Light Mode' }}</strong>
+                <p>
+                  {{
+                    isDarkMode
+                      ? 'Reduced brightness for low-light use.'
+                      : 'Bright and clear interface for daytime use.'
+                  }}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="toggle-btn"
+              [class.active]="isDarkMode"
+              (click)="toggleTheme()"
+              aria-label="Toggle dark mode"
+            >
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+
+          <div class="appearance-preview" [class.dark-preview]="isDarkMode">
+            <div class="preview-topbar">
+              <span></span>
+              <strong>SAMS</strong>
+            </div>
+
+            <div class="preview-body">
+              <aside></aside>
+              <main>
+                <div></div>
+                <div></div>
+              </main>
+            </div>
+          </div>
+        </section>
+      }
+
+      @if (activeTab === 'account') {
+        <section class="settings-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Account Summary</span>
+              <h2>Current Account</h2>
+              <p>View your current login and access information.</p>
+            </div>
+
+            <i class="pi pi-id-card" aria-hidden="true"></i>
+          </div>
+
+          <div class="account-profile">
+            <div class="account-avatar" aria-hidden="true">
+              {{ getInitials() }}
+            </div>
+
+            <div>
+              <h3>{{ getFullName() }}</h3>
+              <p>{{ getPortalAccessLabel() }}</p>
+            </div>
+          </div>
+
+          <div class="info-list">
+            <div class="info-row">
+              <span>Full Name</span>
+              <strong>{{ getFullName() }}</strong>
+            </div>
+
+            <div class="info-row">
+              <span>Email Address</span>
+              <strong>{{ currentUser?.email || '—' }}</strong>
+            </div>
+
+            <div class="info-row">
+              <span>{{ getUsernameLabel() }}</span>
+              <strong>{{ currentUser?.username || '—' }}</strong>
+            </div>
+
+            <div class="info-row">
+              <span>Role</span>
+              <strong>
+                <span class="role-badge sm" [ngClass]="getRoleClass()">
+                  <i [class]="getRoleIcon()" aria-hidden="true"></i>
+                  {{ getRoleLabel() }}
+                </span>
+              </strong>
+            </div>
+
+            <div class="info-row">
+              <span>Status</span>
+              <strong>
+                <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+                  <span class="status-dot"></span>
+                  {{ getStatusLabel() }}
+                </span>
+              </strong>
+            </div>
+          </div>
+        </section>
+      }
+    </main>
+  </section>
+</section>

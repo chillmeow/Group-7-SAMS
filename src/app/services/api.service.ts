@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   updateDoc,
   where,
@@ -97,6 +98,8 @@ export interface ClassOffering {
   schedule?: string;
   subjectCode?: string;
   subjectName?: string;
+  sectionName?: string;
+  teacherName?: string;
   offeringCode?: string;
   status?: string;
 }
@@ -136,12 +139,29 @@ export interface Notification {
   id: string | number;
   userId?: string | number;
   targetUserId?: string | number;
+  targetRole?: string;
+  actorUserId?: string | number;
+  actorName?: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error' | 'attendance' | 'request' | 'system' | 'message';
+  type:
+    | 'info'
+    | 'success'
+    | 'warning'
+    | 'error'
+    | 'attendance'
+    | 'request'
+    | 'system'
+    | 'message'
+    | 'report'
+    | 'account';
   read: boolean;
+  isRead?: boolean;
   createdAt: string;
+  readAt?: string;
   link?: string;
+  entityType?: string;
+  entityId?: string | number;
 }
 
 @Injectable({
@@ -667,32 +687,64 @@ export class ApiService {
   getNotifications(): Observable<Notification[]> {
     const ref = collection(db, 'notifications');
 
-    return from(getDocs(ref)).pipe(
-      map((snapshot) =>
-        snapshot.docs
-          .map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<Notification, 'id'>),
-          }))
-          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
-      ),
-    );
+    return new Observable<Notification[]>((observer) => {
+      const unsubscribe = onSnapshot(
+        ref,
+        (snapshot) => {
+          const notifications = snapshot.docs
+            .map((docSnap) => {
+              const data = docSnap.data() as Omit<Notification, 'id'> & {
+                isRead?: boolean;
+              };
+
+              return {
+                id: docSnap.id,
+                ...data,
+                read: Boolean(data.read ?? data.isRead ?? false),
+                isRead: Boolean(data.read ?? data.isRead ?? false),
+              } as Notification;
+            })
+            .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+          observer.next(notifications);
+        },
+        (error) => observer.error(error),
+      );
+
+      return () => unsubscribe();
+    });
   }
 
   getNotificationsByUser(userId: string | number): Observable<Notification[]> {
-    const ref = collection(db, 'notifications');
-    const q = query(ref, where('targetUserId', '==', String(userId)));
+    return new Observable<Notification[]>((observer) => {
+      const ref = collection(db, 'notifications');
+      const q = query(ref, where('targetUserId', '==', String(userId)));
 
-    return from(getDocs(q)).pipe(
-      map((snapshot) =>
-        snapshot.docs
-          .map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<Notification, 'id'>),
-          }))
-          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
-      ),
-    );
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const notifications = snapshot.docs
+            .map((docSnap) => {
+              const data = docSnap.data() as Omit<Notification, 'id'> & {
+                isRead?: boolean;
+              };
+
+              return {
+                id: docSnap.id,
+                ...data,
+                read: Boolean(data.read ?? data.isRead ?? false),
+                isRead: Boolean(data.read ?? data.isRead ?? false),
+              } as Notification;
+            })
+            .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+          observer.next(notifications);
+        },
+        (error) => observer.error(error),
+      );
+
+      return () => unsubscribe();
+    });
   }
 
   getNotificationById(id: string | number): Observable<Notification> {
@@ -704,11 +756,17 @@ export class ApiService {
           return throwError(() => new Error('notification-not-found'));
         }
 
+        const data = docSnap.data() as Omit<Notification, 'id'> & {
+          isRead?: boolean;
+        };
+
         return from([
           {
             id: docSnap.id,
-            ...(docSnap.data() as Omit<Notification, 'id'>),
-          },
+            ...data,
+            read: Boolean(data.read ?? data.isRead ?? false),
+            isRead: Boolean(data.read ?? data.isRead ?? false),
+          } as Notification,
         ]);
       }),
     );
@@ -716,8 +774,11 @@ export class ApiService {
 
   createNotification(payload: Partial<Notification>): Observable<Notification> {
     const ref = collection(db, 'notifications');
+    const readValue = Boolean(payload.read ?? payload.isRead ?? false);
+
     const cleanPayload = this.removeId({
-      read: false,
+      read: readValue,
+      isRead: readValue,
       type: 'info',
       createdAt: new Date().toISOString(),
       ...payload,
@@ -744,7 +805,11 @@ export class ApiService {
   }
 
   markNotificationAsRead(id: string | number): Observable<Notification> {
-    return this.updateNotification(id, { read: true });
+    return this.updateNotification(id, {
+      read: true,
+      isRead: true,
+      readAt: new Date().toISOString(),
+    });
   }
 
   deleteNotification(id: string | number): Observable<void> {

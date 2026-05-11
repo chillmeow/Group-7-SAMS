@@ -146,21 +146,26 @@
         <i class="pi pi-chevron-down arrow" [class.rotate]="isProfileOpen"></i>
       </button>
 
-      <div class="profile-dropdown" *ngIf="isProfileOpen">
-        <button type="button" (click)="goToProfile($event)">
-          <i class="pi pi-user"></i>
+      <div class="profile-dropdown" *ngIf="isProfileOpen" role="menu">
+        <button type="button" role="menuitem" (click)="goToProfile($event)">
+          <i class="pi pi-user" aria-hidden="true"></i>
           <span>Profile</span>
         </button>
 
-        <button type="button" (click)="openSettings($event)">
-          <i class="pi pi-cog"></i>
+        <button type="button" role="menuitem" (click)="openSettings($event)">
+          <i class="pi pi-cog" aria-hidden="true"></i>
           <span>Settings</span>
+        </button>
+
+        <button type="button" role="menuitem" (click)="openFaqs($event)">
+          <i class="pi pi-question-circle" aria-hidden="true"></i>
+          <span>FAQs</span>
         </button>
 
         <hr />
 
-        <button type="button" class="logout" (click)="logout($event)">
-          <i class="pi pi-sign-out"></i>
+        <button type="button" role="menuitem" class="logout" (click)="logout($event)">
+          <i class="pi pi-sign-out" aria-hidden="true"></i>
           <span>Logout</span>
         </button>
       </div>

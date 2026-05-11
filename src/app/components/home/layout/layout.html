@@ -2,15 +2,15 @@
   class="dashboard-layout"
   [class.sidebar-collapsed]="sidebarCollapsed && !isMobile"
   [class.mobile-view]="isMobile"
+  [class.mobile-sidebar-open]="isMobile && mobileSidebarOpen"
 >
-  <div
-    class="sidebar-backdrop"
+  <button
     *ngIf="isMobile && mobileSidebarOpen"
+    type="button"
+    class="sidebar-backdrop"
     (click)="closeMobileSidebar()"
-    (keydown.escape)="closeMobileSidebar()"
-    tabindex="0"
-    aria-label="Close sidebar backdrop"
-  ></div>
+    aria-label="Close navigation menu"
+  ></button>
 
   <app-sidenav
     [collapsed]="sidebarCollapsed"
@@ -21,7 +21,7 @@
     (toggleCollapse)="toggleSidebar()"
   ></app-sidenav>
 
-  <main class="main-shell">
+  <main class="main-shell" id="main-content" aria-label="Main content">
     <app-topbar
       [isSidebarCollapsed]="sidebarCollapsed"
       [isMobile]="isMobile"

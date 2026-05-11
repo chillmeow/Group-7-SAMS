@@ -1,68 +1,129 @@
 <section class="attendance-page">
-  <div class="alert success" *ngIf="message">
-    {{ message }}
+  <div class="page-alert success" *ngIf="message">
+    <i class="pi pi-check-circle"></i>
+    <span>{{ message }}</span>
   </div>
 
-  <div class="alert error" *ngIf="errorMessage">
-    {{ errorMessage }}
+  <div class="page-alert error" *ngIf="errorMessage">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ errorMessage }}</span>
   </div>
 
-  <div class="loading-state" *ngIf="isLoading">
-    <i class="pi pi-spin pi-spinner"></i>
-    Loading attendance data...
-  </div>
+  <section class="loading-state" *ngIf="isLoading">
+    <div class="loading-icon">
+      <i class="pi pi-spin pi-spinner"></i>
+    </div>
+    <h2>Loading Attendance</h2>
+    <p>Preparing your assigned classes and attendance records.</p>
+  </section>
 
   <ng-container *ngIf="!isLoading">
+    <!-- CLASS CATALOG -->
     <ng-container *ngIf="viewMode === 'catalog'">
-      <div class="page-header">
+      <header class="attendance-header">
         <div>
-          <p class="eyebrow">Teacher Attendance</p>
-          <h1>Select Section Block</h1>
-          <p class="subtitle">
-            Choose a handled section block to manage QR attendance, manual class attendance sheet,
-            and pending requests.
-          </p>
+          <span class="header-chip">
+            <i class="pi pi-user"></i>
+            Faculty Portal
+          </span>
+
+          <h1>Attendance</h1>
+          <p>Choose a class to start a live QR session or upload attendance records.</p>
         </div>
 
         <button type="button" class="refresh-btn" (click)="refresh()">
           <i class="pi pi-refresh"></i>
-          Refresh
+          <span>Refresh</span>
         </button>
-      </div>
+      </header>
 
-      <section class="catalog-card">
-        <div class="section-title">
+      <section class="top-summary-grid">
+        <article class="summary-card">
+          <div class="summary-icon blue">
+            <i class="pi pi-book"></i>
+          </div>
+
           <div>
-            <h2>Section Catalog</h2>
-            <p>Select one section block to open its attendance workspace.</p>
+            <span>Classes</span>
+            <strong>{{ teacherOfferings.length }}</strong>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon green">
+            <i class="pi pi-circle-fill"></i>
+          </div>
+
+          <div>
+            <span>Live Sessions</span>
+            <strong>{{ activeSessionCount }}</strong>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-icon violet">
+            <i class="pi pi-shield"></i>
+          </div>
+
+          <div>
+            <span>QR & Code Rotation</span>
+            <strong>Custom</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="class-catalog-card">
+        <div class="section-heading">
+          <div>
+            <h2>My Classes</h2>
+            <p>Open a class workspace.</p>
           </div>
         </div>
 
-        <div class="empty-box" *ngIf="teacherOfferings.length === 0">
-          No class offerings are assigned to this teacher account yet.
+        <div class="empty-state" *ngIf="teacherOfferings.length === 0">
+          <div class="empty-icon">
+            <i class="pi pi-folder-open"></i>
+          </div>
+          <h3>No assigned classes</h3>
+          <p>No class offering is currently linked to your faculty account.</p>
         </div>
 
-        <div class="section-catalog" *ngIf="teacherOfferings.length > 0">
+        <div class="class-grid" *ngIf="teacherOfferings.length > 0">
           <button
             type="button"
-            class="section-card"
+            class="class-card"
             *ngFor="let offering of teacherOfferings; trackBy: trackByOffering"
             (click)="openAttendanceWorkspace(offering)"
           >
-            <div class="section-card-top">
-              <span class="section-badge">{{ offering.sectionName }}</span>
+            <div class="class-card-top">
+              <span class="section-badge">
+                <i class="pi pi-users"></i>
+                {{ offering.sectionName || 'No Section' }}
+              </span>
 
-              <span class="active-badge" *ngIf="getOfferingActiveSession(offering)">
-                Active Session
+              <span class="live-badge" *ngIf="getOfferingActiveSession(offering)">
+                <i class="pi pi-circle-fill"></i>
+                Live
               </span>
             </div>
 
-            <h3>{{ offering.subjectCode }}</h3>
-            <p>{{ offering.subjectName }}</p>
+            <div class="class-card-main">
+              <div class="subject-code">
+                {{ offering.subjectCode || 'SUB' }}
+              </div>
 
-            <div class="section-meta">
+              <div>
+                <h3>{{ offering.subjectName || 'Unnamed Subject' }}</h3>
+                <p>
+                  {{ offering.semester || 'No Semester' }} ·
+                  {{ offering.schoolYear || 'No School Year' }}
+                </p>
+              </div>
+            </div>
+
+            <div class="class-card-details">
               <span>
-                <i class="pi pi-users"></i>
+                <i class="pi pi-user"></i>
                 {{ getOfferingStudentCount(offering) }} students
               </span>
 
@@ -72,491 +133,891 @@
               </span>
             </div>
 
-            <strong class="manage-link">
-              Manage Attendance
+            <div class="open-workspace">
+              <span>Open Workspace</span>
               <i class="pi pi-arrow-right"></i>
-            </strong>
+            </div>
           </button>
         </div>
       </section>
     </ng-container>
 
-    <ng-container *ngIf="viewMode === 'workspace' && selectedOffering">
-      <div class="workspace-header">
-        <button type="button" class="back-btn" (click)="backToCatalog()">
-          <i class="pi pi-arrow-left"></i>
-          Back to Section Catalog
-        </button>
+    <!-- CLASS WORKSPACE -->
+    <ng-container *ngIf="viewMode === 'workspace'">
+      <ng-container *ngIf="selectedOffering as offering">
+        <header class="workspace-header">
+          <div class="workspace-title">
+            <div class="workspace-left">
+              <button type="button" class="back-btn hero-back-btn" (click)="backToCatalog()">
+                <i class="pi pi-arrow-left"></i>
+                <span>Back</span>
+              </button>
 
-        <div class="workspace-title">
-          <div>
-            <p class="eyebrow">Attendance Workspace</p>
-            <h1>{{ selectedOffering.sectionName }}</h1>
-            <p>{{ selectedOffering.subjectCode }} · {{ selectedOffering.subjectName }}</p>
-          </div>
+              <div class="workspace-title-text">
+                <span class="header-chip">
+                  <i class="pi pi-calendar-check"></i>
+                  Attendance Workspace
+                </span>
 
-          <span class="session-status" [class.active]="activeSession?.status === 'active'">
-            {{ activeSession ? (activeSession.status | titlecase) : 'No Active Session' }}
-          </span>
-        </div>
-      </div>
-
-      <section class="session-card">
-        <div class="section-title">
-          <div>
-            <h2>Class Session Setup</h2>
-            <p>Create a QR session or use the manual attendance sheet below.</p>
-          </div>
-        </div>
-
-        <div class="setup-grid">
-          <div class="selected-info">
-            <span>Schedule</span>
-            <strong>{{ getOfferingScheduleLabel(selectedOffering) }}</strong>
-          </div>
-
-          <button
-            type="button"
-            class="primary-btn"
-            (click)="createSession()"
-            [disabled]="!selectedOfferingId || !!activeSession || isCreatingSession"
-          >
-            <i class="pi pi-qrcode"></i>
-            {{ isCreatingSession ? 'Creating...' : 'Create QR Session' }}
-          </button>
-        </div>
-      </section>
-
-      <section class="overview-grid">
-        <article class="overview-card">
-          <span>Total Students</span>
-          <strong>{{ totalStudents }}</strong>
-          <small>Listed alphabetically</small>
-        </article>
-
-        <article class="overview-card">
-          <span>Present</span>
-          <strong>{{ presentCount }}</strong>
-          <small>Marked present</small>
-        </article>
-
-        <article class="overview-card">
-          <span>Late</span>
-          <strong>{{ lateCount }}</strong>
-          <small>With late time</small>
-        </article>
-
-        <article class="overview-card">
-          <span>Attendance Rate</span>
-          <strong>{{ attendanceRate }}%</strong>
-          <small>{{ markedCount }} of {{ totalStudents }} marked</small>
-        </article>
-      </section>
-
-      <section class="session-grid">
-        <div class="qr-card">
-          <div class="section-title">
-            <div>
-              <h2>QR / Session Code Attendance</h2>
-              <p>Students may scan the QR code or enter the session code in their portal.</p>
-            </div>
-          </div>
-
-          <div class="no-session" *ngIf="!activeSession">
-            <i class="pi pi-qrcode"></i>
-            <h3>No active QR session</h3>
-            <p>Create a QR session if students will scan or enter a session code.</p>
-          </div>
-
-          <div class="active-session-box" *ngIf="activeSession">
-            <div class="real-qr-box">
-              <div class="qr-glow"></div>
-
-              <img *ngIf="qrImageUrl" [src]="qrImageUrl" alt="Attendance QR Code" class="real-qr" />
-
-              <div class="qr-fallback" *ngIf="!qrImageUrl">
-                <i class="pi pi-qrcode"></i>
-              </div>
-
-              <span>SCAN QR TO ATTEND</span>
-            </div>
-
-            <div class="session-info">
-              <div>
-                <span>Session Code</span>
-                <strong>{{ activeSession.sessionCode }}</strong>
-                <button type="button" class="mini-btn" (click)="copySessionCode()">
-                  Copy Code
-                </button>
-              </div>
-
-              <div>
-                <span>Date Started</span>
-                <strong>
-                  {{ formatDate(activeSession.date) }} · {{ formatTime(activeSession.startTime) }}
-                </strong>
-              </div>
-
-              <div>
-                <span>Late Threshold</span>
-                <strong>{{ activeSession.lateThresholdMinutes || 10 }} minutes</strong>
-              </div>
-
-              <div>
-                <span>QR Token</span>
-                <strong class="token-text">{{ activeSession.qrToken }}</strong>
-                <button type="button" class="mini-btn" (click)="copyQrToken()">Copy Token</button>
+                <h1>{{ offering.sectionName || 'Class Section' }}</h1>
+                <p>{{ offering.subjectCode }} · {{ offering.subjectName }}</p>
               </div>
             </div>
 
-            <button
-              type="button"
-              class="danger-btn"
-              (click)="closeSession()"
-              [disabled]="isClosingSession || activeSession.status === 'closed'"
+            <span
+              class="session-status"
+              [class.live]="activeSession ? activeSession.status === 'active' : false"
             >
-              <i class="pi pi-lock"></i>
-              {{ isClosingSession ? 'Closing...' : 'Close Session' }}
-            </button>
+              <i
+                class="pi"
+                [ngClass]="
+                  activeSession && activeSession.status === 'active'
+                    ? 'pi-circle-fill'
+                    : 'pi-minus-circle'
+                "
+              ></i>
+              {{ activeSessionLabel }}
+            </span>
           </div>
-        </div>
+        </header>
 
-        <div class="reminder-card">
-          <h2>Attendance Modes</h2>
-          <p>
-            This workspace supports QR attendance, session code, manual checking, Excel import, and
-            sit-in request approval.
-          </p>
+        <section class="workspace-tabs">
+          <button type="button" class="tab-card primary" (click)="scrollToSection('live-session')">
+            <i class="pi pi-qrcode"></i>
+            <span>Live Session</span>
+          </button>
 
-          <div class="reminder-list">
-            <div>
-              <i class="pi pi-mobile"></i>
-              QR / code attendance
+          <button type="button" class="tab-card" (click)="scrollToSection('student-board')">
+            <i class="pi pi-users"></i>
+            <span>Student Board</span>
+          </button>
+
+          <button type="button" class="tab-card" (click)="scrollToSection('approval-queue')">
+            <i class="pi pi-user-plus"></i>
+            <span>Requests</span>
+            <strong *ngIf="pendingRequestCount > 0">{{ pendingRequestCount }}</strong>
+          </button>
+
+          <button type="button" class="tab-card" (click)="scrollToSection('excel-import')">
+            <i class="pi pi-file-excel"></i>
+            <span>Excel Import</span>
+          </button>
+        </section>
+
+        <section class="status-summary-grid">
+          <article class="status-summary-card total">
+            <i class="pi pi-users"></i>
+            <span>
+              {{
+                activeSession && activeSession.status === 'closed' ? 'Final Records' : 'Recorded'
+              }}
+            </span>
+            <strong>{{ totalStudents }}</strong>
+          </article>
+
+          <article class="status-summary-card present">
+            <i class="pi pi-check-circle"></i>
+            <span>Present</span>
+            <strong>{{ presentCount }}</strong>
+          </article>
+
+          <article class="status-summary-card late">
+            <i class="pi pi-clock"></i>
+            <span>Late</span>
+            <strong>{{ lateCount }}</strong>
+          </article>
+
+          <article class="status-summary-card absent">
+            <i class="pi pi-times-circle"></i>
+            <span>Absent</span>
+            <strong>{{ absentCount }}</strong>
+          </article>
+
+          <article class="status-summary-card unmarked">
+            <i class="pi pi-circle"></i>
+            <span>
+              {{ activeSession && activeSession.status === 'closed' ? 'Excused' : 'Waiting' }}
+            </span>
+            <strong>
+              {{
+                activeSession && activeSession.status === 'closed' ? excusedCount : notMarkedCount
+              }}
+            </strong>
+          </article>
+        </section>
+
+        <!-- LIVE SESSION -->
+        <section class="live-session-grid" id="live-session">
+          <article class="session-setup-card">
+            <div class="section-heading compact">
+              <div>
+                <h2>Start Session</h2>
+                <p>Set duration, late threshold, and QR/code refresh speed.</p>
+              </div>
+
+              <span class="mode-pill" *ngIf="activeSession && activeSession.status === 'active'">
+                <i class="pi pi-circle-fill"></i>
+                Running
+              </span>
             </div>
-            <div>
-              <i class="pi pi-check-square"></i>
-              Manual class attendance sheet
+
+            <div class="setup-grid">
+              <label>
+                <span>Duration</span>
+                <select
+                  [(ngModel)]="selectedDurationPreset"
+                  [disabled]="activeSession ? activeSession.status === 'active' : false"
+                >
+                  <option *ngFor="let duration of sessionDurationOptions" [value]="duration">
+                    {{ duration }} minutes
+                  </option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+
+              <label *ngIf="selectedDurationPreset === 'custom'">
+                <span>Custom Minutes</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="240"
+                  [(ngModel)]="customDurationMinutes"
+                  [disabled]="activeSession ? activeSession.status === 'active' : false"
+                />
+              </label>
+
+              <label>
+                <span>Late After</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  [(ngModel)]="selectedLateThresholdMinutes"
+                  [disabled]="activeSession ? activeSession.status === 'active' : false"
+                />
+              </label>
+
+              <label>
+                <span>QR / Code Refresh</span>
+                <select
+                  [(ngModel)]="selectedQrRotationSeconds"
+                  [disabled]="activeSession ? activeSession.status === 'active' : false"
+                >
+                  <option *ngFor="let seconds of qrRotationOptions" [value]="seconds">
+                    Every {{ seconds }} seconds
+                  </option>
+                </select>
+              </label>
             </div>
-            <div>
-              <i class="pi pi-file-excel"></i>
-              Excel attendance import
+
+            <div class="session-action-row">
+              <button
+                type="button"
+                class="primary-btn"
+                (click)="createSession()"
+                [disabled]="!canStartSession"
+              >
+                <i class="pi pi-play"></i>
+                <span>{{ isCreatingSession ? 'Starting...' : 'Start Live Session' }}</span>
+              </button>
+
+              <button
+                type="button"
+                class="danger-btn"
+                *ngIf="activeSession && activeSession.status === 'active'"
+                (click)="closeSession()"
+                [disabled]="isClosingSession"
+              >
+                <i class="pi pi-lock"></i>
+                <span>{{ isClosingSession ? 'Closing...' : 'Close' }}</span>
+              </button>
             </div>
-            <div>
-              <i class="pi pi-user-plus"></i>
-              Pending request approval
+
+            <div class="session-note" *ngIf="!activeSession">
+              <i class="pi pi-info-circle"></i>
+              <span>
+                Default QR/code refresh is 30 seconds. You may adjust it before starting the
+                session.
+              </span>
             </div>
+
+            <div class="session-note" *ngIf="activeSession && activeSession.status === 'closed'">
+              <i class="pi pi-info-circle"></i>
+              <span
+                >The latest session is closed. You may start a new live session when ready.</span
+              >
+            </div>
+
+            <div
+              class="session-note success"
+              *ngIf="activeSession && activeSession.status === 'active'"
+            >
+              <i class="pi pi-shield"></i>
+              <span>
+                QR and session code refresh every
+                {{ activeSession.qrRotationSeconds || selectedQrRotationSeconds || 30 }}
+                seconds. Duplicate submissions are blocked.
+              </span>
+            </div>
+          </article>
+
+          <article class="timer-card" [ngClass]="sessionTimerLevel">
+            <div class="timer-header">
+              <span>Session Time</span>
+              <i class="pi pi-hourglass"></i>
+            </div>
+
+            <div class="session-time-display">
+              {{ sessionRemainingLabel }}
+            </div>
+
+            <div class="session-progress-track">
+              <div class="session-progress-fill" [style.width.%]="sessionProgressPercent"></div>
+            </div>
+
+            <div class="timer-meta" *ngIf="activeSession as session">
+              <span>
+                <i class="pi pi-clock"></i>
+                Started {{ formatTime(session.startTime) }}
+              </span>
+
+              <span *ngIf="session.status === 'active'">
+                <i class="pi pi-flag"></i>
+                Ends {{ formatTime(session.autoCloseAt) }}
+              </span>
+
+              <span *ngIf="session.status === 'closed'">
+                <i class="pi pi-lock"></i>
+                Closed {{ formatTime(session.endTime || session.autoCloseAt) }}
+              </span>
+            </div>
+
+            <div class="timer-meta" *ngIf="!activeSession">
+              <span>
+                <i class="pi pi-clock"></i>
+                Waiting for session
+              </span>
+            </div>
+          </article>
+
+          <article class="qr-card">
+            <div class="qr-top">
+              <div>
+                <h2>Live QR & Code</h2>
+                <p>Show this to students.</p>
+              </div>
+
+              <span class="qr-countdown-chip" [class.rotating]="isRotatingQr">
+                <i class="pi pi-refresh"></i>
+                {{ qrSafetyLabel }}
+              </span>
+            </div>
+
+            <div
+              class="qr-countdown-visual"
+              *ngIf="activeSession && activeSession.status === 'active'"
+            >
+              <div class="qr-seconds">
+                <strong>{{ qrCountdownSeconds }}</strong>
+                <span>seconds</span>
+              </div>
+
+              <div class="qr-ring">
+                <div class="qr-ring-fill" [style.width.%]="qrCountdownPercent"></div>
+              </div>
+            </div>
+
+            <div
+              class="qr-frame"
+              [class.disabled]="activeSession ? activeSession.status !== 'active' : true"
+            >
+              <img
+                *ngIf="qrImageUrl && activeSession && activeSession.status === 'active'"
+                [src]="qrImageUrl"
+                alt="Attendance QR Code"
+              />
+
+              <div
+                class="qr-placeholder"
+                *ngIf="!qrImageUrl || !activeSession || activeSession.status !== 'active'"
+              >
+                <i class="pi pi-qrcode"></i>
+                <span>No active QR</span>
+              </div>
+            </div>
+
+            <div class="session-code-box" *ngIf="activeSession as session">
+              <span>Session Code</span>
+              <strong>{{ session.status === 'active' ? session.sessionCode : 'Closed' }}</strong>
+
+              <button
+                type="button"
+                class="small-btn"
+                (click)="copySessionCode()"
+                [disabled]="session.status !== 'active'"
+              >
+                <i class="pi pi-copy"></i>
+                Copy
+              </button>
+            </div>
+
+            <div class="qr-action-grid">
+              <button
+                type="button"
+                class="secondary-btn full"
+                (click)="refreshQrNow()"
+                [disabled]="
+                  (activeSession ? activeSession.status !== 'active' : true) || isRotatingQr
+                "
+              >
+                <i class="pi pi-refresh"></i>
+                <span>{{ isRotatingQr ? 'Refreshing...' : 'Refresh QR / Code' }}</span>
+              </button>
+
+              <button
+                type="button"
+                class="fullscreen-btn"
+                (click)="openQrFullscreen()"
+                [disabled]="!canOpenQrFullscreen"
+              >
+                <i class="pi pi-window-maximize"></i>
+                <span>Fullscreen</span>
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <!-- APPROVAL QUEUE -->
+        <section class="approval-card" id="approval-queue">
+          <div class="section-heading">
+            <div>
+              <h2>Approval Queue</h2>
+              <p>Sit-in and irregular students appear here.</p>
+            </div>
+
+            <span class="queue-count" [class.has-items]="pendingRequestCount > 0">
+              {{ pendingRequestCount }}
+            </span>
           </div>
-        </div>
-      </section>
 
-      <section class="import-card">
-        <div class="table-header">
-          <div>
-            <h2>Import Manual Attendance Sheet</h2>
+          <div class="empty-state small" *ngIf="requestRows.length === 0">
+            <div class="empty-icon">
+              <i class="pi pi-check-circle"></i>
+            </div>
+            <h3>No pending requests</h3>
             <p>
-              Upload an Excel or CSV file for this active session. Rows will be previewed and
-              validated before saving.
+              Requests will appear here when a student outside the section scans or enters the code.
             </p>
           </div>
 
-          <label class="upload-btn" [class.disabled]="!activeSession || importLoading">
-            <i class="pi pi-upload"></i>
-            Upload Sheet
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              [disabled]="!activeSession || importLoading"
-              (change)="onImportFileSelected($event)"
-            />
-          </label>
-        </div>
+          <div class="request-list" *ngIf="requestRows.length > 0">
+            <article class="request-item" *ngFor="let row of requestRows; trackBy: trackByRequest">
+              <div class="student-identity">
+                <div class="student-avatar">
+                  {{ getStudentInitials(row.student) }}
+                </div>
 
-        <div class="import-help">
-          <strong>Required columns:</strong>
-          <span>studentNumber</span>
-          <span>status</span>
-          <small>Optional: studentId, timeRecorded, lateTime, remarks</small>
-        </div>
+                <div>
+                  <strong>{{ getDisplayName(row.student) }}</strong>
+                  <span>{{ row.student?.studentNumber || 'No student number' }}</span>
+                  <small>{{ getRequestReasonLabel(row.request.reason) }}</small>
+                </div>
+              </div>
 
-        <div class="alert error import-alert" *ngIf="importErrorMessage">
-          {{ importErrorMessage }}
-        </div>
+              <div class="request-actions">
+                <button
+                  type="button"
+                  class="approve-btn"
+                  (click)="approveRequest(row)"
+                  [disabled]="
+                    reviewingRequestId === row.request.id ||
+                    (activeSession ? activeSession.status !== 'active' : true)
+                  "
+                >
+                  <i class="pi pi-check"></i>
+                  Approve
+                </button>
 
-        <div class="alert success import-alert" *ngIf="importSuccessMessage">
-          {{ importSuccessMessage }}
-        </div>
+                <button
+                  type="button"
+                  class="reject-btn"
+                  (click)="rejectRequest(row)"
+                  [disabled]="
+                    reviewingRequestId === row.request.id ||
+                    (activeSession ? activeSession.status !== 'active' : true)
+                  "
+                >
+                  <i class="pi pi-times"></i>
+                  Reject
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
 
-        <div class="empty-box" *ngIf="!activeSession">
-          Create a QR/session first before importing a manual attendance sheet.
-        </div>
-
-        <div class="import-loading" *ngIf="importLoading">
-          <i class="pi pi-spin pi-spinner"></i>
-          Processing import...
-        </div>
-
-        <div class="import-preview" *ngIf="!importLoading && importRows.length > 0">
-          <div class="preview-summary">
+        <!-- STUDENT BOARD -->
+        <section class="student-board-card" id="student-board">
+          <div class="section-heading">
             <div>
-              <strong>{{ importFileName }}</strong>
-              <span>{{ importRows.length }} row(s) detected</span>
+              <h2>{{ studentBoardTitle }}</h2>
+              <p>{{ studentBoardDescription }}</p>
             </div>
 
-            <div class="preview-counts">
-              <span class="valid-count">{{ validImportRows.length }} Valid</span>
-              <span class="invalid-count">{{ invalidImportRows.length }} Invalid</span>
+            <div class="heading-actions">
+              <span class="sync-chip" *ngIf="lastLiveSyncAt">
+                <i class="pi pi-wifi"></i>
+                Synced {{ formatTime(lastLiveSyncAt) }}
+              </span>
+
+              <button type="button" class="secondary-btn" (click)="refreshLiveAttendance()">
+                <i class="pi pi-refresh"></i>
+                Sync
+              </button>
+
+              <button
+                type="button"
+                class="danger-btn clear-board-btn"
+                (click)="clearAllDisplayedRecords()"
+                [disabled]="studentRows.length === 0"
+              >
+                <i class="pi pi-trash"></i>
+                Clear Board
+              </button>
             </div>
           </div>
 
-          <div class="table-wrap">
-            <table class="import-table">
+          <div class="student-mini-summary">
+            <span class="present">
+              <i class="pi pi-check-circle"></i>
+              {{ presentCount }} Present
+            </span>
+
+            <span class="late">
+              <i class="pi pi-clock"></i>
+              {{ lateCount }} Late
+            </span>
+
+            <span class="absent">
+              <i class="pi pi-times-circle"></i>
+              {{ absentCount }} Absent
+            </span>
+
+            <span class="waiting">
+              <i class="pi pi-circle"></i>
+              {{
+                activeSession && activeSession.status === 'closed'
+                  ? excusedCount + ' Excused'
+                  : studentRows.length + ' Recorded'
+              }}
+            </span>
+          </div>
+
+          <div class="empty-state" *ngIf="studentRows.length === 0">
+            <div class="empty-icon">
+              <i class="pi pi-clipboard"></i>
+            </div>
+            <h3>
+              {{
+                activeSession && activeSession.status === 'closed'
+                  ? 'No final records visible'
+                  : 'No attendance submitted yet'
+              }}
+            </h3>
+            <p>
+              {{
+                activeSession && activeSession.status === 'closed'
+                  ? 'Final records may have been cleared from this live board. Saved records remain available in reports.'
+                  : 'Students will appear here after scanning the QR code or entering the current session code.'
+              }}
+            </p>
+          </div>
+
+          <div class="student-board-table-wrap" *ngIf="studentRows.length > 0">
+            <table class="student-board-table">
               <thead>
                 <tr>
-                  <th>Row</th>
+                  <th>No.</th>
                   <th>Student</th>
-                  <th>Student No.</th>
+                  <th>Student Number</th>
                   <th>Status</th>
-                  <th>Time Recorded</th>
-                  <th>Late Time</th>
+                  <th>Method</th>
+                  <th>Time</th>
                   <th>Remarks</th>
-                  <th>Validation</th>
+                  <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
                 <tr
-                  *ngFor="let row of importRows; trackBy: trackByImportRow"
-                  [class.invalid-row]="!row.valid"
+                  *ngFor="let row of studentRows; let i = index; trackBy: trackByStudent"
+                  [ngClass]="row.status"
                 >
-                  <td>{{ row.rowNumber }}</td>
-
                   <td>
-                    <strong>{{ row.studentName }}</strong>
-                    <span>{{ row.studentId || 'No student ID' }}</span>
+                    <span class="row-number">{{ i + 1 }}</span>
                   </td>
 
-                  <td>{{ row.studentNumber || '—' }}</td>
+                  <td>
+                    <div class="table-student">
+                      <div class="student-avatar">
+                        {{ getStudentInitials(row.student) }}
+                      </div>
+
+                      <div>
+                        <strong>{{ getDisplayName(row.student) }}</strong>
+                        <span>{{ offering.sectionName || 'Selected Class' }}</span>
+                      </div>
+                    </div>
+                  </td>
 
                   <td>
-                    <span class="status-pill" [ngClass]="row.status || 'absent'">
-                      {{ row.status ? getStatusLabel(row.status) : 'Invalid' }}
+                    <span class="student-number-text">
+                      {{ row.student.studentNumber || row.student.id || '—' }}
                     </span>
                   </td>
 
-                  <td>{{ formatTime(row.timeRecorded) }}</td>
-                  <td>{{ row.lateTime ? formatTime(row.lateTime) : '—' }}</td>
-                  <td>{{ row.remarks || '—' }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="row.status">
+                      <i [class]="getStatusIcon(row.status)"></i>
+                      {{ getStatusLabel(row.status) }}
+                    </span>
+                  </td>
 
                   <td>
-                    <span class="validation-pill valid" *ngIf="row.valid">Valid</span>
+                    <span class="method-pill" *ngIf="row.record">
+                      <i [class]="getMethodIcon(row.record.method)"></i>
+                      {{ getMethodLabel(row.record.method) }}
+                    </span>
 
-                    <div class="row-errors" *ngIf="!row.valid">
-                      <span class="validation-pill invalid">Invalid</span>
-                      <small *ngFor="let error of row.errors">{{ error }}</small>
-                    </div>
+                    <span class="method-pill muted" *ngIf="!row.record">
+                      <i class="pi pi-minus-circle"></i>
+                      No record
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="time-pill" *ngIf="row.record">
+                      <i class="pi pi-clock"></i>
+                      {{ formatTime(row.record.timeRecorded) }}
+                    </span>
+
+                    <span class="time-pill muted" *ngIf="!row.record"> — </span>
+                  </td>
+
+                  <td>
+                    <span class="remarks-text">
+                      {{ getDisplayRemarks(row) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      class="table-clear-btn"
+                      (click)="clearDisplayedRecord(row)"
+                      [disabled]="!row.record"
+                      title="Hide from live board only"
+                    >
+                      <i class="pi pi-times"></i>
+                      Clear
+                    </button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+        </section>
 
-          <div class="import-actions">
-            <button type="button" class="clear-import-btn" (click)="clearImport()">Cancel</button>
+        <!-- EXCEL IMPORT -->
+        <section class="import-card" id="excel-import">
+          <div class="section-heading">
+            <div>
+              <h2>Excel Import</h2>
+              <p>Use this for old paper/softcopy attendance records or live-session backup.</p>
+            </div>
+          </div>
+
+          <div class="import-mode-grid">
+            <label class="import-mode-card" [class.active]="importTarget === 'historical'">
+              <input
+                type="radio"
+                name="importTarget"
+                value="historical"
+                [(ngModel)]="importTarget"
+                (change)="onImportTargetChange()"
+              />
+
+              <div>
+                <i class="pi pi-history"></i>
+                <strong>Historical Records</strong>
+                <span>For old weekly, monthly, or yearly attendance files.</span>
+              </div>
+            </label>
+
+            <label class="import-mode-card" [class.active]="importTarget === 'active_session'">
+              <input
+                type="radio"
+                name="importTarget"
+                value="active_session"
+                [(ngModel)]="importTarget"
+                (change)="onImportTargetChange()"
+                [disabled]="!canUseActiveSessionImport"
+              />
+
+              <div>
+                <i class="pi pi-calendar-check"></i>
+                <strong>Current Session</strong>
+                <span>For backup import while a live session is active.</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="historical-controls" *ngIf="importTarget === 'historical'">
+            <label>
+              <span>Attendance Date</span>
+              <input type="date" [(ngModel)]="historicalImportDate" (change)="clearImport()" />
+            </label>
+
+            <label>
+              <span>Start Time</span>
+              <input type="time" [(ngModel)]="historicalStartTime" />
+            </label>
+
+            <label>
+              <span>End Time</span>
+              <input type="time" [(ngModel)]="historicalEndTime" />
+            </label>
+
+            <label class="remarks-field">
+              <span>Remarks</span>
+              <input
+                type="text"
+                placeholder="Example: Attendance before SAMS deployment"
+                [(ngModel)]="historicalRemarks"
+              />
+            </label>
+          </div>
+
+          <div class="import-format-card">
+            <div>
+              <i class="pi pi-file-excel"></i>
+              <strong>Required Columns</strong>
+            </div>
+
+            <span>studentNumber</span>
+            <span>status</span>
+            <small>Optional: studentId, timeRecorded, lateTime, remarks</small>
+          </div>
+
+          <div class="import-alert error" *ngIf="importErrorMessage">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ importErrorMessage }}</span>
+          </div>
+
+          <div class="import-alert success" *ngIf="importSuccessMessage">
+            <i class="pi pi-check-circle"></i>
+            <span>{{ importSuccessMessage }}</span>
+          </div>
+
+          <div class="upload-row">
+            <label
+              class="upload-btn"
+              [class.disabled]="
+                importLoading ||
+                !selectedOfferingId ||
+                (importTarget === 'active_session' && !canUseActiveSessionImport)
+              "
+            >
+              <i class="pi pi-upload"></i>
+              <span>{{ importFileName || 'Upload Excel / CSV' }}</span>
+
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                [disabled]="
+                  importLoading ||
+                  !selectedOfferingId ||
+                  (importTarget === 'active_session' && !canUseActiveSessionImport)
+                "
+                (change)="onImportFileSelected($event)"
+              />
+            </label>
 
             <button
               type="button"
-              class="confirm-import-btn"
-              (click)="confirmImport()"
-              [disabled]="
-                importLoading || invalidImportRows.length > 0 || validImportRows.length === 0
-              "
+              class="secondary-btn"
+              *ngIf="importRows.length > 0"
+              (click)="clearImport()"
             >
-              Confirm Import
+              <i class="pi pi-times"></i>
+              Clear
             </button>
           </div>
-        </div>
-      </section>
 
-      <section class="request-card" *ngIf="activeSession">
-        <div class="table-header">
-          <div>
-            <h2>Pending Attendance Requests</h2>
-            <p>
-              Students outside this section need teacher approval before attendance is recorded.
-            </p>
+          <div class="import-loading" *ngIf="importLoading">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>Processing file...</span>
           </div>
 
-          <span class="count-pill">{{ pendingRequestCount }}</span>
-        </div>
+          <div class="import-preview" *ngIf="!importLoading && importRows.length > 0">
+            <div class="preview-header">
+              <div>
+                <strong>{{ importFileName }}</strong>
+                <span>{{ importRows.length }} row(s) found</span>
+              </div>
 
-        <div class="empty-box" *ngIf="requestRows.length === 0">
-          No pending attendance requests for this active session.
-        </div>
-
-        <div class="request-list" *ngIf="requestRows.length > 0">
-          <div class="request-item" *ngFor="let row of requestRows; trackBy: trackByRequest">
-            <div class="request-main">
-              <strong>{{ getDisplayName(row.student) }}</strong>
-              <span>{{ row.student?.studentNumber || 'No student number' }}</span>
-              <small>{{ getRequestReasonLabel(row.request.reason) }}</small>
-              <small>
-                Requested: {{ formatDate(row.request.requestedAt) }} ·
-                {{ formatTime(row.request.requestedAt) }}
-              </small>
+              <div class="preview-counts">
+                <span class="valid">{{ validImportRows.length }} valid</span>
+                <span class="invalid">{{ invalidImportRows.length }} invalid</span>
+              </div>
             </div>
 
-            <div class="request-actions">
-              <button
-                type="button"
-                class="approve-btn"
-                (click)="approveRequest(row)"
-                [disabled]="reviewingRequestId === row.request.id"
-              >
-                Approve
-              </button>
+            <div class="preview-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Row</th>
+                    <th>Student</th>
+                    <th>No.</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Remarks</th>
+                    <th>Check</th>
+                  </tr>
+                </thead>
 
-              <button
-                type="button"
-                class="reject-btn"
-                (click)="rejectRequest(row)"
-                [disabled]="reviewingRequestId === row.request.id"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="table-card">
-        <div class="table-header">
-          <div>
-            <h2>Manual Class Attendance Sheet</h2>
-            <p>
-              Enrolled students from this section are listed alphabetically. Mark attendance as
-              names are called.
-            </p>
-          </div>
-
-          <span class="count-pill">{{ notMarkedCount }} unmarked</span>
-        </div>
-
-        <div class="empty-box" *ngIf="studentRows.length === 0">
-          No students found for this class section.
-        </div>
-
-        <div class="table-wrap" *ngIf="studentRows.length > 0">
-          <table>
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Student No.</th>
-                <th>Status</th>
-                <th>Late Time</th>
-                <th>Remarks</th>
-                <th>Method</th>
-                <th>Time Recorded</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr *ngFor="let row of studentRows; trackBy: trackByStudent">
-                <td>
-                  <strong>{{ getStudentName(row.student) }}</strong>
-                  <span>{{ row.student.email }}</span>
-                </td>
-
-                <td>{{ row.student.studentNumber }}</td>
-
-                <td>
-                  <span class="status-pill" [ngClass]="row.status">
-                    {{ getStatusLabel(row.status) }}
-                  </span>
-                </td>
-
-                <td>
-                  <input
-                    type="time"
-                    class="late-input"
-                    [(ngModel)]="row.lateTime"
-                    [disabled]="!!row.record || activeSession?.status !== 'active'"
-                  />
-                </td>
-
-                <td>
-                  <input
-                    type="text"
-                    class="remarks-input"
-                    placeholder="Optional"
-                    [(ngModel)]="row.remarks"
-                    [disabled]="!!row.record || activeSession?.status !== 'active'"
-                  />
-                </td>
-
-                <td>{{ getMethodLabel(row.record?.method) }}</td>
-
-                <td>
-                  <span *ngIf="row.record?.lateTime">
-                    Late: {{ formatTime(row.record?.lateTime) }}
-                  </span>
-
-                  <span *ngIf="!row.record?.lateTime">
-                    {{ formatTime(row.record?.timeRecorded) }}
-                  </span>
-                </td>
-
-                <td>
-                  <div
-                    class="action-group"
-                    *ngIf="!row.record && activeSession?.status === 'active'; else lockedAction"
+                <tbody>
+                  <tr
+                    *ngFor="let row of importRows; trackBy: trackByImportRow"
+                    [class.invalid-row]="!row.valid"
                   >
-                    <button
-                      type="button"
-                      class="present-btn"
-                      (click)="manualMark(row, 'present')"
-                      [disabled]="row.isSaving"
-                    >
-                      Present
-                    </button>
+                    <td>{{ row.rowNumber }}</td>
 
-                    <button
-                      type="button"
-                      class="late-btn"
-                      (click)="manualMark(row, 'late')"
-                      [disabled]="row.isSaving"
-                    >
-                      Late
-                    </button>
+                    <td>
+                      <strong>{{ row.studentName }}</strong>
+                      <span>{{ row.studentId || 'No record ID' }}</span>
+                    </td>
 
-                    <button
-                      type="button"
-                      class="absent-btn"
-                      (click)="manualMark(row, 'absent')"
-                      [disabled]="row.isSaving"
-                    >
-                      Absent
-                    </button>
+                    <td>{{ row.studentNumber || '—' }}</td>
 
-                    <button
-                      type="button"
-                      class="excused-btn"
-                      (click)="manualMark(row, 'excused')"
-                      [disabled]="row.isSaving"
-                    >
-                      Excused
-                    </button>
-                  </div>
+                    <td>
+                      <span class="status-pill" [ngClass]="row.status || 'not-marked'">
+                        {{ row.status ? getStatusLabel(row.status) : 'Invalid' }}
+                      </span>
+                    </td>
 
-                  <ng-template #lockedAction>
-                    <span class="muted">Recorded</span>
-                  </ng-template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    <td>{{ formatTime(row.timeRecorded) }}</td>
+                    <td>{{ row.remarks || '—' }}</td>
+
+                    <td>
+                      <span class="check-pill valid" *ngIf="row.valid">
+                        <i class="pi pi-check"></i>
+                        Valid
+                      </span>
+
+                      <div class="row-errors" *ngIf="!row.valid">
+                        <span class="check-pill invalid">
+                          <i class="pi pi-times"></i>
+                          Invalid
+                        </span>
+
+                        <small *ngFor="let error of row.errors">
+                          {{ error }}
+                        </small>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="import-actions">
+              <button type="button" class="secondary-btn" (click)="clearImport()">Cancel</button>
+
+              <button
+                type="button"
+                class="primary-btn"
+                (click)="confirmImport()"
+                [disabled]="
+                  importLoading || invalidImportRows.length > 0 || validImportRows.length === 0
+                "
+              >
+                <i class="pi pi-save"></i>
+                <span>
+                  {{
+                    importTarget === 'historical'
+                      ? 'Save Historical Records'
+                      : 'Save to Live Session'
+                  }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </ng-container>
     </ng-container>
   </ng-container>
+
+  <!-- FULLSCREEN QR DISPLAY -->
+  <section class="qr-fullscreen-overlay" *ngIf="isQrFullscreen">
+    <button type="button" class="fullscreen-close-btn" (click)="closeQrFullscreen()">
+      <i class="pi pi-times"></i>
+      <span>Close</span>
+    </button>
+
+    <div class="fullscreen-qr-shell">
+      <div class="fullscreen-class-info">
+        <span>Attendance QR & Code</span>
+        <h2>{{ selectedOffering ? selectedOffering.sectionName : 'Class Section' }}</h2>
+        <p>
+          {{
+            selectedOffering
+              ? selectedOffering.subjectCode + ' · ' + selectedOffering.subjectName
+              : 'No selected class'
+          }}
+        </p>
+      </div>
+
+      <div class="fullscreen-qr-card">
+        <img
+          *ngIf="qrImageUrl && activeSession && activeSession.status === 'active'"
+          [src]="qrImageUrl"
+          alt="Fullscreen Attendance QR Code"
+        />
+
+        <div
+          class="fullscreen-qr-placeholder"
+          *ngIf="!qrImageUrl || !activeSession || activeSession.status !== 'active'"
+        >
+          <i class="pi pi-qrcode"></i>
+          <span>No active QR</span>
+        </div>
+      </div>
+
+      <div class="fullscreen-session-code" *ngIf="activeSession as session">
+        <span>Session Code</span>
+        <strong>{{ session.status === 'active' ? session.sessionCode : 'Closed' }}</strong>
+      </div>
+
+      <div class="fullscreen-timers">
+        <div>
+          <span>QR / Code refresh</span>
+          <strong>{{ qrCountdownSeconds }}s</strong>
+        </div>
+
+        <div>
+          <span>Session time</span>
+          <strong>{{ sessionRemainingLabel }}</strong>
+        </div>
+      </div>
+
+      <div class="fullscreen-progress">
+        <span>Next QR and session code update</span>
+        <div>
+          <b [style.width.%]="qrCountdownPercent"></b>
+        </div>
+      </div>
+
+      <p class="fullscreen-note">Press Esc or Close to return to the faculty portal.</p>
+    </div>
+  </section>
 </section>

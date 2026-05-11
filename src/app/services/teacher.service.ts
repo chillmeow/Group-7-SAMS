@@ -396,7 +396,7 @@ export class TeacherService {
       role: 'teacher',
       status: 'active',
       defaultPassword,
-      mustChangePassword: true,
+      mustChangePassword: false,
       accountType: 'institutional-demo',
       createdAt: new Date().toISOString(),
     };

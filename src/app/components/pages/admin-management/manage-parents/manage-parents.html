@@ -1,0 +1,593 @@
+<section class="manage-parents-page">
+  <input
+    #excelInput
+    type="file"
+    class="hidden-file-input"
+    accept=".xlsx,.xls,.csv"
+    (change)="handleExcelFile($event)"
+  />
+
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Admin Management</span>
+      <h1>Manage Parents</h1>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="isLoading || isImporting"
+        (click)="openExcelPicker(excelInput)"
+      >
+        <i class="pi pi-file-excel" aria-hidden="true"></i>
+        <span>Import Excel</span>
+      </button>
+
+      <button
+        type="button"
+        class="primary-btn"
+        [disabled]="isLoading || isImporting"
+        (click)="openAdd()"
+      >
+        <i class="pi pi-plus" aria-hidden="true"></i>
+        <span>Add Parent</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="summary-grid" aria-label="Parent summary">
+    <article
+      class="summary-card"
+      *ngFor="let item of summaryCards; trackBy: trackByIndex"
+      [ngClass]="item.tone"
+    >
+      <div class="summary-icon" aria-hidden="true">
+        <i [class]="item.icon"></i>
+      </div>
+
+      <div class="summary-copy">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <section class="workspace-card">
+    <div class="workspace-header">
+      <div>
+        <span class="section-kicker">Parent Directory</span>
+        <h2>{{ isArchiveView() ? 'Archived Parents' : 'Parent / Guardian Records' }}</h2>
+      </div>
+
+      <div class="workspace-metrics">
+        <span>{{ activeParents }} active</span>
+        <span>{{ inactiveParents }} inactive</span>
+        <span>{{ archivedParents }} archived</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label class="search-box">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="text"
+          [(ngModel)]="search"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Search parent name, email, contact, relationship, student ID, or status..."
+          aria-label="Search parent records"
+        />
+      </label>
+
+      <div class="view-switcher" aria-label="Parent record appearance">
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="viewMode === 'cards'"
+          (click)="setViewMode('cards')"
+        >
+          <i class="pi pi-th-large" aria-hidden="true"></i>
+          <span>Cards</span>
+        </button>
+
+        <button
+          type="button"
+          class="view-toggle"
+          [class.active]="viewMode === 'table'"
+          (click)="setViewMode('table')"
+        >
+          <i class="pi pi-list" aria-hidden="true"></i>
+          <span>Table</span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="secondary-btn small"
+        [disabled]="isLoading || !search"
+        (click)="clearSearch()"
+      >
+        <i class="pi pi-times" aria-hidden="true"></i>
+        <span>Clear</span>
+      </button>
+
+      <button
+        type="button"
+        class="secondary-btn small"
+        [disabled]="isLoading"
+        (click)="loadParents()"
+      >
+        <i class="pi pi-refresh" [class.spin]="isLoading" aria-hidden="true"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+
+    <div class="filter-row">
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'all'"
+        (click)="setStatusFilter('all')"
+      >
+        <span>All</span>
+        <strong>{{ getFilterCount('all') }}</strong>
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'active'"
+        (click)="setStatusFilter('active')"
+      >
+        <span>Active</span>
+        <strong>{{ getFilterCount('active') }}</strong>
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'inactive'"
+        (click)="setStatusFilter('inactive')"
+      >
+        <span>Inactive</span>
+        <strong>{{ getFilterCount('inactive') }}</strong>
+      </button>
+
+      <button
+        type="button"
+        class="filter-chip"
+        [class.active]="statusFilter === 'archived'"
+        (click)="setStatusFilter('archived')"
+      >
+        <span>Archived</span>
+        <strong>{{ getFilterCount('archived') }}</strong>
+      </button>
+    </div>
+
+    <div class="loading-state" *ngIf="isLoading">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading parent records...</p>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+      <div class="records-meta">
+        <span>{{ recordCountLabel }}</span>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredList.length === 0">
+        <div class="empty-icon" aria-hidden="true">
+          <i class="pi pi-users"></i>
+        </div>
+
+        <h3>{{ isArchiveView() ? 'No archived parents' : 'No parent records found' }}</h3>
+        <p>
+          {{
+            isArchiveView()
+              ? 'Archived parent records will appear here.'
+              : 'Try clearing the search field or changing the selected filter.'
+          }}
+        </p>
+      </div>
+
+      <div class="parent-grid" *ngIf="filteredList.length > 0 && viewMode === 'cards'">
+        <article
+          class="parent-card"
+          *ngFor="let parent of filteredList; trackBy: trackByParent"
+          [class.archived-card]="isArchived(parent)"
+        >
+          <div class="parent-main">
+            <div class="identity-block">
+              <div class="avatar" aria-hidden="true">
+                {{ getParentInitials(parent) }}
+              </div>
+
+              <div class="identity-copy">
+                <div class="name-row">
+                  <h3>{{ getParentFullName(parent) }}</h3>
+
+                  <span class="status-pill" [ngClass]="getParentStatusClass(parent)">
+                    {{ getParentStatusLabel(parent) }}
+                  </span>
+                </div>
+
+                <p>
+                  {{ getRelationshipLabel(parent) }} •
+                  {{ getLinkedStudentLabel(parent) }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-item half">
+              <span>Relationship</span>
+              <strong>{{ getRelationshipLabel(parent) }}</strong>
+            </div>
+
+            <div class="info-item half">
+              <span>Portal</span>
+              <strong>{{ getAccountLabel(parent) }}</strong>
+            </div>
+
+            <div class="info-item full">
+              <span>Email</span>
+              <strong>{{ parent.email || 'No email provided' }}</strong>
+            </div>
+
+            <div class="info-item full">
+              <span>Contact Number</span>
+              <strong>{{ parent.contactNumber || 'No contact number' }}</strong>
+            </div>
+
+            <div class="info-item full">
+              <span>Linked Student ID</span>
+              <strong>{{ getLinkedStudentIdsText(parent) }}</strong>
+            </div>
+          </div>
+
+          <div class="card-badges">
+            <span class="soft-badge" [ngClass]="getAccountClass(parent)">
+              Account: {{ getAccountLabel(parent) }}
+            </span>
+
+            <span class="soft-badge" [ngClass]="getParentStatusClass(parent)">
+              Status: {{ getParentStatusLabel(parent) }}
+            </span>
+          </div>
+
+          <div class="card-actions">
+            <ng-container *ngIf="!isArchiveView(); else archivedCardActions">
+              <button type="button" class="action-btn neutral" (click)="openEdit(parent)">
+                <i class="pi pi-pencil" aria-hidden="true"></i>
+                <span>Edit</span>
+              </button>
+
+              <button
+                type="button"
+                class="action-btn"
+                [ngClass]="getActionClass(parent)"
+                (click)="toggleParentStatus(parent)"
+              >
+                <span>{{ getActionLabel(parent) }}</span>
+              </button>
+
+              <button type="button" class="action-btn danger" (click)="removeParent(parent)">
+                <span>Archive</span>
+              </button>
+            </ng-container>
+
+            <ng-template #archivedCardActions>
+              <button
+                type="button"
+                class="action-btn activate wide"
+                (click)="restoreArchivedParent(parent)"
+              >
+                <i class="pi pi-undo" aria-hidden="true"></i>
+                <span>Restore</span>
+              </button>
+            </ng-template>
+          </div>
+        </article>
+      </div>
+
+      <div class="table-wrapper" *ngIf="filteredList.length > 0 && viewMode === 'table'">
+        <table>
+          <thead>
+            <tr>
+              <th>Parent / Guardian</th>
+              <th>Relationship</th>
+              <th>Email</th>
+              <th>Contact</th>
+              <th>Linked Student</th>
+              <th>Status</th>
+              <th>Portal</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let parent of filteredList; trackBy: trackByParent">
+              <td>
+                <div class="parent-cell">
+                  <div class="table-avatar">{{ getParentInitials(parent) }}</div>
+
+                  <div class="parent-copy">
+                    <strong>{{ getParentFullName(parent) }}</strong>
+                    <small>{{ getLinkedStudentLabel(parent) }}</small>
+                  </div>
+                </div>
+              </td>
+
+              <td>{{ getRelationshipLabel(parent) }}</td>
+              <td>{{ parent.email || '—' }}</td>
+              <td>{{ parent.contactNumber || '—' }}</td>
+              <td>{{ getLinkedStudentIdsText(parent) }}</td>
+
+              <td>
+                <span class="status-pill" [ngClass]="getParentStatusClass(parent)">
+                  {{ getParentStatusLabel(parent) }}
+                </span>
+              </td>
+
+              <td>
+                <span class="soft-badge" [ngClass]="getAccountClass(parent)">
+                  {{ getAccountLabel(parent) }}
+                </span>
+              </td>
+
+              <td class="actions">
+                <ng-container *ngIf="!isArchiveView(); else archiveTableActions">
+                  <button
+                    type="button"
+                    class="icon-btn edit"
+                    title="Edit parent record"
+                    (click)="openEdit(parent)"
+                  >
+                    <i class="pi pi-pencil"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-btn table-action"
+                    [ngClass]="getActionClass(parent)"
+                    (click)="toggleParentStatus(parent)"
+                  >
+                    {{ getActionLabel(parent) }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-btn table-action danger"
+                    (click)="removeParent(parent)"
+                  >
+                    Archive
+                  </button>
+                </ng-container>
+
+                <ng-template #archiveTableActions>
+                  <button
+                    type="button"
+                    class="action-btn table-action activate"
+                    (click)="restoreArchivedParent(parent)"
+                  >
+                    Restore
+                  </button>
+                </ng-template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </section>
+
+  <div class="modal-backdrop" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <span class="section-kicker">Parent Record</span>
+          <h3>{{ getModalTitle() }}</h3>
+        </div>
+
+        <button type="button" class="close-btn" (click)="closeModal()" aria-label="Close form">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>First Name <span>*</span></label>
+            <input type="text" [(ngModel)]="form.firstName" placeholder="Enter first name" />
+          </div>
+
+          <div class="form-group">
+            <label>Last Name <span>*</span></label>
+            <input type="text" [(ngModel)]="form.lastName" placeholder="Enter last name" />
+          </div>
+
+          <div class="form-group">
+            <label>Email <span>*</span></label>
+            <input type="email" [(ngModel)]="form.email" placeholder="Enter email address" />
+          </div>
+
+          <div class="form-group">
+            <label>Contact Number <span>*</span></label>
+            <input
+              type="text"
+              [(ngModel)]="form.contactNumber"
+              placeholder="Enter contact number"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Relationship <span>*</span></label>
+            <select [(ngModel)]="form.relationship">
+              <option value="">Select relationship</option>
+
+              <option *ngFor="let relationship of relationshipOptions" [value]="relationship">
+                {{ relationship }}
+              </option>
+
+              <option
+                *ngIf="form.relationship && !relationshipOptions.includes(form.relationship)"
+                [value]="form.relationship"
+              >
+                {{ form.relationship }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select [(ngModel)]="form.status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div class="form-group full">
+            <label>Linked Student ID</label>
+            <input
+              type="text"
+              [(ngModel)]="form.studentId"
+              placeholder="Optional student document ID"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel-btn" (click)="closeModal()">Cancel</button>
+
+        <button type="button" class="save-btn" (click)="saveParent()" [disabled]="isSaving">
+          <i *ngIf="isSaving" class="pi pi-spin pi-spinner"></i>
+          <span>{{ editing ? 'Update Parent' : 'Add Parent' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="showImportModal" (click)="closeImportModal()">
+    <div class="modal-card import-modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <span class="section-kicker">Excel Import</span>
+          <h3>Preview Parent Records</h3>
+        </div>
+
+        <button
+          type="button"
+          class="close-btn"
+          (click)="closeImportModal()"
+          [disabled]="isImporting"
+          aria-label="Close import preview"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="import-file-card">
+          <div>
+            <span>Selected File</span>
+            <strong>{{ importFileName }}</strong>
+          </div>
+        </div>
+
+        <div class="import-summary-grid">
+          <article>
+            <span>Total Rows</span>
+            <strong>{{ importRows.length }}</strong>
+          </article>
+
+          <article class="valid">
+            <span>Valid</span>
+            <strong>{{ validImportCount }}</strong>
+          </article>
+
+          <article class="invalid">
+            <span>Needs Review</span>
+            <strong>{{ invalidImportCount }}</strong>
+          </article>
+        </div>
+
+        <div class="import-progress-card" *ngIf="isImporting">
+          <div class="import-progress-copy">
+            <span>Import running</span>
+            <strong>{{ importProgress }} of {{ importTotal }} processed</strong>
+          </div>
+
+          <div class="progress-track" aria-hidden="true">
+            <span [style.width.%]="importProgressPercent"></span>
+          </div>
+        </div>
+
+        <div class="import-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Contact</th>
+                <th>Relationship</th>
+                <th>Linked Student</th>
+                <th>Status</th>
+                <th>Validation</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr
+                *ngFor="let row of importRows; trackBy: trackByImportRow"
+                [class.invalid-row]="!row.isValid"
+              >
+                <td>{{ row.rowNumber }}</td>
+                <td>{{ row.firstName }} {{ row.lastName }}</td>
+                <td>{{ row.email || '—' }}</td>
+                <td>{{ row.contactNumber || '—' }}</td>
+                <td>{{ row.relationship || '—' }}</td>
+                <td>{{ row.studentIds.length ? row.studentIds.join(', ') : '—' }}</td>
+                <td>{{ row.status || 'active' }}</td>
+
+                <td>
+                  <span
+                    class="import-status"
+                    [class.valid]="row.isValid"
+                    [class.invalid]="!row.isValid"
+                  >
+                    {{ row.isValid ? 'Ready' : 'Review' }}
+                  </span>
+
+                  <small *ngIf="!row.isValid">{{ formatImportErrors(row) }}</small>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="cancel-btn"
+          (click)="closeImportModal()"
+          [disabled]="isImporting"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="save-btn"
+          (click)="confirmImportParents()"
+          [disabled]="!canConfirmImport"
+        >
+          <i *ngIf="isImporting" class="pi pi-spin pi-spinner"></i>
+          <span>{{ isImporting ? 'Importing...' : 'Import Valid Records' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

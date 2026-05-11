@@ -1,9 +1,12 @@
-<div class="subjects-page">
-  <div class="page-header">
+<section class="subjects-page">
+  <header class="page-header">
     <div class="header-copy">
       <span class="eyebrow">Academic Management</span>
       <h1>Subjects</h1>
-      <p>Manage official academic subjects used for class offerings and attendance.</p>
+      <p>
+        Manage official academic subjects used for class offerings, schedules, and attendance
+        records.
+      </p>
     </div>
 
     <div class="header-actions">
@@ -15,281 +18,421 @@
         (change)="onExcelSelected($event)"
       />
 
-      <button class="ghost-btn" (click)="openExcelPicker()" [disabled]="importing">
-        <i class="pi pi-upload"></i>
+      <button
+        type="button"
+        class="secondary-btn"
+        (click)="openExcelPicker()"
+        [disabled]="importing"
+      >
+        <i class="pi pi-upload" aria-hidden="true"></i>
         <span>{{ importing ? 'Importing...' : 'Import Excel' }}</span>
       </button>
 
-      <button class="primary-btn" (click)="openAdd()">
-        <i class="pi pi-plus"></i>
+      <button type="button" class="primary-btn" (click)="openAdd()">
+        <i class="pi pi-plus" aria-hidden="true"></i>
         <span>Add Subject</span>
       </button>
     </div>
-  </div>
+  </header>
 
-  <div class="overview-grid">
-    <div class="overview-card blue">
-      <div>
-        <span class="label">Total Subjects</span>
-        <h2>{{ subjects.length }}</h2>
-        <small>Registered academic subjects</small>
+  <section class="summary-grid" aria-label="Subject summary">
+    <article class="summary-card blue">
+      <div class="summary-icon" aria-hidden="true">
+        <i class="pi pi-book"></i>
       </div>
-      <i class="pi pi-book"></i>
-    </div>
 
-    <div class="overview-card green">
-      <div>
-        <span class="label">Active Subjects</span>
-        <h2>{{ getActiveCount() }}</h2>
-        <small>Currently available for offerings</small>
+      <div class="summary-copy">
+        <span>Total Subjects</span>
+        <strong>{{ subjects.length }}</strong>
       </div>
-      <i class="pi pi-check-circle"></i>
-    </div>
+    </article>
 
-    <div class="overview-card orange">
-      <div>
-        <span class="label">Average Units</span>
-        <h2>{{ getAverageUnits() }}</h2>
-        <small>Across all subjects</small>
+    <article class="summary-card green">
+      <div class="summary-icon" aria-hidden="true">
+        <i class="pi pi-check-circle"></i>
       </div>
-      <i class="pi pi-chart-bar"></i>
-    </div>
-  </div>
 
-  <div class="toolbar-card">
-    <div class="search-box">
-      <i class="pi pi-search"></i>
-      <input
-        type="text"
-        placeholder="Search subject code, name, or program..."
-        [(ngModel)]="search"
-        (ngModelChange)="applyFilters()"
-      />
-    </div>
+      <div class="summary-copy">
+        <span>Active Subjects</span>
+        <strong>{{ getActiveCount() }}</strong>
+      </div>
+    </article>
 
-    <div class="toolbar-actions">
-      <select [(ngModel)]="selectedStatus" class="filter-select" (ngModelChange)="applyFilters()">
-        <option value="all">All Active Records</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="archived">Archived</option>
-      </select>
+    <article class="summary-card orange">
+      <div class="summary-icon" aria-hidden="true">
+        <i class="pi pi-clock"></i>
+      </div>
 
-      <button class="ghost-btn" (click)="loadSubjects()">
-        <i class="pi pi-refresh"></i>
-        <span>Refresh</span>
-      </button>
-    </div>
-  </div>
+      <div class="summary-copy">
+        <span>Inactive Subjects</span>
+        <strong>{{ getInactiveCount() }}</strong>
+      </div>
+    </article>
 
-  <div class="table-card">
-    <div class="table-header">
+    <article class="summary-card purple">
+      <div class="summary-icon" aria-hidden="true">
+        <i class="pi pi-chart-bar"></i>
+      </div>
+
+      <div class="summary-copy">
+        <span>Average Units</span>
+        <strong>{{ getAverageUnits() }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <section class="workspace-card">
+    <div class="workspace-header">
       <div>
-        <h3>Subject List</h3>
-        <p>{{ filteredList.length }} subject record(s)</p>
+        <span class="section-kicker">Subject Directory</span>
+        <h2>Subject Records</h2>
+      </div>
+
+      <span class="metric-pill">{{ filteredList.length }} subject record(s)</span>
+    </div>
+
+    <input type="radio" name="subjectViewMode" id="subjectViewCatalog" class="view-radio" checked />
+    <input type="radio" name="subjectViewMode" id="subjectViewTable" class="view-radio" />
+
+    <div class="toolbar">
+      <label class="search-box">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="text"
+          placeholder="Search subject code, subject name, or program..."
+          [(ngModel)]="search"
+          (ngModelChange)="applyFilters()"
+          aria-label="Search subjects"
+        />
+      </label>
+
+      <div class="view-switcher" aria-label="Subject view preference">
+        <label class="view-toggle" for="subjectViewCatalog">
+          <i class="pi pi-th-large" aria-hidden="true"></i>
+          <span>Catalog</span>
+        </label>
+
+        <label class="view-toggle" for="subjectViewTable">
+          <i class="pi pi-list" aria-hidden="true"></i>
+          <span>Table</span>
+        </label>
+      </div>
+
+      <div class="filter-row">
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="selectedStatus === 'all'"
+          (click)="selectedStatus = 'all'; applyFilters()"
+        >
+          All
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="selectedStatus === 'active'"
+          (click)="selectedStatus = 'active'; applyFilters()"
+        >
+          Active
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="selectedStatus === 'inactive'"
+          (click)="selectedStatus = 'inactive'; applyFilters()"
+        >
+          Inactive
+        </button>
+
+        <button
+          type="button"
+          class="filter-chip"
+          [class.active]="selectedStatus === 'archived'"
+          (click)="selectedStatus = 'archived'; applyFilters()"
+        >
+          Archived
+        </button>
       </div>
     </div>
 
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Subject Name</th>
-            <th>Program</th>
-            <th>Year</th>
-            <th>Semester</th>
-            <th>Units</th>
-            <th>Status</th>
-            <th class="actions-col">Actions</th>
-          </tr>
-        </thead>
+    <div class="import-result" *ngIf="lastImportResult">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      <span>
+        Last import: {{ lastImportResult.imported }} imported,
+        {{ lastImportResult.skipped }} skipped.
+      </span>
+    </div>
 
-        <tbody>
-          <tr *ngFor="let subject of filteredList">
-            <td>
-              <span class="table-code">{{ subject.subjectCode }}</span>
-            </td>
+    <div class="loading-shell" *ngIf="loading">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <span>Loading subject records...</span>
+    </div>
 
-            <td>
-              <div class="name-cell">
-                <strong>{{ subject.subjectName }}</strong>
-                <small> Lec: {{ subject.lectureHours }} | Lab: {{ subject.labHours }} </small>
-              </div>
-            </td>
-
-            <td>{{ subject.program }}</td>
-            <td>{{ subject.yearLevel }}</td>
-            <td>{{ subject.semester }}</td>
-            <td>{{ subject.units }}</td>
-
-            <td>
-              <span
-                class="status-badge"
-                [ngClass]="
-                  subject.status === 'active'
-                    ? 'active'
-                    : subject.status === 'inactive'
-                      ? 'inactive'
-                      : 'archived'
-                "
+    <ng-container *ngIf="!loading">
+      <ng-container *ngIf="filteredList.length > 0; else emptySubjects">
+        <div class="view-panels">
+          <div class="catalog-view-panel">
+            <div class="subject-grid">
+              <article
+                class="subject-card"
+                *ngFor="let subject of filteredList; let i = index"
+                [class.archived]="subject.status === 'archived'"
               >
-                {{ subject.status | titlecase }}
-              </span>
-            </td>
+                <div class="subject-top">
+                  <div class="subject-title">
+                    <div class="title-row">
+                      <h3>{{ subject.subjectCode }}</h3>
 
-            <td class="actions">
-              <button
-                class="icon-btn edit"
-                *ngIf="subject.status !== 'archived'"
-                (click)="openEdit(subject)"
-              >
-                <i class="pi pi-pencil"></i>
-              </button>
+                      <span
+                        class="status-badge"
+                        [ngClass]="
+                          subject.status === 'active'
+                            ? 'active'
+                            : subject.status === 'inactive'
+                              ? 'inactive'
+                              : 'archived'
+                        "
+                      >
+                        {{ subject.status | titlecase }}
+                      </span>
+                    </div>
 
-              <button
-                class="icon-btn archive"
-                *ngIf="subject.status !== 'archived'"
-                (click)="archiveSubject(subject)"
-              >
-                <i class="pi pi-box"></i>
-              </button>
+                    <p>{{ subject.subjectName }}</p>
+                  </div>
+                </div>
 
-              <button
-                class="icon-btn restore"
-                *ngIf="subject.status === 'archived'"
-                (click)="restoreSubject(subject)"
-              >
-                <i class="pi pi-replay"></i>
-              </button>
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span>Program</span>
+                    <strong>{{ subject.program || 'No program' }}</strong>
+                  </div>
 
-              <button class="icon-btn delete" (click)="permanentlyDeleteSubject(subject)">
-                <i class="pi pi-trash"></i>
-              </button>
-            </td>
-          </tr>
+                  <div class="info-item">
+                    <span>Year Level</span>
+                    <strong>{{ subject.yearLevel || 'No year level' }}</strong>
+                  </div>
 
-          <tr *ngIf="filteredList.length === 0">
-            <td colspan="8">
-              <div class="empty-row">No subject records available.</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+                  <div class="info-item">
+                    <span>Semester</span>
+                    <strong>{{ subject.semester || 'No semester' }}</strong>
+                  </div>
 
-  <div class="catalog-section">
-    <div class="section-title">
-      <div>
-        <h3>Subject Catalog</h3>
-        <p>{{ filteredList.length }} subject card(s) displayed</p>
-      </div>
-    </div>
+                  <div class="info-item">
+                    <span>Units</span>
+                    <strong>{{ subject.units || 0 }}</strong>
+                  </div>
+                </div>
 
-    <div class="catalog-grid" *ngIf="filteredList.length > 0; else emptyCatalog">
-      <div
-        class="subject-card"
-        *ngFor="let subject of filteredList; let i = index"
-        [ngClass]="getCardAccent(i)"
-      >
-        <div class="accent-bar"></div>
+                <div class="hours-block">
+                  <div class="hours-heading">
+                    <span>Subject Hours</span>
+                    <strong
+                      >{{ subject.lectureHours || 0 }} Lec / {{ subject.labHours || 0 }} Lab</strong
+                    >
+                  </div>
 
-        <div class="card-top">
-          <div class="subject-badge">{{ subject.subjectCode }}</div>
+                  <div class="hours-grid">
+                    <div>
+                      <small>Lecture</small>
+                      <strong>{{ subject.lectureHours || 0 }}</strong>
+                    </div>
 
-          <span
-            class="status-chip"
-            [ngClass]="
-              subject.status === 'active'
-                ? 'active'
-                : subject.status === 'inactive'
-                  ? 'inactive'
-                  : 'archived'
-            "
-          >
-            {{ subject.status | titlecase }}
-          </span>
-        </div>
+                    <div>
+                      <small>Laboratory</small>
+                      <strong>{{ subject.labHours || 0 }}</strong>
+                    </div>
 
-        <div class="card-body">
-          <h4>{{ subject.subjectName }}</h4>
-          <p>{{ subject.program }} • {{ subject.yearLevel }} • {{ subject.semester }}</p>
-        </div>
+                    <div>
+                      <small>Total Units</small>
+                      <strong>{{ subject.units || 0 }}</strong>
+                    </div>
+                  </div>
+                </div>
 
-        <div class="card-meta">
-          <div class="meta-pill">
-            <i class="pi pi-star"></i>
-            <span>{{ subject.units }} Units</span>
+                <div class="card-actions">
+                  <ng-container *ngIf="subject.status !== 'archived'; else archivedActions">
+                    <button type="button" class="text-action-btn edit" (click)="openEdit(subject)">
+                      <i class="pi pi-pencil" aria-hidden="true"></i>
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="text-action-btn archive"
+                      (click)="archiveSubject(subject)"
+                    >
+                      <i class="pi pi-box" aria-hidden="true"></i>
+                      <span>Archive</span>
+                    </button>
+                  </ng-container>
+
+                  <ng-template #archivedActions>
+                    <button
+                      type="button"
+                      class="text-action-btn restore"
+                      (click)="restoreSubject(subject)"
+                    >
+                      <i class="pi pi-replay" aria-hidden="true"></i>
+                      <span>Restore</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="text-action-btn delete"
+                      (click)="permanentlyDeleteSubject(subject)"
+                    >
+                      <i class="pi pi-trash" aria-hidden="true"></i>
+                      <span>Delete</span>
+                    </button>
+                  </ng-template>
+
+                  <button
+                    type="button"
+                    class="text-action-btn delete"
+                    *ngIf="subject.status !== 'archived'"
+                    (click)="permanentlyDeleteSubject(subject)"
+                  >
+                    <i class="pi pi-trash" aria-hidden="true"></i>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </article>
+            </div>
           </div>
 
-          <div class="meta-pill">
-            <i class="pi pi-clock"></i>
-            <span>Lec {{ subject.lectureHours }} / Lab {{ subject.labHours }}</span>
+          <div class="table-view-panel">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Program</th>
+                    <th>Year Level</th>
+                    <th>Semester</th>
+                    <th>Units</th>
+                    <th>Lecture</th>
+                    <th>Laboratory</th>
+                    <th>Status</th>
+                    <th class="actions-column">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr *ngFor="let subject of filteredList">
+                    <td>
+                      <div class="subject-cell">
+                        <strong>{{ subject.subjectCode }}</strong>
+                        <span>{{ subject.subjectName }}</span>
+                      </div>
+                    </td>
+
+                    <td>{{ subject.program }}</td>
+                    <td>{{ subject.yearLevel }}</td>
+                    <td>{{ subject.semester }}</td>
+                    <td>{{ subject.units }}</td>
+                    <td>{{ subject.lectureHours }}</td>
+                    <td>{{ subject.labHours }}</td>
+
+                    <td>
+                      <span
+                        class="status-badge"
+                        [ngClass]="
+                          subject.status === 'active'
+                            ? 'active'
+                            : subject.status === 'inactive'
+                              ? 'inactive'
+                              : 'archived'
+                        "
+                      >
+                        {{ subject.status | titlecase }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div class="table-actions">
+                        <ng-container
+                          *ngIf="subject.status !== 'archived'; else archivedTableActions"
+                        >
+                          <button type="button" class="icon-btn edit" (click)="openEdit(subject)">
+                            <i class="pi pi-pencil" aria-hidden="true"></i>
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            class="text-action-btn archive"
+                            (click)="archiveSubject(subject)"
+                          >
+                            Archive
+                          </button>
+
+                          <button
+                            type="button"
+                            class="text-action-btn delete"
+                            (click)="permanentlyDeleteSubject(subject)"
+                          >
+                            Delete
+                          </button>
+                        </ng-container>
+
+                        <ng-template #archivedTableActions>
+                          <button
+                            type="button"
+                            class="text-action-btn restore"
+                            (click)="restoreSubject(subject)"
+                          >
+                            Restore
+                          </button>
+
+                          <button
+                            type="button"
+                            class="text-action-btn delete"
+                            (click)="permanentlyDeleteSubject(subject)"
+                          >
+                            Delete
+                          </button>
+                        </ng-template>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      </ng-container>
 
-        <div class="card-actions">
-          <button
-            class="soft-btn edit"
-            *ngIf="subject.status !== 'archived'"
-            (click)="openEdit(subject)"
-          >
-            <i class="pi pi-pencil"></i>
-            <span>Edit</span>
-          </button>
-
-          <button
-            class="soft-btn archive"
-            *ngIf="subject.status !== 'archived'"
-            (click)="archiveSubject(subject)"
-          >
-            <i class="pi pi-box"></i>
-            <span>Archive</span>
-          </button>
-
-          <button
-            class="soft-btn restore"
-            *ngIf="subject.status === 'archived'"
-            (click)="restoreSubject(subject)"
-          >
-            <i class="pi pi-replay"></i>
-            <span>Restore</span>
-          </button>
-
-          <button class="soft-btn delete" (click)="permanentlyDeleteSubject(subject)">
-            <i class="pi pi-trash"></i>
-            <span>Delete</span>
-          </button>
+      <ng-template #emptySubjects>
+        <div class="empty-state">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <h3>No subjects found</h3>
+          <p>Try changing the filter, searching another keyword, or adding a new subject record.</p>
         </div>
-      </div>
-    </div>
+      </ng-template>
+    </ng-container>
+  </section>
 
-    <ng-template #emptyCatalog>
-      <div class="empty-state">
-        <i class="pi pi-inbox"></i>
-        <h4>No subjects found</h4>
-        <p>Try changing the filters or add a new subject record.</p>
-      </div>
-    </ng-template>
-  </div>
-
-  <div class="modal-backdrop" *ngIf="showModal">
-    <div class="modal">
+  <div class="modal-backdrop" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div>
+          <span class="section-kicker">
+            {{ editing ? 'Update Subject' : 'New Subject' }}
+          </span>
           <h3>{{ editing ? 'Edit Subject' : 'Add Subject' }}</h3>
           <p>
             {{
               editing
-                ? 'Update the selected academic subject.'
+                ? 'Update the selected academic subject record.'
                 : 'Create a new academic subject record.'
             }}
           </p>
         </div>
 
-        <button class="close-btn" (click)="closeModal()">
-          <i class="pi pi-times"></i>
+        <button type="button" class="close-btn" (click)="closeModal()" aria-label="Close modal">
+          <i class="pi pi-times" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -297,7 +440,7 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Subject Code</label>
-            <input type="text" placeholder="Ex. IT 223" [(ngModel)]="form.subjectCode" />
+            <input type="text" placeholder="Example: IT 223" [(ngModel)]="form.subjectCode" />
           </div>
 
           <div class="form-group">
@@ -361,12 +504,13 @@
       </div>
 
       <div class="modal-actions">
-        <button class="cancel-btn" (click)="closeModal()">Cancel</button>
+        <button type="button" class="cancel-btn" (click)="closeModal()">Cancel</button>
 
-        <button class="primary-btn" (click)="saveSubject()" [disabled]="saving">
-          {{ saving ? 'Saving...' : editing ? 'Update Subject' : 'Save Subject' }}
+        <button type="button" class="save-btn" (click)="saveSubject()" [disabled]="saving">
+          <i *ngIf="saving" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+          <span>{{ saving ? 'Saving...' : editing ? 'Update Subject' : 'Save Subject' }}</span>
         </button>
       </div>
     </div>
   </div>
-</div>
+</section>

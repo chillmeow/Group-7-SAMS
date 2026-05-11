@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "public": "dist/SAMS/browser",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.csr.html"
+      }
+    ]
+  }
+}

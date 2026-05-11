@@ -1,0 +1,156 @@
+<section class="faqs-page">
+  <header class="faqs-hero">
+    <div class="hero-icon" aria-hidden="true">
+      <i class="pi pi-question-circle"></i>
+    </div>
+
+    <div class="hero-copy">
+      <span class="eyebrow">SAMS User Guide</span>
+      <h1>Frequently Asked Questions</h1>
+      <p>
+        Find quick answers and step-by-step guidance for using the Student Attendance Monitoring
+        System.
+      </p>
+
+      <div class="hero-meta">
+        <span>
+          <i [class]="getRoleIcon()" aria-hidden="true"></i>
+          {{ currentRoleLabel }} guide
+        </span>
+
+        <span>
+          <i class="pi pi-list" aria-hidden="true"></i>
+          {{ totalVisibleFaqs }} visible item(s)
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <section class="guide-layout">
+    <aside class="guide-sidebar">
+      <div class="filter-card">
+        <span class="section-kicker">Guide Scope</span>
+        <h2>Choose a Role</h2>
+
+        <div class="audience-list">
+          @for (audience of audiences; track audience.value) {
+            <button
+              type="button"
+              class="audience-btn"
+              [class.active]="selectedAudience === audience.value"
+              (click)="setAudience(audience.value)"
+            >
+              <i [class]="audience.icon" aria-hidden="true"></i>
+              <span>{{ audience.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="filter-card">
+        <span class="section-kicker">Topics</span>
+        <h2>Categories</h2>
+
+        <div class="category-list">
+          @for (category of categories; track category) {
+            <button
+              type="button"
+              class="category-btn"
+              [class.active]="selectedCategory === category"
+              (click)="setCategory(category)"
+            >
+              <span>{{ category }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <main class="guide-content">
+      <section class="search-card">
+        <div class="search-box">
+          <i class="pi pi-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            [(ngModel)]="searchTerm"
+            placeholder="Search FAQs, guides, attendance, reports, account..."
+          />
+
+          @if (searchTerm) {
+            <button type="button" class="clear-btn" (click)="clearSearch()">
+              <i class="pi pi-times" aria-hidden="true"></i>
+              <span>Clear</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="quick-help-grid">
+        <article class="help-card">
+          <i class="pi pi-key" aria-hidden="true"></i>
+          <div>
+            <strong>Login Help</strong>
+            <p>Learn how usernames and passwords work.</p>
+          </div>
+        </article>
+
+        <article class="help-card">
+          <i class="pi pi-calendar-check" aria-hidden="true"></i>
+          <div>
+            <strong>Attendance Guide</strong>
+            <p>Understand QR, session codes, late, and absent records.</p>
+          </div>
+        </article>
+
+        <article class="help-card">
+          <i class="pi pi-chart-bar" aria-hidden="true"></i>
+          <div>
+            <strong>Reports Guide</strong>
+            <p>Know the difference between admin and faculty reports.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="faq-list">
+        @if (filteredFaqs.length > 0) {
+          @for (faq of filteredFaqs; track faq.id) {
+            <article class="faq-item" [class.open]="isExpanded(faq.id)">
+              <button type="button" class="faq-question" (click)="toggleFaq(faq.id)">
+                <div>
+                  <span class="faq-category">{{ faq.category }}</span>
+                  <h3>{{ faq.question }}</h3>
+                </div>
+
+                <i
+                  class="pi"
+                  [ngClass]="isExpanded(faq.id) ? 'pi-chevron-up' : 'pi-chevron-down'"
+                  aria-hidden="true"
+                ></i>
+              </button>
+
+              @if (isExpanded(faq.id)) {
+                <div class="faq-answer">
+                  <p>{{ faq.answer }}</p>
+
+                  @if (faq.steps && faq.steps.length > 0) {
+                    <ol class="step-list">
+                      @for (step of faq.steps; track step) {
+                        <li>{{ step }}</li>
+                      }
+                    </ol>
+                  }
+                </div>
+              }
+            </article>
+          }
+        } @else {
+          <div class="empty-state">
+            <i class="pi pi-search" aria-hidden="true"></i>
+            <h3>No guide found</h3>
+            <p>Try searching another keyword or choose a different role/category.</p>
+          </div>
+        }
+      </section>
+    </main>
+  </section>
+</section>

@@ -5,6 +5,7 @@
   [class.mobile-open]="isMobile && mobileOpen"
   [class.mobile-mode]="isMobile"
   [attr.aria-hidden]="isMobile && !mobileOpen ? 'true' : 'false'"
+  aria-label="Primary navigation"
 >
   <button
     *ngIf="!isMobile"
@@ -15,7 +16,12 @@
     [attr.aria-expanded]="!collapsed"
     aria-controls="app-sidebar"
   >
-    <i class="pi" [class.pi-angle-right]="collapsed" [class.pi-angle-left]="!collapsed"></i>
+    <i
+      class="pi"
+      [class.pi-angle-right]="collapsed"
+      [class.pi-angle-left]="!collapsed"
+      aria-hidden="true"
+    ></i>
   </button>
 
   <div class="logo" [class.logo-collapsed]="collapsed && !isMobile">
@@ -27,28 +33,70 @@
     </div>
   </div>
 
-  <hr class="line" />
+  <hr class="line" aria-hidden="true" />
 
-  <p class="portal-label" *ngIf="!collapsed || isMobile">
-    {{ currentRole ? (currentRole | titlecase) : 'User' }} Portal
-  </p>
+  <div class="sidebar-scroll-area">
+    <p class="portal-label" *ngIf="!collapsed || isMobile">MAIN MENU</p>
 
-  <nav class="nav-list" aria-label="Sidebar navigation" (keydown)="onNavKeydown($event)">
-    <a
-      #navLink
-      *ngFor="let item of menuItems; let i = index"
-      [routerLink]="item.route"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      class="nav-link"
-      [attr.aria-label]="item.label"
-      [attr.title]="collapsed && !isMobile ? item.label : null"
-      (click)="handleItemClick()"
-      (focus)="focusedIndex = i"
-      (keydown)="onItemKeydown($event, i)"
+    <nav class="nav-list" aria-label="Main menu" (keydown)="onNavKeydown($event)">
+      <a
+        #navLink
+        *ngFor="let item of menuItems; let i = index"
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-link"
+        [attr.aria-label]="item.label"
+        [attr.title]="collapsed && !isMobile ? item.label : null"
+        (click)="handleItemClick()"
+        (focus)="focusedIndex = i"
+        (keydown)="onItemKeydown($event, i)"
+      >
+        <i [class]="item.icon" aria-hidden="true"></i>
+        <span *ngIf="!collapsed || isMobile">{{ item.label }}</span>
+      </a>
+    </nav>
+
+    <section
+      class="admin-management-section"
+      *ngIf="currentRole === 'admin'"
+      aria-labelledby="admin-management-label"
     >
-      <i [class]="item.icon" aria-hidden="true"></i>
-      <span *ngIf="!collapsed || isMobile">{{ item.label }}</span>
-    </a>
-  </nav>
+      <hr class="admin-section-line" aria-hidden="true" />
+
+      <p id="admin-management-label" class="admin-section-label" *ngIf="!collapsed || isMobile">
+        ADMIN MANAGEMENT
+      </p>
+
+      <nav class="admin-visual-list" aria-label="Admin management menu">
+        <ng-container *ngFor="let adminItem of adminManagementItems">
+          <a
+            *ngIf="adminItem.route; else disabledAdminManagementItem"
+            class="admin-visual-link"
+            [routerLink]="adminItem.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            [attr.aria-label]="adminItem.label"
+            [attr.title]="collapsed && !isMobile ? adminItem.label : null"
+            (click)="handleItemClick()"
+          >
+            <i [class]="adminItem.icon" aria-hidden="true"></i>
+            <span *ngIf="!collapsed || isMobile">{{ adminItem.label }}</span>
+          </a>
+
+          <ng-template #disabledAdminManagementItem>
+            <div
+              class="admin-visual-link disabled"
+              aria-disabled="true"
+              [attr.aria-label]="adminItem.label"
+              [attr.title]="collapsed && !isMobile ? adminItem.label : null"
+            >
+              <i [class]="adminItem.icon" aria-hidden="true"></i>
+              <span *ngIf="!collapsed || isMobile">{{ adminItem.label }}</span>
+            </div>
+          </ng-template>
+        </ng-container>
+      </nav>
+    </section>
+  </div>
 </aside>

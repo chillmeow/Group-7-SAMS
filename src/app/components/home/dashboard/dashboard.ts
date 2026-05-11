@@ -75,7 +75,9 @@ export class DashboardComponent implements OnInit {
     this.displayName = this.currentUser?.firstName || 'User';
     this.roleLabel = this.getRoleLabel(this.currentRole);
 
-    if (!isPlatformBrowser(this.platformId)) return;
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
 
     this.loadDashboard();
   }
@@ -180,125 +182,84 @@ export class DashboardComponent implements OnInit {
       (session) => String(session.status || '').toLowerCase() === 'active',
     );
 
-    const lateToday = todayAttendance.filter(
-      (record) => String(record.status || '').toLowerCase() === 'late',
-    ).length;
-
-    const absentToday = todayAttendance.filter(
-      (record) => String(record.status || '').toLowerCase() === 'absent',
-    ).length;
+    const incompleteAcademicSetup =
+      this.subjects.length === 0 || this.sections.length === 0 || this.offerings.length === 0;
 
     this.stats = [
       {
-        label: 'Total Students',
+        label: 'Students',
         value: `${this.students.length}`,
-        subtitle: 'Registered students',
+        subtitle: 'Registered student records',
         icon: 'pi pi-users',
         tone: 'blue',
       },
       {
-        label: 'Total Teachers',
+        label: 'Instructors',
         value: `${this.teachers.length}`,
-        subtitle: 'Faculty members',
+        subtitle: 'Faculty accounts and records',
         icon: 'pi pi-briefcase',
         tone: 'green',
       },
       {
-        label: 'Total Parents',
-        value: `${this.parents.length}`,
-        subtitle: 'Parent accounts',
-        icon: 'pi pi-user-plus',
+        label: 'Today’s Attendance',
+        value: `${todayAttendance.length}`,
+        subtitle: 'Attendance records logged today',
+        icon: 'pi pi-calendar-clock',
         tone: 'orange',
       },
       {
-        label: 'Attendance Today',
-        value: `${todayAttendance.length}`,
-        subtitle: 'Records logged today',
-        icon: 'pi pi-calendar',
+        label: 'Active Sessions',
+        value: `${activeSessions.length}`,
+        subtitle: 'Currently open attendance sessions',
+        icon: 'pi pi-qrcode',
         tone: 'purple',
       },
     ];
 
     this.cards = [
       {
-        title: 'Students',
-        purpose: `${this.students.length} student record(s) registered`,
+        title: 'User Accounts',
+        purpose: 'Manage access for admin, instructor, student, and parent accounts.',
         date: this.formatToday(),
-        status: 'OPEN',
-        route: '/students',
+        status: 'MANAGE',
+        route: '/admin-management/manage-users',
         tone: 'info',
       },
       {
-        title: 'Teachers',
-        purpose: `${this.teachers.length} faculty record(s) registered`,
+        title: 'Student Records',
+        purpose: 'View and maintain student profiles used for attendance monitoring.',
         date: this.formatToday(),
         status: 'OPEN',
-        route: '/teachers',
+        route: '/admin-management/manage-students',
         tone: 'info',
-      },
-      {
-        title: 'Parents',
-        purpose: `${this.parents.length} parent account(s) registered`,
-        date: this.formatToday(),
-        status: 'OPEN',
-        route: '/parents',
-        tone: 'info',
-      },
-      {
-        title: 'Subjects',
-        purpose: `${this.subjects.length} subject record(s) configured`,
-        date: this.formatToday(),
-        status: this.subjects.length > 0 ? 'READY' : 'SETUP',
-        route: '/subjects',
-        tone: this.subjects.length > 0 ? 'info' : 'warning',
-      },
-      {
-        title: 'Sections',
-        purpose: `${this.sections.length} section(s) configured`,
-        date: this.formatToday(),
-        status: this.sections.length > 0 ? 'READY' : 'SETUP',
-        route: '/sections',
-        tone: this.sections.length > 0 ? 'info' : 'warning',
-      },
-      {
-        title: 'Class Offerings',
-        purpose: `${this.offerings.length} class offering(s) configured`,
-        date: this.formatToday(),
-        status: this.offerings.length > 0 ? 'READY' : 'SETUP',
-        route: '/offerings',
-        tone: this.offerings.length > 0 ? 'info' : 'warning',
       },
       {
         title: 'Attendance Monitoring',
-        purpose: `${activeSessions.length} active session(s) currently open`,
+        purpose: activeSessions.length
+          ? `${activeSessions.length} attendance session(s) currently active.`
+          : 'Monitor attendance activity across classes and sessions.',
         date: this.formatToday(),
-        status: activeSessions.length > 0 ? 'PENDING' : 'STABLE',
+        status: activeSessions.length ? 'ACTIVE' : 'STABLE',
         route: '/admin-attendance',
-        tone: activeSessions.length > 0 ? 'warning' : 'success',
+        tone: activeSessions.length ? 'warning' : 'success',
       },
       {
-        title: 'Reports',
-        purpose: `${todayAttendance.length} attendance record(s) logged today`,
+        title: 'Academic Setup',
+        purpose: incompleteAcademicSetup
+          ? 'Review subjects, sections, and class offerings before full deployment.'
+          : 'Subjects, sections, and class offerings are available.',
         date: this.formatToday(),
-        status: 'READY',
-        route: '/reports',
+        status: incompleteAcademicSetup ? 'CHECK' : 'READY',
+        route: '/subjects',
+        tone: incompleteAcademicSetup ? 'warning' : 'success',
+      },
+      {
+        title: 'Reports & Analytics',
+        purpose: 'Review institutional attendance summaries and system-wide analytics.',
+        date: this.formatToday(),
+        status: 'VIEW',
+        route: '/admin-management/reports-analytics',
         tone: 'info',
-      },
-      {
-        title: 'Late Records',
-        purpose: `${lateToday} student(s) marked late today`,
-        date: this.formatToday(),
-        status: lateToday > 0 ? 'PENDING' : 'CLEAR',
-        route: '/reports',
-        tone: lateToday > 0 ? 'warning' : 'success',
-      },
-      {
-        title: 'Absence Records',
-        purpose: `${absentToday} student(s) marked absent today`,
-        date: this.formatToday(),
-        status: absentToday > 0 ? 'PENDING' : 'CLEAR',
-        route: '/reports',
-        tone: absentToday > 0 ? 'danger' : 'success',
       },
     ];
   }
@@ -340,30 +301,30 @@ export class DashboardComponent implements OnInit {
 
     this.stats = [
       {
-        label: 'Handled Classes',
+        label: 'Assigned Classes',
         value: `${handledOfferings.length}`,
-        subtitle: 'Assigned classes',
+        subtitle: 'Classes assigned to you',
         icon: 'pi pi-book',
         tone: 'blue',
       },
       {
         label: 'Active Sessions',
         value: `${activeSessions.length}`,
-        subtitle: 'Currently open',
+        subtitle: 'Open QR attendance sessions',
         icon: 'pi pi-qrcode',
         tone: 'green',
       },
       {
         label: 'Records Today',
         value: `${todayAttendance.length}`,
-        subtitle: 'Logged today',
+        subtitle: 'Attendance records logged today',
         icon: 'pi pi-calendar',
         tone: 'orange',
       },
       {
         label: 'Total Records',
         value: `${handledAttendance.length}`,
-        subtitle: 'Attendance records',
+        subtitle: 'Attendance records handled',
         icon: 'pi pi-list-check',
         tone: 'purple',
       },
@@ -372,39 +333,31 @@ export class DashboardComponent implements OnInit {
     this.cards = [
       {
         title: 'Attendance Workspace',
-        purpose: 'Create QR sessions, mark attendance, approve requests, and import Excel sheets',
+        purpose: 'Create sessions, display QR codes, review attendance, and import records.',
         date: this.formatToday(),
         status: 'OPEN',
         route: '/attendance',
         tone: 'info',
       },
       {
-        title: 'Active Sessions',
-        purpose: `${activeSessions.length} active attendance session(s)`,
-        date: this.formatToday(),
-        status: activeSessions.length > 0 ? 'PENDING' : 'CLEAR',
-        route: '/attendance',
-        tone: activeSessions.length > 0 ? 'warning' : 'success',
-      },
-      {
         title: 'My Subjects',
-        purpose: 'View your assigned subjects and covered sections',
+        purpose: 'View assigned subjects, sections, and class information.',
         date: this.formatToday(),
-        status: 'OPEN',
+        status: 'VIEW',
         route: '/teacher-subjects',
         tone: 'info',
       },
       {
         title: 'Reports',
-        purpose: 'Review class attendance summaries and monitoring records',
+        purpose: 'Review attendance summaries for your handled classes.',
         date: this.formatToday(),
-        status: 'READY',
+        status: 'VIEW',
         route: '/reports',
         tone: 'info',
       },
       {
         title: 'Messages',
-        purpose: 'Check messages, updates, and communication',
+        purpose: 'Check class communication and student messages.',
         date: this.formatToday(),
         status: 'OPEN',
         route: '/messages',
@@ -432,7 +385,7 @@ export class DashboardComponent implements OnInit {
       {
         label: 'Attendance Rate',
         value: `${attendanceRate}%`,
-        subtitle: 'Current performance',
+        subtitle: 'Current attendance standing',
         icon: 'pi pi-chart-line',
         tone: 'blue',
       },
@@ -462,7 +415,7 @@ export class DashboardComponent implements OnInit {
     this.cards = [
       {
         title: 'My Attendance',
-        purpose: 'Scan QR, enter session code, and view attendance history',
+        purpose: 'Scan QR codes, enter session codes, and review attendance history.',
         date: this.formatToday(),
         status: 'OPEN',
         route: '/student-attendance',
@@ -470,42 +423,18 @@ export class DashboardComponent implements OnInit {
       },
       {
         title: 'My Subjects',
-        purpose: 'View your enrolled subjects and class information',
+        purpose: 'View enrolled subjects and class information.',
         date: this.formatToday(),
-        status: 'OPEN',
+        status: 'VIEW',
         route: '/student-subjects',
         tone: 'info',
       },
       {
-        title: 'Attendance Rate',
-        purpose: `${attendanceRate}% current attendance rate`,
+        title: 'Messages',
+        purpose: 'Check class messages and teacher communication.',
         date: this.formatToday(),
-        status: attendanceRate >= 80 ? 'GOOD' : attendanceRate >= 60 ? 'WATCH' : 'WARNING',
-        route: '/student-attendance',
-        tone: attendanceRate >= 80 ? 'success' : attendanceRate >= 60 ? 'warning' : 'danger',
-      },
-      {
-        title: 'Late Records',
-        purpose: `${late} late record(s) found`,
-        date: this.formatToday(),
-        status: late > 0 ? 'PENDING' : 'CLEAR',
-        route: '/student-attendance',
-        tone: late > 0 ? 'warning' : 'success',
-      },
-      {
-        title: 'Absence Records',
-        purpose: `${absent} absence record(s) found`,
-        date: this.formatToday(),
-        status: absent > 0 ? 'PENDING' : 'CLEAR',
-        route: '/student-attendance',
-        tone: absent > 0 ? 'danger' : 'success',
-      },
-      {
-        title: 'Reports',
-        purpose: 'Review your attendance summary',
-        date: this.formatToday(),
-        status: 'READY',
-        route: '/reports',
+        status: 'OPEN',
+        route: '/messages',
         tone: 'info',
       },
     ];
@@ -532,28 +461,28 @@ export class DashboardComponent implements OnInit {
       {
         label: 'Linked Children',
         value: `${linkedStudents.length}`,
-        subtitle: 'Connected students',
+        subtitle: 'Students connected to your account',
         icon: 'pi pi-users',
         tone: 'blue',
       },
       {
         label: 'Attendance Rate',
         value: `${attendanceRate}%`,
-        subtitle: 'Child attendance rate',
+        subtitle: 'Combined child attendance rate',
         icon: 'pi pi-chart-line',
         tone: 'green',
       },
       {
         label: 'Late Records',
         value: `${late}`,
-        subtitle: 'Late records',
+        subtitle: 'Late attendance records',
         icon: 'pi pi-clock',
         tone: 'orange',
       },
       {
         label: 'Absences',
         value: `${absent}`,
-        subtitle: 'Absent records',
+        subtitle: 'Absent attendance records',
         icon: 'pi pi-exclamation-circle',
         tone: 'purple',
       },
@@ -562,43 +491,22 @@ export class DashboardComponent implements OnInit {
     this.cards = [
       {
         title: 'Child Attendance',
-        purpose: 'Monitor child attendance history and latest status',
+        purpose: 'Monitor your child’s attendance history, latest status, and summaries.',
         date: this.formatToday(),
         status: 'OPEN',
         route: '/parent-attendance',
         tone: 'info',
       },
       {
-        title: 'Linked Children',
-        purpose: `${linkedStudents.length} student record(s) linked to your account`,
+        title: 'Attendance Concerns',
+        purpose:
+          late > 0 || absent > 0
+            ? `${late} late and ${absent} absent record(s) need attention.`
+            : 'No major attendance concerns found in the current records.',
         date: this.formatToday(),
-        status: linkedStudents.length > 0 ? 'ACTIVE' : 'SETUP',
+        status: late > 0 || absent > 0 ? 'REVIEW' : 'CLEAR',
         route: '/parent-attendance',
-        tone: linkedStudents.length > 0 ? 'success' : 'warning',
-      },
-      {
-        title: 'Attendance Rate',
-        purpose: `${attendanceRate}% combined child attendance rate`,
-        date: this.formatToday(),
-        status: attendanceRate >= 80 ? 'GOOD' : attendanceRate >= 60 ? 'WATCH' : 'WARNING',
-        route: '/parent-attendance',
-        tone: attendanceRate >= 80 ? 'success' : attendanceRate >= 60 ? 'warning' : 'danger',
-      },
-      {
-        title: 'Late Records',
-        purpose: `${late} late record(s) found`,
-        date: this.formatToday(),
-        status: late > 0 ? 'PENDING' : 'CLEAR',
-        route: '/parent-attendance',
-        tone: late > 0 ? 'warning' : 'success',
-      },
-      {
-        title: 'Absence Records',
-        purpose: `${absent} absence record(s) found`,
-        date: this.formatToday(),
-        status: absent > 0 ? 'PENDING' : 'CLEAR',
-        route: '/parent-attendance',
-        tone: absent > 0 ? 'danger' : 'success',
+        tone: late > 0 || absent > 0 ? 'warning' : 'success',
       },
     ];
   }
@@ -658,7 +566,9 @@ export class DashboardComponent implements OnInit {
   }
 
   private getLinkedStudentsForParent(parent: any | null): any[] {
-    if (!parent) return [];
+    if (!parent) {
+      return [];
+    }
 
     const parentId = String(parent.id || '').trim();
 
@@ -687,10 +597,21 @@ export class DashboardComponent implements OnInit {
   }
 
   private getRoleLabel(role: UserRole | null): string {
-    if (role === 'admin') return 'Admin';
-    if (role === 'teacher') return 'Teacher';
-    if (role === 'student') return 'Student';
-    if (role === 'parent') return 'Parent';
+    if (role === 'admin') {
+      return 'Admin';
+    }
+
+    if (role === 'teacher') {
+      return 'Teacher';
+    }
+
+    if (role === 'student') {
+      return 'Student';
+    }
+
+    if (role === 'parent') {
+      return 'Parent';
+    }
 
     return 'SAMS';
   }

@@ -1,0 +1,681 @@
+<section class="reports-analytics-page">
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Admin Management</span>
+      <h1>{{ reportTitle }}</h1>
+      <p>{{ reportSubtitle }}</p>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="secondary-btn" [disabled]="isLoading" (click)="refreshReports()">
+        <i class="pi pi-refresh" [class.spin]="isLoading" aria-hidden="true"></i>
+        <span>Refresh</span>
+      </button>
+
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="isLoading || isExporting || totalRecords === 0"
+        (click)="exportCsv()"
+      >
+        <i class="pi pi-download" aria-hidden="true"></i>
+        <span>{{ isExporting ? 'Exporting...' : 'Export CSV' }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="primary-btn"
+        [disabled]="!canGenerateReportRecord"
+        (click)="generateReportRecord()"
+      >
+        <i
+          class="pi"
+          [ngClass]="isReportSaving ? 'pi-spin pi-spinner' : 'pi-file-plus'"
+          aria-hidden="true"
+        ></i>
+        <span>{{ isReportSaving ? 'Generating...' : 'Generate Report' }}</span>
+      </button>
+
+      <button type="button" class="secondary-btn" [disabled]="isLoading" (click)="printReport()">
+        <i class="pi pi-print" aria-hidden="true"></i>
+        <span>Print</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="filter-card" aria-label="Report filters">
+    <div class="filter-main">
+      <div class="form-group">
+        <label>Report Type</label>
+        <select [(ngModel)]="range" (ngModelChange)="onRangeChange()">
+          <option value="today">Daily Report</option>
+          <option value="week">Weekly Report</option>
+          <option value="month">Monthly Report</option>
+          <option value="year">Yearly Report</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="range === 'today' || range === 'week'">
+        <label>Reference Date</label>
+        <input type="date" [(ngModel)]="selectedDate" (ngModelChange)="onRangeChange()" />
+      </div>
+
+      <div class="form-group" *ngIf="range === 'month'">
+        <label>Month</label>
+        <input type="month" [(ngModel)]="selectedMonth" (ngModelChange)="onRangeChange()" />
+      </div>
+
+      <div class="form-group" *ngIf="range === 'year'">
+        <label>Year</label>
+        <select [(ngModel)]="selectedYear" (ngModelChange)="onRangeChange()">
+          <option *ngFor="let year of yearOptions; trackBy: trackByIndex" [value]="year">
+            {{ year }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="range === 'custom'">
+        <label>Start Date</label>
+        <input type="date" [(ngModel)]="customStartDate" (ngModelChange)="onRangeChange()" />
+      </div>
+
+      <div class="form-group" *ngIf="range === 'custom'">
+        <label>End Date</label>
+        <input type="date" [(ngModel)]="customEndDate" (ngModelChange)="onRangeChange()" />
+      </div>
+    </div>
+
+    <div class="range-summary">
+      <span>Current Monitoring Range</span>
+      <strong>{{ dateRangeLabel }}</strong>
+    </div>
+  </section>
+
+  <div class="loading-state" *ngIf="isLoading">
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <p>Loading reports and analytics...</p>
+  </div>
+
+  <ng-container *ngIf="!isLoading">
+    <section class="summary-grid" aria-label="Attendance report summary">
+      <article
+        class="summary-card"
+        *ngFor="let item of summaryCards; trackBy: trackByIndex"
+        [ngClass]="item.tone"
+      >
+        <div class="summary-icon" aria-hidden="true">
+          <i [class]="item.icon"></i>
+        </div>
+
+        <div class="summary-copy">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="status-grid" aria-label="Attendance status breakdown">
+      <article
+        class="status-card"
+        *ngFor="let metric of statusMetrics; trackBy: trackByIndex"
+        [ngClass]="metric.tone"
+      >
+        <div class="status-topline">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.count }}</strong>
+        </div>
+
+        <div class="progress-track" aria-hidden="true">
+          <span [style.width]="getBarWidth(metric.rate)"></span>
+        </div>
+
+        <p>{{ metric.rate }}% of filtered records</p>
+      </article>
+    </section>
+
+    <section class="report-records-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Generated Report Records</span>
+          <h2>Saved Admin Reports</h2>
+          <p>
+            Save daily, weekly, monthly, yearly, or custom report snapshots for organized
+            monitoring.
+          </p>
+        </div>
+
+        <div class="report-record-tabs" aria-label="Generated report records filter">
+          <button
+            type="button"
+            class="record-tab"
+            [class.active]="reportRecordView === 'active'"
+            [disabled]="isReportSaving || !!processingGeneratedReportId"
+            (click)="setReportRecordView('active')"
+          >
+            <i class="pi pi-folder-open" aria-hidden="true"></i>
+            <span>Active</span>
+            <strong>{{ activeGeneratedReportsCount }}</strong>
+          </button>
+
+          <button
+            type="button"
+            class="record-tab"
+            [class.active]="reportRecordView === 'archived'"
+            [disabled]="isReportSaving || !!processingGeneratedReportId"
+            (click)="setReportRecordView('archived')"
+          >
+            <i class="pi pi-archive" aria-hidden="true"></i>
+            <span>Archive</span>
+            <strong>{{ archivedGeneratedReportsCount }}</strong>
+          </button>
+        </div>
+      </div>
+
+      <div class="report-record-toolbar">
+        <label class="search-box">
+          <i class="pi pi-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            [(ngModel)]="reportRecordSearch"
+            placeholder="Search generated reports by title, type, range, or status..."
+            aria-label="Search generated report records"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="secondary-btn small"
+          [disabled]="!reportRecordSearch"
+          (click)="reportRecordSearch = ''"
+        >
+          <i class="pi pi-times" aria-hidden="true"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+
+      <div class="empty-state compact" *ngIf="visibleGeneratedReports.length === 0">
+        <i class="pi pi-folder" aria-hidden="true"></i>
+        <h3>
+          {{
+            reportRecordView === 'archived'
+              ? 'No archived generated reports'
+              : 'No active generated reports yet'
+          }}
+        </h3>
+        <p>
+          {{
+            reportRecordView === 'archived'
+              ? 'Archived generated reports will appear here.'
+              : 'Select a report type and click Generate Report to save the current analytics snapshot.'
+          }}
+        </p>
+      </div>
+
+      <div class="generated-report-groups" *ngIf="visibleGeneratedReports.length > 0">
+        <section
+          class="generated-report-group"
+          *ngFor="let group of generatedReportGroups; trackBy: trackByGeneratedReportGroup"
+        >
+          <div class="group-title">
+            <span>{{ group.label }}</span>
+            <strong>{{ group.reports.length }} report(s)</strong>
+          </div>
+
+          <div class="generated-report-list">
+            <article
+              class="generated-report-card"
+              *ngFor="let report of group.reports; trackBy: trackByGeneratedReport"
+              [ngClass]="getGeneratedReportStatusClass(report)"
+            >
+              <div class="generated-report-main">
+                <div>
+                  <span class="report-type-pill">{{ report.reportTypeLabel }}</span>
+                  <h3>{{ report.title }}</h3>
+                  <p>{{ report.dateRangeLabel }}</p>
+                </div>
+
+                <span class="status-pill" [ngClass]="getGeneratedReportStatusClass(report)">
+                  {{ report.status === 'archived' ? 'Archived' : 'Active' }}
+                </span>
+              </div>
+
+              <div class="generated-report-meta">
+                <div class="meta-item">
+                  <span>Generated</span>
+                  <strong>{{ getGeneratedReportDateLabel(report) }}</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Attendance Rate</span>
+                  <strong>{{ report.attendanceRate }}%</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Total Records</span>
+                  <strong>{{ report.totalRecords }}</strong>
+                </div>
+
+                <div class="meta-item">
+                  <span>Sessions</span>
+                  <strong>{{ report.totalSessions }}</strong>
+                </div>
+              </div>
+
+              <div class="generated-report-breakdown">
+                <span class="mini-pill present">Present: {{ report.presentCount }}</span>
+                <span class="mini-pill late">Late: {{ report.lateCount }}</span>
+                <span class="mini-pill absent">Absent: {{ report.absentCount }}</span>
+                <span class="mini-pill excused">Excused: {{ report.excusedCount }}</span>
+              </div>
+
+              <div class="generated-report-actions">
+                <button
+                  type="button"
+                  class="secondary-btn small"
+                  (click)="exportGeneratedReport(report)"
+                >
+                  <i class="pi pi-download" aria-hidden="true"></i>
+                  <span>Export</span>
+                </button>
+
+                <ng-container *ngIf="reportRecordView === 'active'; else archivedReportActions">
+                  <button
+                    type="button"
+                    class="secondary-btn small archive-btn"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="archiveGeneratedReport(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id
+                          ? 'pi-spin pi-spinner'
+                          : 'pi-archive'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Archive</span>
+                  </button>
+                </ng-container>
+
+                <ng-template #archivedReportActions>
+                  <button
+                    type="button"
+                    class="secondary-btn small restore-btn"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="restoreGeneratedReport(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id ? 'pi-spin pi-spinner' : 'pi-undo'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Restore</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="danger-btn small"
+                    [disabled]="processingGeneratedReportId === report.id"
+                    (click)="deleteGeneratedReportPermanently(report)"
+                  >
+                    <i
+                      class="pi"
+                      [ngClass]="
+                        processingGeneratedReportId === report.id
+                          ? 'pi-spin pi-spinner'
+                          : 'pi-trash'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span>Delete</span>
+                  </button>
+                </ng-template>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="analytics-grid">
+      <article class="chart-card wide">
+        <div class="card-header">
+          <div>
+            <span class="section-kicker">Attendance Trend</span>
+            <h2>Attendance Rate Over Time</h2>
+          </div>
+
+          <span class="metric-pill">{{ attendanceRate }}% average</span>
+        </div>
+
+        <div class="line-chart" *ngIf="trendPoints.length > 0; else noTrendData">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-opacity="0.22"></stop>
+                <stop offset="100%" stop-opacity="0.02"></stop>
+              </linearGradient>
+            </defs>
+
+            <line x1="0" y1="25" x2="100" y2="25"></line>
+            <line x1="0" y1="50" x2="100" y2="50"></line>
+            <line x1="0" y1="75" x2="100" y2="75"></line>
+
+            <polygon [attr.points]="trendAreaPoints"></polygon>
+            <polyline [attr.points]="trendChartPoints"></polyline>
+          </svg>
+
+          <div class="trend-labels">
+            <span *ngFor="let point of trendPoints; trackBy: trackByTrend">
+              {{ point.label }}
+            </span>
+          </div>
+        </div>
+
+        <ng-template #noTrendData>
+          <div class="empty-mini">
+            <i class="pi pi-chart-line" aria-hidden="true"></i>
+            <p>No trend data available for this range.</p>
+          </div>
+        </ng-template>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <span class="section-kicker">Programs</span>
+            <h2>Program Attendance</h2>
+          </div>
+        </div>
+
+        <div class="bar-chart" *ngIf="programAnalytics.length > 0; else noProgramData">
+          <div
+            class="vertical-bar"
+            *ngFor="let program of programAnalytics; trackBy: trackByProgram"
+          >
+            <div class="bar-frame">
+              <span [style.height]="getChartHeight(program.attendanceRate)"></span>
+            </div>
+
+            <strong>{{ program.attendanceRate }}%</strong>
+            <small>{{ getProgramCode(program.program) }}</small>
+          </div>
+        </div>
+
+        <ng-template #noProgramData>
+          <div class="empty-mini">
+            <i class="pi pi-chart-bar" aria-hidden="true"></i>
+            <p>No program data available.</p>
+          </div>
+        </ng-template>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <span class="section-kicker">Sections</span>
+            <h2>Lowest Section Rates</h2>
+          </div>
+        </div>
+
+        <div class="horizontal-bars" *ngIf="lowSections.length > 0; else noSectionData">
+          <div class="horizontal-item" *ngFor="let section of lowSections; trackBy: trackBySection">
+            <div class="horizontal-label">
+              <span>{{ section.sectionName }}</span>
+              <strong>{{ section.attendanceRate }}%</strong>
+            </div>
+
+            <div class="horizontal-track">
+              <span [style.width]="getBarWidth(section.attendanceRate)"></span>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noSectionData>
+          <div class="empty-mini">
+            <i class="pi pi-sitemap" aria-hidden="true"></i>
+            <p>No section data available.</p>
+          </div>
+        </ng-template>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <article class="workspace-card">
+        <div class="workspace-header">
+          <div>
+            <span class="section-kicker">Institutional Scope</span>
+            <h2>System Records Overview</h2>
+          </div>
+        </div>
+
+        <div class="institution-grid">
+          <article
+            class="institution-card"
+            *ngFor="let item of institutionalCards; trackBy: trackByIndex"
+            [ngClass]="item.tone"
+          >
+            <div class="institution-icon" aria-hidden="true">
+              <i [class]="item.icon"></i>
+            </div>
+
+            <div>
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </article>
+        </div>
+      </article>
+
+      <article class="workspace-card">
+        <div class="workspace-header">
+          <div>
+            <span class="section-kicker">Attendance Methods</span>
+            <h2>Recording Method Usage</h2>
+          </div>
+        </div>
+
+        <div class="method-list" *ngIf="methodAnalytics.length > 0; else noMethodData">
+          <div class="method-item" *ngFor="let method of methodAnalytics; trackBy: trackByIndex">
+            <div>
+              <strong>{{ method.label }}</strong>
+              <span>{{ method.count }} record(s)</span>
+            </div>
+
+            <div class="method-rate">
+              <span>{{ method.rate }}%</span>
+              <div class="method-track">
+                <i [style.width]="getBarWidth(method.rate)"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noMethodData>
+          <div class="empty-mini">
+            <i class="pi pi-list" aria-hidden="true"></i>
+            <p>No method data available.</p>
+          </div>
+        </ng-template>
+      </article>
+    </section>
+
+    <section class="table-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Section Summary</span>
+          <h2>Attendance by Section</h2>
+        </div>
+
+        <span class="metric-pill">{{ sectionAnalytics.length }} section(s)</span>
+      </div>
+
+      <div class="table-wrapper" *ngIf="sectionAnalytics.length > 0; else noSectionTable">
+        <table>
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th>Program</th>
+              <th>Year Level</th>
+              <th>Total</th>
+              <th>Present</th>
+              <th>Late</th>
+              <th>Absent</th>
+              <th>Excused</th>
+              <th>Rate</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let section of sectionAnalytics; trackBy: trackBySection">
+              <td>
+                <strong>{{ section.sectionName }}</strong>
+              </td>
+              <td>{{ section.program }}</td>
+              <td>{{ section.yearLevel }}</td>
+              <td>{{ section.total }}</td>
+              <td>{{ section.present }}</td>
+              <td>{{ section.late }}</td>
+              <td>{{ section.absent }}</td>
+              <td>{{ section.excused }}</td>
+              <td>
+                <span class="rate-pill" [class.warning]="section.attendanceRate < 90">
+                  {{ section.attendanceRate }}%
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #noSectionTable>
+        <div class="empty-state compact">
+          <i class="pi pi-sitemap" aria-hidden="true"></i>
+          <h3>No section analytics available</h3>
+          <p>There are no attendance records for the selected report range.</p>
+        </div>
+      </ng-template>
+    </section>
+
+    <section class="table-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Student Monitoring</span>
+          <h2>Students Needing Attention</h2>
+        </div>
+
+        <span class="metric-pill">{{ riskStudents.length }} flagged</span>
+      </div>
+
+      <div class="table-wrapper" *ngIf="riskStudents.length > 0; else noRiskData">
+        <table>
+          <thead>
+            <tr>
+              <th>Student No.</th>
+              <th>Student</th>
+              <th>Program</th>
+              <th>Section</th>
+              <th>Absent</th>
+              <th>Late</th>
+              <th>Rate</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let student of riskStudents; trackBy: trackByRiskStudent">
+              <td>
+                <strong>{{ student.studentNumber }}</strong>
+              </td>
+              <td>{{ student.studentName }}</td>
+              <td>{{ student.program }}</td>
+              <td>{{ student.section }}</td>
+              <td>{{ student.absent }}</td>
+              <td>{{ student.late }}</td>
+              <td>
+                <span class="rate-pill" [class.warning]="student.attendanceRate < 90">
+                  {{ student.attendanceRate }}%
+                </span>
+              </td>
+              <td>
+                <span
+                  class="risk-pill"
+                  [class.high]="student.riskLevel === 'High'"
+                  [class.moderate]="student.riskLevel === 'Moderate'"
+                  [class.low]="student.riskLevel === 'Low'"
+                >
+                  {{ student.riskLevel }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #noRiskData>
+        <div class="empty-state compact">
+          <i class="pi pi-check-circle" aria-hidden="true"></i>
+          <h3>No students flagged</h3>
+          <p>No student risk records were found for the selected range.</p>
+        </div>
+      </ng-template>
+    </section>
+
+    <section class="table-card">
+      <div class="workspace-header">
+        <div>
+          <span class="section-kicker">Recent Records</span>
+          <h2>Latest Attendance Logs</h2>
+        </div>
+
+        <span class="metric-pill">{{ recentRecords.length }} shown</span>
+      </div>
+
+      <div class="table-wrapper" *ngIf="recentRecords.length > 0; else noRecentRecords">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Student No.</th>
+              <th>Student</th>
+              <th>Section</th>
+              <th>Status</th>
+              <th>Method</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let record of recentRecords; trackBy: trackByRecord">
+              <td>{{ getRecordDateLabel(record) }}</td>
+              <td>{{ getRecordTimeLabel(record) }}</td>
+              <td>
+                <strong>{{ getRecordStudentNumber(record) }}</strong>
+              </td>
+              <td>{{ getRecordStudentName(record) }}</td>
+              <td>{{ getRecordSection(record) }}</td>
+              <td>
+                <span class="status-pill" [ngClass]="getStatusClass(record.status)">
+                  {{ getStatusLabel(record.status) }}
+                </span>
+              </td>
+              <td>{{ getMethodLabel(record.method) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #noRecentRecords>
+        <div class="empty-state compact">
+          <i class="pi pi-database" aria-hidden="true"></i>
+          <h3>No attendance logs</h3>
+          <p>No recent attendance logs were found in the selected report range.</p>
+        </div>
+      </ng-template>
+    </section>
+  </ng-container>
+</section>

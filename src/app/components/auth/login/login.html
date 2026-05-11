@@ -14,7 +14,7 @@
       <span class="bar bar3"></span>
     </div>
 
-    <div class="login-card">
+    <form class="login-card" (ngSubmit)="login()" novalidate>
       <h1>SAMS</h1>
       <p>Student Attendance Monitoring System</p>
 
@@ -55,15 +55,20 @@
       </div>
 
       <label class="remember">
-        <input type="checkbox" [(ngModel)]="rememberMe" name="rememberMe" />
+        <input
+          type="checkbox"
+          name="rememberMe"
+          [(ngModel)]="rememberMe"
+          (change)="onRememberMeChange()"
+        />
         <span class="custom-check"></span>
         <span class="remember-text">Remember me</span>
       </label>
 
-      <button class="login-btn" (click)="login()" [disabled]="isLoading">
+      <button type="submit" class="login-btn" [disabled]="isLoading">
         <span *ngIf="!isLoading">Login</span>
         <span *ngIf="isLoading">Logging in...</span>
       </button>
-    </div>
+    </form>
   </div>
 </div>

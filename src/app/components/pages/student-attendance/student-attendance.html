@@ -1,145 +1,496 @@
-<div class="student-page">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Student Attendance</p>
+<section class="student-attendance-page">
+  <header class="attendance-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Student Portal</span>
       <h1>My Attendance</h1>
-      <p>
-        Submit your attendance using the teacher’s session code or scan the QR code shown by your
-        teacher.
-      </p>
+      <p>Submit your attendance using the session code or QR code provided by your teacher.</p>
     </div>
 
-    <button type="button" class="refresh-btn" (click)="refresh()">
-      <i class="pi pi-refresh"></i>
-      Refresh
-    </button>
-  </section>
+    <div class="student-card">
+      <div class="student-avatar" aria-hidden="true">
+        <i class="pi pi-user"></i>
+      </div>
 
-  <section class="profile-card">
-    <div>
-      <span>Logged in as</span>
-      <strong>{{ studentName }}</strong>
-      <small>{{ studentNumber }}</small>
-    </div>
-  </section>
-
-  <section class="card submit-card">
-    <div class="card-header">
       <div>
-        <h3>Record Attendance</h3>
-        <p>Scan the active QR code or enter the session code given by your teacher.</p>
+        <span>Signed in as</span>
+        <strong>{{ studentName }}</strong>
+        <p>{{ studentNumber }}</p>
       </div>
     </div>
+  </header>
 
-    <div class="mode-tabs">
-      <button type="button" [class.active]="submissionMode === 'code'" (click)="setMode('code')">
-        Session Code
-      </button>
+  <section class="alert-card success" *ngIf="message">
+    <i class="pi pi-check-circle" aria-hidden="true"></i>
+    <span>{{ message }}</span>
+  </section>
 
-      <button type="button" [class.active]="submissionMode === 'qr'" (click)="setMode('qr')">
-        Scan QR
-      </button>
-    </div>
+  <section class="alert-card error" *ngIf="error">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <span>{{ error }}</span>
+  </section>
 
-    <div class="input-group" *ngIf="submissionMode === 'code'">
-      <input
-        type="text"
-        placeholder="Enter session code, example: ATTD-1234"
-        [(ngModel)]="sessionCode"
-        (keyup.enter)="submitAttendance()"
-      />
-
-      <button type="button" (click)="submitAttendance()" [disabled]="loading">
-        {{ loading ? 'Submitting...' : 'Submit' }}
-      </button>
-    </div>
-
-    <div class="qr-submit-area" *ngIf="submissionMode === 'qr'">
-      <div class="scanner-actions">
-        <button
-          type="button"
-          class="scan-btn"
-          (click)="startScanner()"
-          [disabled]="scannerOpen || scannerStarting || loading"
-        >
-          <i class="pi pi-camera"></i>
-          {{ scannerStarting ? 'Opening Camera...' : scannerOpen ? 'Scanning...' : 'Open Camera' }}
-        </button>
-
-        <button type="button" class="stop-btn" (click)="stopScanner()" *ngIf="scannerOpen">
-          Stop
-        </button>
+  <section class="overview-grid">
+    <article class="overview-card latest">
+      <div
+        class="overview-icon"
+        [ngClass]="latestRecord ? getNormalizedStatus(latestRecord.status) : 'neutral'"
+        aria-hidden="true"
+      >
+        <i [class]="latestRecord ? getStatusIcon(latestRecord.status) : 'pi pi-calendar'"></i>
       </div>
 
-      <div class="scanner-box" *ngIf="scannerOpen">
-        <div id="student-qr-reader"></div>
+      <div class="overview-copy">
+        <span>Latest Status</span>
+        <strong>{{ latestStatusLabel }}</strong>
+
+        <p *ngIf="latestRecord; else noLatestRecord">
+          {{ getRecordDateLabel(latestRecord) }} • {{ getRecordTimeLabel(latestRecord) }}
+        </p>
+
+        <ng-template #noLatestRecord>
+          <p>No attendance submitted yet.</p>
+        </ng-template>
+      </div>
+    </article>
+
+    <article class="overview-card present">
+      <div class="overview-icon present" aria-hidden="true">
+        <i class="pi pi-check-circle"></i>
       </div>
 
-      <div class="manual-token">
-        <label>QR Token fallback</label>
+      <div class="overview-copy">
+        <span>Present</span>
+        <strong>{{ presentCount }}</strong>
+        <p>Active history records</p>
+      </div>
+    </article>
 
-        <div class="input-group">
-          <input
-            type="text"
-            placeholder="Paste QR token here if camera is unavailable"
-            [(ngModel)]="qrToken"
-            (keyup.enter)="submitAttendance()"
-          />
+    <article class="overview-card late">
+      <div class="overview-icon late" aria-hidden="true">
+        <i class="pi pi-clock"></i>
+      </div>
 
-          <button type="button" (click)="submitAttendance()" [disabled]="loading">
-            {{ loading ? 'Submitting...' : 'Submit' }}
-          </button>
+      <div class="overview-copy">
+        <span>Late</span>
+        <strong>{{ lateCount }}</strong>
+        <p>Active history records</p>
+      </div>
+    </article>
+
+    <article class="overview-card absent">
+      <div class="overview-icon absent" aria-hidden="true">
+        <i class="pi pi-times-circle"></i>
+      </div>
+
+      <div class="overview-copy">
+        <span>Absent</span>
+        <strong>{{ absentCount }}</strong>
+        <p>Active history records</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="attendance-workspace">
+    <article class="submit-panel">
+      <div class="panel-header">
+        <div>
+          <span class="section-kicker">Submit Attendance</span>
+          <h2>Choose a Submission Method</h2>
+          <p>Use the method shown by your teacher during class.</p>
         </div>
       </div>
-    </div>
 
-    <p class="success" *ngIf="message">{{ message }}</p>
-    <p class="error" *ngIf="error">{{ error }}</p>
+      <div class="method-tabs" aria-label="Attendance submission method">
+        <button
+          type="button"
+          class="method-tab"
+          [class.active]="submissionMode === 'code'"
+          [disabled]="loading"
+          (click)="setMode('code')"
+        >
+          <i class="pi pi-key" aria-hidden="true"></i>
+          <span>Session Code</span>
+        </button>
+
+        <button
+          type="button"
+          class="method-tab"
+          [class.active]="submissionMode === 'qr'"
+          [disabled]="loading"
+          (click)="setMode('qr')"
+        >
+          <i class="pi pi-qrcode" aria-hidden="true"></i>
+          <span>Scan QR</span>
+        </button>
+      </div>
+
+      <form class="code-form" *ngIf="submissionMode === 'code'" (ngSubmit)="submitAttendance()">
+        <label class="input-group">
+          <span>Session Code</span>
+
+          <div class="input-shell">
+            <i class="pi pi-hashtag" aria-hidden="true"></i>
+            <input
+              type="text"
+              name="sessionCode"
+              [(ngModel)]="sessionCode"
+              placeholder="Enter the code from your teacher"
+              autocomplete="off"
+              [disabled]="loading"
+            />
+          </div>
+        </label>
+
+        <button type="submit" class="primary-btn" [disabled]="loading || !sessionCode.trim()">
+          <i
+            class="pi"
+            [ngClass]="loading ? 'pi-spin pi-spinner' : 'pi-send'"
+            aria-hidden="true"
+          ></i>
+          <span>{{ loading ? 'Submitting...' : 'Submit Attendance' }}</span>
+        </button>
+      </form>
+
+      <div class="qr-panel" *ngIf="submissionMode === 'qr'">
+        <div class="qr-guide" *ngIf="!scannerOpen">
+          <div class="qr-guide-icon" aria-hidden="true">
+            <i class="pi pi-qrcode"></i>
+          </div>
+
+          <h3>Scan the class QR code</h3>
+          <p>Point your camera at the QR code displayed by your teacher.</p>
+
+          <button type="button" class="primary-btn" [disabled]="loading" (click)="startScanner()">
+            <i class="pi pi-camera" aria-hidden="true"></i>
+            <span>Open Camera</span>
+          </button>
+        </div>
+
+        <div class="scanner-card" *ngIf="scannerOpen">
+          <div class="scanner-header">
+            <div>
+              <h3>{{ scannerStarting ? 'Starting camera...' : 'Camera Ready' }}</h3>
+              <p>Place the QR code inside the scanning box.</p>
+            </div>
+
+            <button
+              type="button"
+              class="secondary-btn small"
+              [disabled]="loading"
+              (click)="stopScanner()"
+            >
+              <i class="pi pi-times" aria-hidden="true"></i>
+              <span>Close</span>
+            </button>
+          </div>
+
+          <div class="scanner-frame">
+            <div [id]="scannerElementId"></div>
+          </div>
+
+          <p class="scanner-note">
+            If the camera does not open, allow camera permission or use the session code instead.
+          </p>
+        </div>
+      </div>
+    </article>
+
+    <aside class="quick-info-panel">
+      <div class="panel-header">
+        <div>
+          <span class="section-kicker">Attendance Guide</span>
+          <h2>Before You Submit</h2>
+        </div>
+      </div>
+
+      <div class="guide-list">
+        <article class="guide-item">
+          <i class="pi pi-user-check" aria-hidden="true"></i>
+          <div>
+            <strong>Use your own account</strong>
+            <p>Your attendance is linked to your student profile.</p>
+          </div>
+        </article>
+
+        <article class="guide-item">
+          <i class="pi pi-clock" aria-hidden="true"></i>
+          <div>
+            <strong>Submit on time</strong>
+            <p>Late submissions may be marked as late depending on the session settings.</p>
+          </div>
+        </article>
+
+        <article class="guide-item">
+          <i class="pi pi-shield" aria-hidden="true"></i>
+          <div>
+            <strong>Records are protected</strong>
+            <p>Archived items are hidden only from your view. Official school records stay safe.</p>
+          </div>
+        </article>
+      </div>
+    </aside>
   </section>
 
-  <section class="card history-card">
-    <div class="card-header">
+  <section class="history-panel">
+    <div class="panel-header history-header">
       <div>
-        <h3>Attendance History</h3>
-        <p>Your latest attendance submissions appear here.</p>
+        <span class="section-kicker">Attendance History</span>
+        <h2>Your Attendance Records</h2>
+        <p>View your attendance records and organize old items into your personal archive.</p>
       </div>
+
+      <div class="history-actions">
+        <button
+          type="button"
+          class="secondary-btn small"
+          *ngIf="historyView === 'active'"
+          [disabled]="historyLoading || activeRecords.length === 0 || !!processingRecordId"
+          (click)="archiveAllActiveRecords()"
+        >
+          <i
+            class="pi"
+            [ngClass]="processingRecordId === 'bulk-archive' ? 'pi-spin pi-spinner' : 'pi-archive'"
+            aria-hidden="true"
+          ></i>
+          <span>Archive All Active History</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn small restore-btn"
+          *ngIf="historyView === 'archived'"
+          [disabled]="historyLoading || selectedArchivedCount === 0 || !!processingRecordId"
+          (click)="restoreSelectedArchivedRecords()"
+        >
+          <i
+            class="pi"
+            [ngClass]="processingRecordId === 'selected-restore' ? 'pi-spin pi-spinner' : 'pi-undo'"
+            aria-hidden="true"
+          ></i>
+          <span>Restore Selected</span>
+        </button>
+
+        <button
+          type="button"
+          class="danger-btn small"
+          *ngIf="historyView === 'archived'"
+          [disabled]="historyLoading || selectedArchivedCount === 0 || !!processingRecordId"
+          (click)="deleteSelectedArchivedRecords()"
+        >
+          <i
+            class="pi"
+            [ngClass]="processingRecordId === 'selected-delete' ? 'pi-spin pi-spinner' : 'pi-trash'"
+            aria-hidden="true"
+          ></i>
+          <span>Remove Selected</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn small restore-btn"
+          *ngIf="historyView === 'archived'"
+          [disabled]="historyLoading || archivedRecords.length === 0 || !!processingRecordId"
+          (click)="restoreAllArchivedRecords()"
+        >
+          <i
+            class="pi"
+            [ngClass]="processingRecordId === 'bulk-restore' ? 'pi-spin pi-spinner' : 'pi-undo'"
+            aria-hidden="true"
+          ></i>
+          <span>Restore All</span>
+        </button>
+
+        <button
+          type="button"
+          class="danger-btn small"
+          *ngIf="historyView === 'archived'"
+          [disabled]="historyLoading || archivedRecords.length === 0 || !!processingRecordId"
+          (click)="deleteAllArchivedRecords()"
+        >
+          <i
+            class="pi"
+            [ngClass]="processingRecordId === 'bulk-delete' ? 'pi-spin pi-spinner' : 'pi-trash'"
+            aria-hidden="true"
+          ></i>
+          <span>Remove All</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn small"
+          [disabled]="historyLoading"
+          (click)="refresh()"
+        >
+          <i class="pi pi-refresh" [class.spin]="historyLoading" aria-hidden="true"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="history-tabs" aria-label="Attendance history filter">
+      <button
+        type="button"
+        class="history-tab"
+        [class.active]="historyView === 'active'"
+        [disabled]="historyLoading || !!processingRecordId"
+        (click)="setHistoryView('active')"
+      >
+        <i class="pi pi-folder-open" aria-hidden="true"></i>
+        <span>Active History</span>
+        <strong>{{ activeRecordsCount }}</strong>
+      </button>
+
+      <button
+        type="button"
+        class="history-tab"
+        [class.active]="historyView === 'archived'"
+        [disabled]="historyLoading || !!processingRecordId"
+        (click)="setHistoryView('archived')"
+      >
+        <i class="pi pi-archive" aria-hidden="true"></i>
+        <span>Archive</span>
+        <strong>{{ archivedRecordsCount }}</strong>
+      </button>
+    </div>
+
+    <div class="history-note" *ngIf="deletedRecordsCount > 0">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      <span>
+        {{ deletedRecordsCount }} record(s) were removed from your personal history view. Official
+        attendance records remain available to the school.
+      </span>
+    </div>
+
+    <div class="history-note" *ngIf="historyView === 'archived' && archivedRecords.length > 0">
+      <i class="pi pi-check-square" aria-hidden="true"></i>
+      <span>
+        {{ selectedArchivedCount }} selected record(s). Use Select All to quickly choose archive
+        records.
+      </span>
+
+      <button
+        type="button"
+        class="secondary-btn small"
+        [disabled]="historyLoading || !!processingRecordId"
+        (click)="toggleAllArchivedSelections()"
+      >
+        <i class="pi pi-check-square" aria-hidden="true"></i>
+        <span>Select All / Clear</span>
+      </button>
     </div>
 
     <div class="loading-state" *ngIf="historyLoading">
-      <i class="pi pi-spin pi-spinner"></i>
-      Loading attendance history...
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading attendance history...</p>
     </div>
 
-    <div *ngIf="!historyLoading && records.length === 0" class="empty">
-      No attendance records yet.
-    </div>
-
-    <div class="history-list" *ngIf="!historyLoading && records.length > 0">
-      <div class="history-item" *ngFor="let r of records; trackBy: trackByRecord">
-        <div>
-          <p class="date">{{ formatDateTime(r.timeRecorded) }}</p>
-
-          <p class="method">
-            {{ getMethodLabel($any(r.method)) }}
-          </p>
-
-          <p class="late-time" *ngIf="r.status === 'late' && r.lateTime">
-            Late time: {{ r.lateTime }}
-          </p>
-        </div>
-
-        <span
-          class="badge"
-          [ngClass]="{
-            present: r.status === 'present',
-            late: r.status === 'late',
-            absent: r.status === 'absent',
-            excused: r.status === 'excused',
-          }"
-        >
-          {{ getStatusLabel(r.status) }}
-        </span>
+    <ng-container *ngIf="!historyLoading">
+      <div class="empty-state" *ngIf="displayedRecords.length === 0">
+        <i class="pi" [ngClass]="historyView === 'archived' ? 'pi-archive' : 'pi-calendar'"></i>
+        <h3>
+          {{ historyView === 'archived' ? 'No archived records' : 'No attendance records yet' }}
+        </h3>
+        <p>
+          {{
+            historyView === 'archived'
+              ? 'Attendance records you archive will appear here.'
+              : 'Your attendance history will appear after you submit attendance.'
+          }}
+        </p>
       </div>
-    </div>
+
+      <div class="history-list" *ngIf="displayedRecords.length > 0">
+        <article
+          class="history-card"
+          *ngFor="let record of displayedRecords; trackBy: trackByRecord"
+          [ngClass]="getNormalizedStatus(record.status)"
+        >
+          <div
+            class="record-status-icon"
+            [ngClass]="getNormalizedStatus(record.status)"
+            aria-hidden="true"
+          >
+            <i [class]="getStatusIcon(record.status)"></i>
+          </div>
+
+          <div class="record-main">
+            <div class="record-topline">
+              <div>
+                <button
+                  type="button"
+                  class="secondary-btn small"
+                  *ngIf="historyView === 'archived'"
+                  [disabled]="!!processingRecordId"
+                  (click)="toggleArchivedRecordSelection(record)"
+                >
+                  <i
+                    class="pi"
+                    [ngClass]="isArchivedRecordSelected(record) ? 'pi-check-square' : 'pi-square'"
+                    aria-hidden="true"
+                  ></i>
+                  <span>{{ isArchivedRecordSelected(record) ? 'Selected' : 'Select' }}</span>
+                </button>
+
+                <span class="status-pill" [ngClass]="getNormalizedStatus(record.status)">
+                  {{ getStatusLabel(record.status) }}
+                </span>
+
+                <h3>{{ getRecordDateLabel(record) }}</h3>
+                <p>{{ getRecordTimeLabel(record) }} • {{ getMethodLabel(record.method) }}</p>
+              </div>
+
+              <div class="record-actions">
+                <button
+                  type="button"
+                  class="secondary-btn small restore-btn"
+                  *ngIf="historyView === 'archived'"
+                  [disabled]="isRecordProcessing(record)"
+                  (click)="restoreRecord(record)"
+                >
+                  <i
+                    class="pi"
+                    [ngClass]="isRecordProcessing(record) ? 'pi-spin pi-spinner' : 'pi-undo'"
+                    aria-hidden="true"
+                  ></i>
+                  <span>Restore</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="danger-btn small"
+                  *ngIf="historyView === 'archived'"
+                  [disabled]="isRecordProcessing(record)"
+                  (click)="deleteRecordPermanently(record)"
+                >
+                  <i
+                    class="pi"
+                    [ngClass]="isRecordProcessing(record) ? 'pi-spin pi-spinner' : 'pi-trash'"
+                    aria-hidden="true"
+                  ></i>
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="record-details">
+              <div>
+                <span>Session</span>
+                <strong>{{ record.sessionId || '—' }}</strong>
+              </div>
+
+              <div>
+                <span>Recorded</span>
+                <strong>{{ formatDateTime(record.timeRecorded) }}</strong>
+              </div>
+
+              <div>
+                <span>Remarks</span>
+                <strong>{{ record.remarks || 'No remarks' }}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </ng-container>
   </section>
-</div>
+</section>

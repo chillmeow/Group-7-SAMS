@@ -1,170 +1,502 @@
-<section class="attendance-page">
-  <div class="page-header">
-    <div>
-      <p class="eyebrow">Admin Monitoring</p>
-      <h1>Attendance</h1>
-      <p class="subtitle">
-        Monitor class attendance sessions, student attendance records, and attendance status.
+<section class="admin-attendance-page">
+  <header class="page-header">
+    <div class="header-copy">
+      <span class="eyebrow">Admin Monitoring</span>
+      <h1>Live Attendance Monitoring</h1>
+      <p>
+        Monitor active attendance sessions, today’s attendance logs, and class attendance activity
+        in one clean workspace.
       </p>
     </div>
 
-    <button type="button" class="refresh-btn" (click)="loadAttendanceData()">
-      <i class="pi pi-refresh"></i>
-      Refresh
-    </button>
+    <div class="header-actions">
+      <button type="button" class="secondary-btn" [disabled]="loading" (click)="showToday()">
+        <i class="pi pi-calendar" aria-hidden="true"></i>
+        <span>Today</span>
+      </button>
+
+      <button
+        type="button"
+        class="secondary-btn"
+        [disabled]="loading"
+        (click)="showActiveSessions()"
+      >
+        <i class="pi pi-bolt" aria-hidden="true"></i>
+        <span>Active Sessions</span>
+      </button>
+
+      <button type="button" class="primary-btn" [disabled]="loading" (click)="loadAttendanceData()">
+        <i class="pi pi-refresh" [class.spin]="loading" aria-hidden="true"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="alert error" *ngIf="errorMessage">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <span>{{ errorMessage }}</span>
   </div>
 
-  <div class="summary-grid">
-    <article class="summary-card">
-      <span class="label">Present</span>
-      <strong>{{ totalPresent }}</strong>
-      <small>Valid present records</small>
-    </article>
-
-    <article class="summary-card">
-      <span class="label">Late</span>
-      <strong>{{ totalLate }}</strong>
-      <small>Late attendance records</small>
-    </article>
-
-    <article class="summary-card">
-      <span class="label">Absent</span>
-      <strong>{{ totalAbsent }}</strong>
-      <small>Absence records</small>
-    </article>
-
-    <article class="summary-card">
-      <span class="label">Attendance Rate</span>
-      <strong>{{ attendanceRate }}%</strong>
-      <small>Present + late over total</small>
-    </article>
-  </div>
-
-  <div class="filter-card">
-    <div class="filter-group">
-      <label>Date</label>
-      <input type="date" [(ngModel)]="selectedDate" (change)="applyFilters()" />
-    </div>
-
-    <div class="filter-group">
-      <label>Section</label>
-      <select [(ngModel)]="selectedSection" (change)="applyFilters()">
-        <option *ngFor="let section of sectionOptions" [value]="section">
-          {{ section }}
-        </option>
-      </select>
-    </div>
-
-    <div class="filter-group">
-      <label>Subject</label>
-      <select [(ngModel)]="selectedSubject" (change)="applyFilters()">
-        <option *ngFor="let subject of subjectOptions" [value]="subject">
-          {{ subject }}
-        </option>
-      </select>
-    </div>
-
-    <div class="filter-group">
-      <label>Session Status</label>
-      <select [(ngModel)]="selectedStatus" (change)="applyFilters()">
-        <option value="All">All</option>
-        <option value="active">Active</option>
-        <option value="closed">Closed</option>
-      </select>
-    </div>
-
-    <button type="button" class="clear-btn" (click)="resetFilters()">Clear</button>
-  </div>
-
-  <div class="table-card">
-    <div class="table-header">
+  <section class="controls-card" aria-label="Attendance monitoring filters">
+    <div class="controls-header">
       <div>
-        <h2>Class Attendance Sessions</h2>
-        <p>Admin can only monitor records here. Manual attendance taking is not included.</p>
+        <span class="section-kicker">Monitoring Filters</span>
+        <h2>Filter Attendance View</h2>
+      </div>
+
+      <div class="controls-badge">
+        <span>Monitoring Date</span>
+        <strong>{{ monitoringDateLabel }}</strong>
       </div>
     </div>
 
-    <div class="loading-state" *ngIf="loading">Loading attendance records...</div>
+    <div class="filter-main">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" [(ngModel)]="selectedDate" (ngModelChange)="applyFilters()" />
+      </div>
 
-    <div class="empty-state" *ngIf="!loading && filteredRows.length === 0">
-      No attendance sessions found.
+      <div class="form-group">
+        <label>Section</label>
+        <select [(ngModel)]="selectedSection" (ngModelChange)="applyFilters()">
+          <option *ngFor="let section of sectionOptions; trackBy: trackByIndex" [value]="section">
+            {{ section }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Subject</label>
+        <select [(ngModel)]="selectedSubject" (ngModelChange)="applyFilters()">
+          <option *ngFor="let subject of subjectOptions; trackBy: trackByIndex" [value]="subject">
+            {{ subject }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Session Status</label>
+        <select [(ngModel)]="selectedStatus" (ngModelChange)="applyFilters()">
+          <option *ngFor="let status of statusOptions; trackBy: trackByIndex" [value]="status">
+            {{ status === 'All' ? 'All' : getSessionStatusLabel(status) }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group search-group">
+        <label>Search</label>
+        <div class="search-box">
+          <i class="pi pi-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            [(ngModel)]="search"
+            (ngModelChange)="applyFilters()"
+            placeholder="Search subject, section, faculty, or session code..."
+          />
+        </div>
+      </div>
     </div>
 
-    <div class="table-wrap" *ngIf="!loading && filteredRows.length > 0">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Subject</th>
-            <th>Section</th>
-            <th>Teacher</th>
-            <th>Status</th>
-            <th>Present</th>
-            <th>Late</th>
-            <th>Absent</th>
-            <th>Rate</th>
-            <th></th>
-          </tr>
-        </thead>
+    <div class="controls-footer">
+      <div class="filter-summary">
+        <span>Section:</span>
+        <strong>{{ selectedSection === 'All' ? 'All Sections' : selectedSection }}</strong>
+      </div>
 
-        <tbody>
-          <tr *ngFor="let row of filteredRows">
-            <td>{{ formatDate(row.session.date) }}</td>
-            <td>
-              <strong>{{ row.offering?.subjectCode || 'Unknown' }}</strong>
-              <span>{{ row.offering?.subjectName || 'No subject linked' }}</span>
-            </td>
-            <td>{{ row.offering?.sectionName || '—' }}</td>
-            <td>{{ row.offering?.teacherName || '—' }}</td>
-            <td>
-              <span class="status-pill" [class.active]="row.session.status === 'active'">
-                {{ row.session.status | titlecase }}
-              </span>
-            </td>
-            <td>{{ row.present }}</td>
-            <td>{{ row.late }}</td>
-            <td>{{ row.absent }}</td>
-            <td>{{ row.rate }}%</td>
-            <td>
-              <button type="button" class="view-btn" (click)="viewDetails(row)">View</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="filter-summary">
+        <span>Subject:</span>
+        <strong>{{ selectedSubject === 'All' ? 'All Subjects' : selectedSubject }}</strong>
+      </div>
+
+      <div class="filter-summary">
+        <span>Status:</span>
+        <strong>{{
+          selectedStatus === 'All' ? 'All Sessions' : getSessionStatusLabel(selectedStatus)
+        }}</strong>
+      </div>
     </div>
+  </section>
+
+  <div class="loading-state" *ngIf="loading">
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <p>Loading live attendance monitoring data...</p>
   </div>
+
+  <ng-container *ngIf="!loading">
+    <section class="summary-grid" aria-label="Attendance monitoring summary">
+      <article
+        class="summary-card"
+        *ngFor="let item of summaryCards; trackBy: trackByIndex"
+        [ngClass]="item.tone"
+      >
+        <div class="summary-icon" aria-hidden="true">
+          <i [class]="item.icon"></i>
+        </div>
+
+        <div class="summary-copy">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="status-strip" aria-label="Attendance status counts">
+      <article
+        class="status-chip"
+        *ngFor="let item of statusCards; trackBy: trackByIndex"
+        [ngClass]="item.tone"
+      >
+        <div class="status-icon" aria-hidden="true">
+          <i [class]="item.icon"></i>
+        </div>
+
+        <div class="status-copy">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="monitoring-grid">
+      <section class="quick-monitoring-card">
+        <div class="panel-header">
+          <div>
+            <span class="section-kicker">Live Monitoring</span>
+            <h2>Active Sessions</h2>
+            <p>Quick view of sessions that are currently open and accepting attendance.</p>
+          </div>
+
+          <span class="metric-pill">{{ activeSessionCount }} active</span>
+        </div>
+
+        <div
+          class="active-session-grid"
+          *ngIf="recentActiveSessions.length > 0; else noActiveSessions"
+        >
+          <article
+            class="active-session-card"
+            *ngFor="let row of recentActiveSessions; trackBy: trackByRow"
+          >
+            <div class="active-session-top">
+              <div>
+                <h3>{{ getSessionTitle(row) }}</h3>
+                <p>{{ getSubjectName(row) }}</p>
+              </div>
+
+              <span class="session-status" [ngClass]="getSessionStatusClass(row.session.status)">
+                {{ getSessionStatusLabel(row.session.status) }}
+              </span>
+            </div>
+
+            <div class="active-session-meta">
+              <span>
+                <i class="pi pi-sitemap" aria-hidden="true"></i>
+                {{ getSectionName(row) }}
+              </span>
+              <span>
+                <i class="pi pi-user" aria-hidden="true"></i>
+                {{ getTeacherName(row) }}
+              </span>
+              <span>
+                <i class="pi pi-clock" aria-hidden="true"></i>
+                {{ getSessionTimeRange(row) }}
+              </span>
+              <span>
+                <i class="pi pi-key" aria-hidden="true"></i>
+                {{ getSessionCode(row) }}
+              </span>
+            </div>
+
+            <div class="session-counts">
+              <div>
+                <small>Present</small>
+                <strong>{{ row.present }}</strong>
+              </div>
+              <div>
+                <small>Late</small>
+                <strong>{{ row.late }}</strong>
+              </div>
+              <div>
+                <small>Absent</small>
+                <strong>{{ row.absent }}</strong>
+              </div>
+              <div>
+                <small>Records</small>
+                <strong>{{ row.total }}</strong>
+              </div>
+            </div>
+
+            <div class="rate-block">
+              <div class="rate-row">
+                <span>Attendance Rate</span>
+                <strong [ngClass]="getRateClass(row.rate)">{{ row.rate }}%</strong>
+              </div>
+
+              <div class="rate-track">
+                <span
+                  [style.width]="getBarWidth(row.rate)"
+                  [ngClass]="getRateClass(row.rate)"
+                ></span>
+              </div>
+            </div>
+
+            <button type="button" class="view-btn full" (click)="viewDetails(row)">
+              View Session
+            </button>
+          </article>
+        </div>
+
+        <ng-template #noActiveSessions>
+          <div class="empty-state compact">
+            <i class="pi pi-bolt" aria-hidden="true"></i>
+            <h3>No active sessions</h3>
+            <p>There are no active attendance sessions under the current filters.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <aside class="snapshot-card">
+        <div class="panel-header">
+          <div>
+            <span class="section-kicker">Monitoring Snapshot</span>
+            <h2>Current View</h2>
+            <p>Summary of the active monitoring scope and record visibility.</p>
+          </div>
+        </div>
+
+        <div class="snapshot-list">
+          <div class="snapshot-item">
+            <span>Date Scope</span>
+            <strong>{{ monitoringDateLabel }}</strong>
+          </div>
+
+          <div class="snapshot-item">
+            <span>Visible Sessions</span>
+            <strong>{{ filteredRows.length }}</strong>
+          </div>
+
+          <div class="snapshot-item">
+            <span>Active Sessions</span>
+            <strong>{{ activeSessionCount }}</strong>
+          </div>
+
+          <div class="snapshot-item">
+            <span>Closed Sessions</span>
+            <strong>{{ closedSessionCount }}</strong>
+          </div>
+
+          <div class="snapshot-item">
+            <span>Visible Records</span>
+            <strong>{{ totalRecords }}</strong>
+          </div>
+
+          <div class="snapshot-item">
+            <span>Search Keyword</span>
+            <strong>{{ search ? search : 'No keyword' }}</strong>
+          </div>
+        </div>
+
+        <div class="snapshot-note">
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          <p>
+            This page is for <strong>live operational monitoring</strong> only. Historical and
+            long-range reporting belongs to <strong>Reports & Analytics</strong>.
+          </p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="workspace-card">
+      <div class="panel-header">
+        <div>
+          <span class="section-kicker">Attendance Workspace</span>
+          <h2>
+            {{ viewMode === 'sessions' ? 'Class Attendance Sessions' : 'Recent Attendance Logs' }}
+          </h2>
+          <p>
+            Monitor attendance sessions and logs only. Manual attendance taking remains under the
+            teacher/faculty attendance module.
+          </p>
+        </div>
+
+        <div class="workspace-actions">
+          <span class="metric-pill">{{ filteredRows.length }} session(s)</span>
+
+          <div class="view-switcher" aria-label="Attendance monitoring view">
+            <button
+              type="button"
+              class="view-toggle"
+              [class.active]="viewMode === 'sessions'"
+              (click)="setViewMode('sessions')"
+            >
+              <i class="pi pi-table" aria-hidden="true"></i>
+              <span>Sessions</span>
+            </button>
+
+            <button
+              type="button"
+              class="view-toggle"
+              [class.active]="viewMode === 'logs'"
+              (click)="setViewMode('logs')"
+            >
+              <i class="pi pi-list" aria-hidden="true"></i>
+              <span>Logs</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="viewMode === 'sessions' && filteredRows.length === 0">
+        <i class="pi pi-calendar-times" aria-hidden="true"></i>
+        <h3>No attendance sessions found</h3>
+        <p>Try changing the date, session status, section, subject, or search filter.</p>
+      </div>
+
+      <div class="table-wrapper" *ngIf="viewMode === 'sessions' && filteredRows.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Session</th>
+              <th>Section</th>
+              <th>Faculty</th>
+              <th>Status</th>
+              <th>Records</th>
+              <th>Present</th>
+              <th>Late</th>
+              <th>Absent</th>
+              <th>Rate</th>
+              <th>Latest</th>
+              <th class="actions-column">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let row of filteredRows; trackBy: trackByRow">
+              <td>{{ getSessionDateLabel(row) }}</td>
+
+              <td>
+                <div class="session-cell">
+                  <strong>{{ getSessionTitle(row) }}</strong>
+                  <span>{{ getSubjectName(row) }}</span>
+                </div>
+              </td>
+
+              <td>{{ getSectionName(row) }}</td>
+              <td>{{ getTeacherName(row) }}</td>
+
+              <td>
+                <span class="session-status" [ngClass]="getSessionStatusClass(row.session.status)">
+                  {{ getSessionStatusLabel(row.session.status) }}
+                </span>
+              </td>
+
+              <td>{{ row.total }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.late }}</td>
+              <td>{{ row.absent }}</td>
+
+              <td>
+                <span class="rate-pill" [ngClass]="getRateClass(row.rate)"> {{ row.rate }}% </span>
+              </td>
+
+              <td>{{ getLatestActivityLabel(row) }}</td>
+
+              <td>
+                <button type="button" class="view-btn" (click)="viewDetails(row)">View</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" *ngIf="viewMode === 'logs' && filteredLogs.length === 0">
+        <i class="pi pi-database" aria-hidden="true"></i>
+        <h3>No attendance logs found</h3>
+        <p>
+          Attendance records will appear here when students scan, enter a session code, or are
+          recorded by faculty.
+        </p>
+      </div>
+
+      <div class="log-list" *ngIf="viewMode === 'logs' && filteredLogs.length > 0">
+        <article class="log-item" *ngFor="let log of filteredLogs; trackBy: trackByLog">
+          <div class="log-main">
+            <div class="student-avatar" aria-hidden="true">
+              {{ getStudentName(log.record).charAt(0) || 'S' }}
+            </div>
+
+            <div class="log-copy">
+              <h3>{{ getStudentName(log.record) }}</h3>
+              <p>
+                {{ getStudentNumber(log.record) }} •
+                {{ log.offering?.subjectCode || 'Unknown Subject' }} •
+                {{ log.offering?.sectionName || 'Unknown Section' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="log-meta">
+            <span class="record-status" [ngClass]="getAttendanceStatusClass(log.record.status)">
+              {{ getAttendanceStatusLabel(log.record.status) }}
+            </span>
+
+            <span>{{ getRecordMethodLabel(log.record.method) }}</span>
+            <strong>{{ getRecordTime(log.record) }}</strong>
+          </div>
+        </article>
+      </div>
+    </section>
+  </ng-container>
 
   <div class="modal-backdrop" *ngIf="selectedRow" (click)="closeDetails()">
     <div class="details-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div>
-          <h2>Attendance Details</h2>
-          <p>
-            {{ selectedRow.offering?.subjectCode || 'Unknown Subject' }}
-            ·
-            {{ selectedRow.offering?.sectionName || 'Unknown Section' }}
-          </p>
+          <span class="section-kicker">Session Details</span>
+          <h2>{{ getSessionTitle(selectedRow) }}</h2>
+          <p>{{ getSubjectName(selectedRow) }}</p>
         </div>
 
-        <button type="button" class="close-btn" (click)="closeDetails()">
-          <i class="pi pi-times"></i>
+        <button type="button" class="close-btn" (click)="closeDetails()" aria-label="Close details">
+          <i class="pi pi-times" aria-hidden="true"></i>
         </button>
       </div>
 
       <div class="detail-grid">
         <div>
           <span>Date</span>
-          <strong>{{ formatDate(selectedRow.session.date) }}</strong>
+          <strong>{{ getSessionDateLabel(selectedRow) }}</strong>
         </div>
 
         <div>
-          <span>Start Time</span>
-          <strong>{{ formatTime(selectedRow.session.startTime) }}</strong>
+          <span>Time</span>
+          <strong>{{ getSessionTimeRange(selectedRow) }}</strong>
+        </div>
+
+        <div>
+          <span>Faculty</span>
+          <strong>{{ getTeacherName(selectedRow) }}</strong>
         </div>
 
         <div>
           <span>Status</span>
-          <strong>{{ selectedRow.session.status | titlecase }}</strong>
+          <strong>{{ getSessionStatusLabel(selectedRow.session.status) }}</strong>
+        </div>
+
+        <div>
+          <span>Session Code</span>
+          <strong>{{ getSessionCode(selectedRow) }}</strong>
+        </div>
+
+        <div>
+          <span>Records</span>
+          <strong>{{ selectedRow.total }}</strong>
+        </div>
+
+        <div>
+          <span>Present / Late</span>
+          <strong>{{ selectedRow.present + selectedRow.late }}</strong>
         </div>
 
         <div>
@@ -173,28 +505,52 @@
         </div>
       </div>
 
-      <div class="records-list">
-        <h3>Student Records</h3>
+      <section class="modal-status-grid">
+        <article>
+          <span>Present</span>
+          <strong>{{ selectedRow.present }}</strong>
+        </article>
+
+        <article>
+          <span>Late</span>
+          <strong>{{ selectedRow.late }}</strong>
+        </article>
+
+        <article>
+          <span>Absent</span>
+          <strong>{{ selectedRow.absent }}</strong>
+        </article>
+
+        <article>
+          <span>Excused</span>
+          <strong>{{ selectedRow.excused }}</strong>
+        </article>
+      </section>
+
+      <section class="records-list">
+        <div class="records-header">
+          <h3>Student Attendance Records</h3>
+          <span>{{ selectedRow.records.length }} record(s)</span>
+        </div>
 
         <p class="empty-records" *ngIf="selectedRow.records.length === 0">
-          No student attendance records yet.
+          No student attendance records have been logged for this session yet.
         </p>
 
-        <div class="record-item" *ngFor="let record of selectedRow.records">
-          <div>
-            <strong>{{ record.studentId }}</strong>
-            <span>{{ formatTime(record.timeRecorded) }} · {{ record.method | uppercase }}</span>
+        <div class="record-item" *ngFor="let record of selectedRow.records; trackBy: trackByRecord">
+          <div class="record-main">
+            <strong>{{ getStudentName(record) }}</strong>
+            <span>
+              {{ getStudentNumber(record) }} • {{ getRecordTime(record) }} •
+              {{ getRecordMethodLabel(record.method) }}
+            </span>
           </div>
 
-          <span
-            class="record-status"
-            [class.late]="record.status === 'late'"
-            [class.absent]="record.status === 'absent'"
-          >
-            {{ record.status | titlecase }}
+          <span class="record-status" [ngClass]="getAttendanceStatusClass(record.status)">
+            {{ getAttendanceStatusLabel(record.status) }}
           </span>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </section>

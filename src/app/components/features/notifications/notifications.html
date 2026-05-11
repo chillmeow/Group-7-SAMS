@@ -1,0 +1,174 @@
+<section class="notifications-page">
+  <header class="notifications-hero">
+    <div class="hero-icon" aria-hidden="true">
+      <i class="pi pi-bell"></i>
+    </div>
+
+    <div class="hero-copy">
+      <span class="eyebrow">Notification Center</span>
+      <h1>Notifications</h1>
+      <p>{{ roleDescription }}</p>
+
+      <div class="hero-meta">
+        <span>
+          <i [class]="roleIcon" aria-hidden="true"></i>
+          {{ roleLabel }} updates
+        </span>
+
+        <span>
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          {{ totalCount }} total
+        </span>
+
+        <span>
+          <i class="pi pi-envelope" aria-hidden="true"></i>
+          {{ unreadCount }} unread
+        </span>
+      </div>
+    </div>
+
+    @if (unreadCount > 0) {
+      <button type="button" class="hero-action" (click)="markAllRead()">
+        <i class="pi pi-check-circle" aria-hidden="true"></i>
+        <span>Mark all read</span>
+      </button>
+    }
+  </header>
+
+  <section class="notifications-layout">
+    <aside class="notifications-sidebar">
+      <div class="filter-card">
+        <span class="section-kicker">Inbox Filters</span>
+        <h2>Notification Type</h2>
+
+        <div class="filter-list">
+          @for (filter of filters; track filter.value) {
+            <button
+              type="button"
+              class="filter-btn"
+              [class.active]="activeFilter === filter.value"
+              (click)="setFilter(filter.value)"
+            >
+              <span class="filter-left">
+                <i [class]="filter.icon" aria-hidden="true"></i>
+                {{ filter.label }}
+              </span>
+
+              <span class="filter-count">{{ getFilterCount(filter.value) }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <main class="notifications-content">
+      <section class="search-card">
+        <div class="search-box">
+          <i class="pi pi-search" aria-hidden="true"></i>
+
+          <input type="text" [(ngModel)]="searchTerm" placeholder="Search notifications..." />
+
+          @if (searchTerm) {
+            <button type="button" class="clear-btn" (click)="clearSearch()">
+              <i class="pi pi-times" aria-hidden="true"></i>
+              <span>Clear</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      @if (isLoading) {
+        <section class="empty-state">
+          <div class="spinner"></div>
+          <h3>Loading notifications...</h3>
+          <p>Please wait while SAMS loads your latest updates.</p>
+        </section>
+      } @else if (filteredNotifications.length === 0) {
+        <section class="empty-state">
+          <div class="empty-icon">
+            <i class="pi pi-bell-slash" aria-hidden="true"></i>
+          </div>
+
+          <h3>No notifications found</h3>
+          <p>
+            You are all caught up. New role-based updates will appear here when there is activity in
+            the system.
+          </p>
+        </section>
+      } @else {
+        <section class="notification-list">
+          @for (
+            notification of filteredNotifications;
+            track trackByNotification($index, notification)
+          ) {
+            <article
+              class="notification-card"
+              [class.unread]="!notification.read"
+              (click)="openNotification(notification)"
+            >
+              <div class="notification-icon" [ngClass]="'icon-' + getTypeColor(notification.type)">
+                <i [class]="getTypeIcon(notification.type)" aria-hidden="true"></i>
+              </div>
+
+              <div class="notification-body">
+                <div class="notification-top">
+                  <div class="notification-title-group">
+                    <span
+                      class="notification-tag"
+                      [ngClass]="'tag-' + getTypeColor(notification.type)"
+                    >
+                      {{ getTypeLabel(notification.type) }}
+                    </span>
+
+                    @if (!notification.read) {
+                      <span class="unread-dot">Unread</span>
+                    }
+                  </div>
+
+                  <span class="notification-time">
+                    {{ formatTime(notification.createdAt) }}
+                  </span>
+                </div>
+
+                <h3>{{ notification.title }}</h3>
+                <p>{{ notification.message }}</p>
+
+                @if (notification.actorName || notification.link) {
+                  <div class="notification-footer">
+                    @if (notification.actorName) {
+                      <span>
+                        <i class="pi pi-user" aria-hidden="true"></i>
+                        {{ notification.actorName }}
+                      </span>
+                    }
+
+                    @if (notification.link) {
+                      <span>
+                        <i class="pi pi-external-link" aria-hidden="true"></i>
+                        Open related page
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+
+              <button
+                type="button"
+                class="delete-btn"
+                (click)="deleteNotification(notification, $event)"
+                [disabled]="processingId === notification.id"
+                aria-label="Remove notification"
+              >
+                <i
+                  class="pi"
+                  [ngClass]="processingId === notification.id ? 'pi-spin pi-spinner' : 'pi-trash'"
+                  aria-hidden="true"
+                ></i>
+              </button>
+            </article>
+          }
+        </section>
+      }
+    </main>
+  </section>
+</section>

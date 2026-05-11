@@ -1,39 +1,20 @@
-<div class="profile-page">
-  <!-- Cover + Avatar -->
-  <div class="cover-wrap">
-    <div class="cover-photo" [style.background]="getCoverStyle()">
-      <div class="cover-picker">
-        @for (color of coverColors; track $index) {
-          <button
-            class="cover-swatch"
-            [style.background]="color"
-            [class.active]="selectedCover === $index"
-            (click)="selectCover($index)"
-            [title]="'Cover ' + ($index + 1)"
-          ></button>
-        }
+<section class="profile-page">
+  <header class="profile-hero" [style.background]="getCoverStyle()">
+    <div class="hero-content">
+      <div class="avatar-circle" aria-hidden="true">
+        {{ getInitials() }}
       </div>
-    </div>
 
-    <div class="avatar-area">
-      <button
-        class="avatar-btn"
-        [class.clickable]="hasPhoto()"
-        (click)="openPhotoViewer()"
-        [attr.aria-label]="hasPhoto() ? 'View photo' : 'Profile avatar'"
-      >
-        @if (hasPhoto()) {
-          <img [src]="currentUser?.photoUrl" alt="Profile photo" class="avatar-img" />
-          <div class="avatar-overlay"><i class="pi pi-eye"></i></div>
-        } @else {
-          <div class="avatar-initials">{{ getInitials() }}</div>
-        }
-      </button>
+      <div class="hero-text">
+        <span class="eyebrow">SAMS Profile</span>
+        <h1>{{ getFullName() }}</h1>
 
-      <div class="profile-meta">
-        <h1 class="profile-name">{{ getFullName() }}</h1>
         <div class="profile-badges">
-          <span class="role-badge" [class]="getRoleColor()">{{ getRoleLabel() }}</span>
+          <span class="role-badge" [ngClass]="getRoleColor()">
+            <i [class]="getRoleIcon()" aria-hidden="true"></i>
+            {{ getRoleLabel() }}
+          </span>
+
           <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
             <span class="status-dot"></span>
             {{ getStatusLabel() }}
@@ -41,180 +22,238 @@
         </div>
       </div>
 
-      <div class="profile-actions">
-        <button class="action-btn primary" (click)="activeTab = 'edit'">
-          <i class="pi pi-pencil"></i> Edit Profile
-        </button>
-      </div>
+      <button type="button" class="edit-hero-btn" (click)="switchToEdit()">
+        <i class="pi pi-pencil" aria-hidden="true"></i>
+        <span>Edit Profile</span>
+      </button>
     </div>
-  </div>
+  </header>
 
-  <!-- Tabs -->
-  <div class="tabs-bar">
-    <button class="tab-btn" [class.active]="activeTab === 'about'" (click)="activeTab = 'about'">
-      About
-    </button>
-    <button class="tab-btn" [class.active]="activeTab === 'edit'" (click)="activeTab = 'edit'">
-      Edit Profile
-    </button>
-  </div>
-
-  <!-- Tab Content -->
-  <div class="tab-content">
-    @if (activeTab === 'about') {
-      <div class="about-grid">
-        <div class="about-col">
-          <div class="info-card">
-            <div class="info-card-title"><i class="pi pi-user"></i> Personal Info</div>
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">Full Name</span>
-                <span class="info-value">{{ getFullName() }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Username</span>
-                <span class="info-value">{{ currentUser?.username || '—' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Email</span>
-                <span class="info-value">{{ currentUser?.email || '—' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Contact</span>
-                <span class="info-value">{{ currentUser?.contactNumber || '—' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Address</span>
-                <span class="info-value">{{ currentUser?.address || '—' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="about-col">
-          <div class="info-card">
-            <div class="info-card-title"><i class="pi pi-shield"></i> Account Info</div>
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">Role</span>
-                <span class="info-value">
-                  <span class="role-badge sm" [class]="getRoleColor()">{{ getRoleLabel() }}</span>
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Status</span>
-                <span class="info-value">
-                  <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
-                    <span class="status-dot"></span>{{ getStatusLabel() }}
-                  </span>
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Member since</span>
-                <span class="info-value">{{
-                  (currentUser?.createdAt | date: 'MMM d, yyyy') || '—'
-                }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">User ID</span>
-                <span class="info-value id-text">{{ currentUser?.id || '—' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-card photo-card">
-            <div class="info-card-title"><i class="pi pi-image"></i> Profile Photo</div>
-            <div class="photo-area">
-              @if (hasPhoto()) {
-                <img
-                  [src]="currentUser?.photoUrl"
-                  alt="Profile"
-                  class="photo-thumb"
-                  (click)="openPhotoViewer()"
-                />
-              } @else {
-                <div class="photo-placeholder">{{ getInitials() }}</div>
-              }
-              <div class="photo-btns">
-                <label class="upload-label">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp"
-                    (change)="onFileSelected($event)"
-                  />
-                  <i class="pi pi-upload"></i> Upload
-                </label>
-                @if (hasPhoto()) {
-                  <button class="remove-photo-btn" (click)="removePhoto()">
-                    <i class="pi pi-trash"></i> Remove
-                  </button>
-                }
-              </div>
-            </div>
-            <p class="photo-hint">PNG, JPG or WEBP · Max 2MB</p>
-          </div>
-        </div>
+  <section class="profile-summary-grid">
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i [class]="getRoleIcon()" aria-hidden="true"></i>
       </div>
+
+      <div>
+        <span>Account Type</span>
+        <strong>{{ getRoleLabel() }}</strong>
+        <p>{{ getPortalScope() }}</p>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-user" aria-hidden="true"></i>
+      </div>
+
+      <div>
+        <span>{{ getIdentifierLabel() }}</span>
+        <strong>{{ currentUser?.username || '—' }}</strong>
+        <p>Main account identifier</p>
+      </div>
+    </article>
+
+    <article class="summary-card">
+      <div class="summary-icon">
+        <i class="pi pi-calendar" aria-hidden="true"></i>
+      </div>
+
+      <div>
+        <span>Member Since</span>
+        <strong>{{ (currentUser?.createdAt | date: 'MMM d, yyyy') || '—' }}</strong>
+        <p>Account registration date</p>
+      </div>
+    </article>
+  </section>
+
+  <nav class="tabs-bar" aria-label="Profile tabs">
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab === 'about'"
+      (click)="activeTab = 'about'"
+    >
+      <i class="pi pi-id-card" aria-hidden="true"></i>
+      <span>Profile Details</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab === 'edit'"
+      (click)="switchToEdit()"
+    >
+      <i class="pi pi-pencil" aria-hidden="true"></i>
+      <span>Edit Information</span>
+    </button>
+  </nav>
+
+  <main class="tab-content">
+    @if (activeTab === 'about') {
+      <section class="about-grid">
+        <article class="info-card wide-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Personal Information</span>
+              <h2>Basic Profile</h2>
+            </div>
+            <i class="pi pi-user" aria-hidden="true"></i>
+          </div>
+
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-label">Full Name</span>
+              <span class="info-value">{{ getFullName() }}</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">{{ getIdentifierLabel() }}</span>
+              <span class="info-value">{{ currentUser?.username || '—' }}</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Email Address</span>
+              <span class="info-value">{{ currentUser?.email || '—' }}</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Contact Number</span>
+              <span class="info-value">{{ currentUser?.contactNumber || '—' }}</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Address</span>
+              <span class="info-value">{{ currentUser?.address || '—' }}</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="info-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">Account Information</span>
+              <h2>Access Summary</h2>
+            </div>
+            <i class="pi pi-shield" aria-hidden="true"></i>
+          </div>
+
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-label">Role</span>
+              <span class="info-value">
+                <span class="role-badge sm" [ngClass]="getRoleColor()">
+                  <i [class]="getRoleIcon()" aria-hidden="true"></i>
+                  {{ getRoleLabel() }}
+                </span>
+              </span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Status</span>
+              <span class="info-value">
+                <span class="status-badge" [class.inactive]="currentUser?.status === 'inactive'">
+                  <span class="status-dot"></span>
+                  {{ getStatusLabel() }}
+                </span>
+              </span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Portal Access</span>
+              <span class="info-value">{{ getPortalScope() }}</span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Member Since</span>
+              <span class="info-value">
+                {{ (currentUser?.createdAt | date: 'MMM d, yyyy') || '—' }}
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <article class="info-card role-card">
+          <div class="card-header">
+            <div>
+              <span class="section-kicker">System Role</span>
+              <h2>{{ getRoleLabel() }} Responsibilities</h2>
+            </div>
+            <i class="pi pi-info-circle" aria-hidden="true"></i>
+          </div>
+
+          <p class="role-description">
+            {{ getRoleDescription() }}
+          </p>
+        </article>
+      </section>
     }
 
     @if (activeTab === 'edit') {
-      <div class="edit-card">
+      <section class="edit-card">
         <div class="edit-header">
-          <h2>Edit Profile</h2>
-          <p>Update your personal information below.</p>
+          <div>
+            <span class="section-kicker">Edit Profile</span>
+            <h2>Update Personal Information</h2>
+            <p>Keep your contact information accurate for system records and monitoring.</p>
+          </div>
         </div>
 
         <div class="form-grid">
-          <div class="form-group">
-            <label>First Name <span class="req">*</span></label>
-            <input type="text" [(ngModel)]="formData.firstName" placeholder="First name" />
-          </div>
-          <div class="form-group">
-            <label>Last Name <span class="req">*</span></label>
-            <input type="text" [(ngModel)]="formData.lastName" placeholder="Last name" />
-          </div>
-          <div class="form-group">
-            <label>Email <span class="req">*</span></label>
-            <input type="email" [(ngModel)]="formData.email" placeholder="Email address" />
-          </div>
-          <div class="form-group">
-            <label>Username</label>
-            <input type="text" [(ngModel)]="formData.username" placeholder="Username" />
-          </div>
-          <div class="form-group">
-            <label>Contact Number</label>
+          <label class="form-group">
+            <span>First Name <strong>*</strong></span>
+            <input type="text" [(ngModel)]="formData.firstName" placeholder="Enter first name" />
+          </label>
+
+          <label class="form-group">
+            <span>Last Name <strong>*</strong></span>
+            <input type="text" [(ngModel)]="formData.lastName" placeholder="Enter last name" />
+          </label>
+
+          <label class="form-group">
+            <span>Email Address <strong>*</strong></span>
+            <input type="email" [(ngModel)]="formData.email" placeholder="Enter email address" />
+          </label>
+
+          <label class="form-group">
+            <span>{{ getIdentifierLabel() }}</span>
+            <input type="text" [(ngModel)]="formData.username" placeholder="Enter username" />
+          </label>
+
+          <label class="form-group">
+            <span>Contact Number</span>
             <input
               type="text"
               [(ngModel)]="formData.contactNumber"
               placeholder="e.g. 09xxxxxxxxx"
             />
-          </div>
-          <div class="form-group form-group-full">
-            <label>Address</label>
-            <textarea [(ngModel)]="formData.address" rows="3" placeholder="Your address"></textarea>
-          </div>
+          </label>
+
+          <label class="form-group form-group-full">
+            <span>Address</span>
+            <textarea
+              [(ngModel)]="formData.address"
+              rows="3"
+              placeholder="Enter address"
+            ></textarea>
+          </label>
         </div>
 
         <div class="edit-actions">
-          <button class="cancel-btn" (click)="activeTab = 'about'">Cancel</button>
-          <button class="save-btn" (click)="saveProfile()" [disabled]="saving">
-            <i class="pi pi-check"></i> {{ saving ? 'Saving...' : 'Save Changes' }}
+          <button type="button" class="cancel-btn" (click)="cancelEdit()" [disabled]="saving">
+            Cancel
+          </button>
+
+          <button type="button" class="save-btn" (click)="saveProfile()" [disabled]="saving">
+            <i
+              class="pi"
+              [ngClass]="saving ? 'pi-spin pi-spinner' : 'pi-check'"
+              aria-hidden="true"
+            ></i>
+            <span>{{ saving ? 'Saving...' : 'Save Changes' }}</span>
           </button>
         </div>
-      </div>
+      </section>
     }
-  </div>
-</div>
-
-<!-- Photo Viewer -->
-@if (showPhotoViewer && hasPhoto()) {
-  <div class="photo-viewer" (click)="closePhotoViewer()">
-    <button class="viewer-close" (click)="closePhotoViewer(); $event.stopPropagation()">
-      <i class="pi pi-times"></i>
-    </button>
-    <div class="viewer-content" (click)="$event.stopPropagation()">
-      <img [src]="currentUser?.photoUrl" alt="Full photo" class="viewer-img" />
-      <p class="viewer-caption">{{ getFullName() }}</p>
-    </div>
-  </div>
-}
+  </main>
+</section>

@@ -2,7 +2,13 @@ import { Injectable, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import { Observable, from, map, switchMap, throwError, catchError } from 'rxjs';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 import { auth, db } from '../firebase.config';
@@ -20,19 +26,28 @@ export class AuthService {
     return isPlatformBrowser(this.platformId);
   }
 
-  login(emailOrUsername: string, password: string): Observable<User> {
+  login(emailOrUsername: string, password: string, rememberMe = false): Observable<User> {
     const loginInput = emailOrUsername.trim();
     const normalizedPassword = password.trim();
 
     const firebaseEmail = loginInput.toLowerCase();
 
-    return this.loginWithFirebase(firebaseEmail, normalizedPassword).pipe(
-      catchError(() => this.loginWithInstitutionalAccount(loginInput, normalizedPassword)),
+    return this.loginWithFirebase(firebaseEmail, normalizedPassword, rememberMe).pipe(
+      catchError(() =>
+        this.loginWithInstitutionalAccount(loginInput, normalizedPassword, rememberMe),
+      ),
     );
   }
 
-  private loginWithFirebase(email: string, password: string): Observable<User> {
-    return from(signInWithEmailAndPassword(auth, email, password)).pipe(
+  private loginWithFirebase(
+    email: string,
+    password: string,
+    rememberMe: boolean,
+  ): Observable<User> {
+    const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+
+    return from(setPersistence(auth, persistence)).pipe(
+      switchMap(() => from(signInWithEmailAndPassword(auth, email, password))),
       switchMap((cred) => {
         const uid = cred.user.uid;
 
@@ -49,7 +64,7 @@ export class AuthService {
               ...data,
             };
 
-            this.saveSession(user);
+            this.saveSession(user, rememberMe);
             return user;
           }),
         );
@@ -60,6 +75,7 @@ export class AuthService {
   private loginWithInstitutionalAccount(
     emailOrUsername: string,
     password: string,
+    rememberMe: boolean,
   ): Observable<User> {
     const usersRef = collection(db, 'users');
 
@@ -85,7 +101,7 @@ export class AuthService {
         );
       }),
       map((user) => {
-        this.saveSession(user);
+        this.saveSession(user, rememberMe);
         return user;
       }),
     );
@@ -114,10 +130,7 @@ export class AuthService {
 
   logout(): void {
     signOut(auth).finally(() => {
-      if (this.isBrowser) {
-        localStorage.removeItem(this.storageKey);
-      }
-
+      this.removeSession();
       this.router.navigate(['/login']);
     });
   }
@@ -127,14 +140,20 @@ export class AuthService {
       return null;
     }
 
-    const raw = localStorage.getItem(this.storageKey);
-    return raw ? (JSON.parse(raw) as User) : null;
+    const sessionUser = this.getStoredUser(sessionStorage);
+
+    if (sessionUser) {
+      return sessionUser;
+    }
+
+    return this.getStoredUser(localStorage);
   }
 
   updateCurrentUser(partial: Partial<User>): User | null {
     const current = this.getCurrentUser();
+    const activeStorage = this.getActiveStorage();
 
-    if (!current || !this.isBrowser) {
+    if (!current || !activeStorage) {
       return current;
     }
 
@@ -143,7 +162,7 @@ export class AuthService {
       ...partial,
     };
 
-    localStorage.setItem(this.storageKey, JSON.stringify(updatedUser));
+    activeStorage.setItem(this.storageKey, JSON.stringify(updatedUser));
     return updatedUser;
   }
 
@@ -161,9 +180,7 @@ export class AuthService {
   }
 
   clearSession(): void {
-    if (this.isBrowser) {
-      localStorage.removeItem(this.storageKey);
-    }
+    this.removeSession();
   }
 
   getCurrentUserId(): string | null {
@@ -222,9 +239,60 @@ export class AuthService {
     return null;
   }
 
-  private saveSession(user: User): void {
-    if (this.isBrowser) {
-      localStorage.setItem(this.storageKey, JSON.stringify(user));
+  private saveSession(user: User, rememberMe: boolean): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    const serializedUser = JSON.stringify(user);
+
+    if (rememberMe) {
+      localStorage.setItem(this.storageKey, serializedUser);
+      sessionStorage.removeItem(this.storageKey);
+      return;
+    }
+
+    sessionStorage.setItem(this.storageKey, serializedUser);
+    localStorage.removeItem(this.storageKey);
+  }
+
+  private removeSession(): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    localStorage.removeItem(this.storageKey);
+    sessionStorage.removeItem(this.storageKey);
+  }
+
+  private getActiveStorage(): Storage | null {
+    if (!this.isBrowser) {
+      return null;
+    }
+
+    if (sessionStorage.getItem(this.storageKey)) {
+      return sessionStorage;
+    }
+
+    if (localStorage.getItem(this.storageKey)) {
+      return localStorage;
+    }
+
+    return null;
+  }
+
+  private getStoredUser(storage: Storage): User | null {
+    const raw = storage.getItem(this.storageKey);
+
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw) as User;
+    } catch {
+      storage.removeItem(this.storageKey);
+      return null;
     }
   }
 }
