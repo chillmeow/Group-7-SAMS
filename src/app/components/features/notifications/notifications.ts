@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 
 import { db } from '../../../firebase.config';
 import { AuthService } from '../../../services/auth.service';
+import { AlertService } from '../../../services/alert.service';
 import { User } from '../../../models/user.model';
 
 type NotificationType =
@@ -34,7 +35,6 @@ type NotificationFilter =
   | 'unread'
   | 'attendance'
   | 'request'
-  | 'message'
   | 'system'
   | 'report'
   | 'account';
@@ -66,6 +66,7 @@ interface AppNotification {
 export class Notifications implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly alert = inject(AlertService);
 
   private readonly collectionName = 'notifications';
   private unsubscribeNotifications: (() => void) | null = null;
@@ -83,7 +84,6 @@ export class Notifications implements OnInit, OnDestroy {
     { label: 'Unread', value: 'unread', icon: 'pi pi-envelope' },
     { label: 'Attendance', value: 'attendance', icon: 'pi pi-calendar-check' },
     { label: 'Requests', value: 'request', icon: 'pi pi-clock' },
-    { label: 'Messages', value: 'message', icon: 'pi pi-comments' },
     { label: 'System', value: 'system', icon: 'pi pi-cog' },
     { label: 'Reports', value: 'report', icon: 'pi pi-chart-bar' },
     { label: 'Account', value: 'account', icon: 'pi pi-user' },
@@ -150,11 +150,11 @@ export class Notifications implements OnInit, OnDestroy {
     }
 
     if (role === 'teacher') {
-      return 'Class attendance updates, student submissions, pending approval requests, and messages.';
+      return 'Class attendance sessions, student submissions, pending approval requests, reports, and attendance concerns.';
     }
 
     if (role === 'student') {
-      return 'Attendance results, teacher updates, messages, and account-related notices.';
+      return 'Class session reminders, attendance results, request updates, and account-related notices.';
     }
 
     if (role === 'parent') {
@@ -310,6 +310,48 @@ export class Notifications implements OnInit, OnDestroy {
       this.notifications = this.notifications.filter((item) => item.id !== notification.id);
     } catch (error) {
       console.error('DELETE NOTIFICATION ERROR:', error);
+      this.alert.warning('Delete failed', 'Unable to remove this notification right now.');
+    } finally {
+      this.processingId = '';
+    }
+  }
+
+  async clearAllNotifications(): Promise<void> {
+    if (this.notifications.length === 0 || this.processingId) return;
+
+    const confirmed = await this.alert.confirm(
+      'Clear all notifications?',
+      'This will permanently remove all notifications from your inbox.',
+    );
+
+    if (!confirmed) return;
+
+    this.processingId = 'clear-all';
+
+    try {
+      let batch = writeBatch(db);
+      let operationCount = 0;
+
+      for (const notification of this.notifications) {
+        batch.delete(doc(db, this.collectionName, notification.id));
+        operationCount++;
+
+        if (operationCount >= 450) {
+          await batch.commit();
+          batch = writeBatch(db);
+          operationCount = 0;
+        }
+      }
+
+      if (operationCount > 0) {
+        await batch.commit();
+      }
+
+      this.notifications = [];
+      this.alert.success('Notifications cleared', 'Your notification inbox is now empty.');
+    } catch (error) {
+      console.error('CLEAR ALL NOTIFICATIONS ERROR:', error);
+      this.alert.warning('Clear failed', 'Unable to clear notifications right now.');
     } finally {
       this.processingId = '';
     }

@@ -10,6 +10,10 @@ import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase
 import { db } from '../../../firebase.config';
 import { AuthService } from '../../../services/auth.service';
 import { ApiService } from '../../../services/api.service';
+import {
+  NotificationService,
+  FirestoreNotificationPayload,
+} from '../../../services/notification.service';
 
 type AttendanceStatus = 'present' | 'late' | 'absent' | 'excused';
 type ReportRecordView = 'active' | 'archived';
@@ -157,6 +161,7 @@ interface GeneratedFacultyReportGroup {
 export class ReportsComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly apiService = inject(ApiService);
+  private readonly notificationService = inject(NotificationService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
 
@@ -606,7 +611,8 @@ export class ReportsComponent implements OnInit {
 
     try {
       const payload = this.buildGeneratedReportPayload();
-      await addDoc(collection(db, this.generatedReportsCollectionName), payload);
+      const reportRef = await addDoc(collection(db, this.generatedReportsCollectionName), payload);
+      await this.notifyFacultyReportGeneratedSafely(payload, reportRef.id);
 
       this.successMessage = `${payload.title} was saved under Generated Faculty Reports.`;
       await this.reloadGeneratedReportsOnly();
@@ -1234,6 +1240,104 @@ export class ReportsComponent implements OnInit {
   private async reloadGeneratedReportsOnly(): Promise<void> {
     this.generatedReports = await this.fetchGeneratedReports();
     this.cdr.detectChanges();
+  }
+
+  private async notifyFacultyReportGeneratedSafely(
+    report: Omit<GeneratedFacultyReport, 'id'>,
+    reportId: string,
+  ): Promise<void> {
+    try {
+      const payloads: FirestoreNotificationPayload[] = [];
+      const facultyUserId = this.getCurrentUserId();
+      const facultyName = this.getPreparedByName();
+
+      if (facultyUserId) {
+        payloads.push({
+          targetUserId: facultyUserId,
+          targetRole: 'teacher',
+          title: 'Faculty Report Generated',
+          message: `${report.title} was generated successfully.`,
+          type: 'report',
+          link: '/reports',
+          entityType: 'faculty_generated_report',
+          entityId: reportId,
+          actorUserId: facultyUserId,
+          actorName: facultyName || 'SAMS Faculty',
+        });
+      }
+
+      const adminTargets = await this.getAdminNotificationTargets();
+
+      adminTargets.forEach((admin) => {
+        payloads.push({
+          targetUserId: admin.id,
+          targetRole: 'admin',
+          title: 'Faculty Report Generated',
+          message: `${facultyName || 'A faculty member'} generated a faculty attendance report: ${report.title}.`,
+          type: 'report',
+          link: '/admin-management/reports-analytics',
+          entityType: 'faculty_generated_report',
+          entityId: reportId,
+          actorUserId: facultyUserId,
+          actorName: facultyName || 'SAMS Faculty',
+        });
+      });
+
+      await this.notificationService.notifyUsers(payloads);
+    } catch (error) {
+      console.warn('FACULTY REPORT NOTIFICATION ERROR:', error);
+    }
+  }
+
+  private async getAdminNotificationTargets(): Promise<Array<{ id: string; name: string }>> {
+    const targets = new Map<string, { id: string; name: string }>();
+
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      usersSnapshot.docs.forEach((userDoc) => {
+        const data = userDoc.data() as {
+          id?: string;
+          uid?: string;
+          userId?: string;
+          firstName?: string;
+          lastName?: string;
+          fullName?: string;
+          name?: string;
+          role?: string;
+          status?: string;
+          isArchived?: boolean;
+        };
+
+        const role = String(data.role || '').toLowerCase();
+        const status = String(data.status || 'active').toLowerCase();
+
+        if (role !== 'admin') return;
+        if (status === 'inactive' || status === 'archived' || data.isArchived) return;
+
+        const targetId = String(data.id || data.uid || data.userId || userDoc.id || '').trim();
+
+        if (!targetId) return;
+
+        targets.set(targetId, {
+          id: targetId,
+          name:
+            String(
+              data.fullName || data.name || `${data.firstName || ''} ${data.lastName || ''}`,
+            ).trim() || 'Admin',
+        });
+      });
+    } catch (error) {
+      console.warn('LOAD ADMIN NOTIFICATION TARGETS ERROR:', error);
+    }
+
+    return Array.from(targets.values());
+  }
+
+  private getCurrentUserId(): string {
+    return String(
+      this.currentUser?.id || this.currentUser?.uid || this.currentUser?.userId || '',
+    ).trim();
   }
 
   private buildGeneratedReportPayload(): Omit<GeneratedFacultyReport, 'id'> {

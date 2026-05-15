@@ -15,9 +15,11 @@ import {
 } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 
 import { AuthService } from '../../../services/auth.service';
 import { UserRole } from '../../../models/user.model';
+import { db } from '../../../firebase.config';
 
 interface NavItem {
   label: string;
@@ -43,6 +45,7 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
 
   private routerSubscription?: Subscription;
+  private unsubscribeMessageBadge?: () => void;
 
   @Input() collapsed = false;
   @Input() isMobile = false;
@@ -72,6 +75,9 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
   currentRole: UserRole | null = null;
   menuItems: NavItem[] = [];
   focusedIndex = 0;
+
+  unreadMessageCount = 0;
+  private currentMessageProfileId = '';
 
   readonly adminManagementItems: AdminManagementItem[] = [
     {
@@ -110,6 +116,8 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
     this.currentRole = this.authService.getUserRole();
     this.menuItems = this.getMenuByRole(this.currentRole);
 
+    void this.initializeMessageUnreadBadge();
+
     this.routerSubscription = this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe(() => {
@@ -123,6 +131,11 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routerSubscription?.unsubscribe();
+
+    if (this.unsubscribeMessageBadge) {
+      this.unsubscribeMessageBadge();
+      this.unsubscribeMessageBadge = undefined;
+    }
   }
 
   onToggleCollapse(): void {
@@ -176,6 +189,15 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
     event.stopPropagation();
 
     this.handleSidebarNavigationKey(event);
+  }
+
+  isMessagesItem(item: NavItem): boolean {
+    return item.route === '/messages';
+  }
+
+  getUnreadMessageLabel(): string {
+    if (this.unreadMessageCount > 99) return '99+';
+    return String(this.unreadMessageCount);
   }
 
   private handleSidebarNavigationKey(event: KeyboardEvent): void {
@@ -261,6 +283,131 @@ export class Sidenav implements OnInit, AfterViewInit, OnDestroy {
     }
 
     return !!target.closest('a');
+  }
+
+  private async initializeMessageUnreadBadge(): Promise<void> {
+    this.unreadMessageCount = 0;
+
+    if (this.currentRole !== 'teacher' && this.currentRole !== 'student') {
+      this.stopMessageUnreadBadge();
+      return;
+    }
+
+    const profileId = await this.resolveMessageProfileId();
+
+    if (!profileId) {
+      this.stopMessageUnreadBadge();
+      return;
+    }
+
+    this.currentMessageProfileId = profileId;
+    this.listenToMessageUnreadCount(profileId);
+  }
+
+  private stopMessageUnreadBadge(): void {
+    if (this.unsubscribeMessageBadge) {
+      this.unsubscribeMessageBadge();
+      this.unsubscribeMessageBadge = undefined;
+    }
+
+    this.currentMessageProfileId = '';
+    this.unreadMessageCount = 0;
+  }
+
+  private listenToMessageUnreadCount(profileId: string): void {
+    if (this.unsubscribeMessageBadge) {
+      this.unsubscribeMessageBadge();
+      this.unsubscribeMessageBadge = undefined;
+    }
+
+    const chatThreadsRef = collection(db, 'chatThreads');
+    const chatThreadsQuery = query(
+      chatThreadsRef,
+      where('participantIds', 'array-contains', profileId),
+    );
+
+    this.unsubscribeMessageBadge = onSnapshot(
+      chatThreadsQuery,
+      (snapshot) => {
+        let totalUnread = 0;
+
+        snapshot.docs.forEach((documentSnapshot) => {
+          const data = documentSnapshot.data() as {
+            unreadCounts?: Record<string, number>;
+          };
+
+          const unreadValue = Number(data.unreadCounts?.[profileId] || 0);
+
+          if (Number.isFinite(unreadValue) && unreadValue > 0) {
+            totalUnread += unreadValue;
+          }
+        });
+
+        this.unreadMessageCount = totalUnread;
+      },
+      (error) => {
+        console.error('SIDEBAR MESSAGE UNREAD LISTENER ERROR:', error);
+        this.unreadMessageCount = 0;
+      },
+    );
+  }
+
+  private async resolveMessageProfileId(): Promise<string> {
+    const currentUser = this.authService.getCurrentUser();
+    const currentUserId = String(currentUser?.id || '').trim();
+    const currentEmail = String(currentUser?.email || '')
+      .trim()
+      .toLowerCase();
+
+    if (this.currentRole === 'student') {
+      const studentProfileId = await this.findProfileIdByUserOrEmail(
+        'students',
+        currentUserId,
+        currentEmail,
+      );
+
+      return studentProfileId || currentUserId;
+    }
+
+    if (this.currentRole === 'teacher') {
+      const teacherProfileId = await this.findProfileIdByUserOrEmail(
+        'teachers',
+        currentUserId,
+        currentEmail,
+      );
+
+      return teacherProfileId || currentUserId;
+    }
+
+    return currentUserId;
+  }
+
+  private async findProfileIdByUserOrEmail(
+    collectionName: 'students' | 'teachers',
+    userId: string,
+    email: string,
+  ): Promise<string> {
+    const profileCollection = collection(db, collectionName);
+
+    if (userId) {
+      const userQuery = query(profileCollection, where('userId', '==', userId));
+      const userSnapshot = await getDocs(userQuery);
+
+      if (!userSnapshot.empty) {
+        return userSnapshot.docs[0].id;
+      }
+    }
+
+    if (email) {
+      const emailQuery = query(profileCollection, where('email', '==', email));
+      const emailSnapshot = await getDocs(emailQuery);
+
+      if (!emailSnapshot.empty) {
+        return emailSnapshot.docs[0].id;
+      }
+    }
+
+    return '';
   }
 
   private getMenuByRole(role: UserRole | null): NavItem[] {

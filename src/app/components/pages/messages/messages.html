@@ -3,7 +3,14 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">SAMS Chat</p>
-        <h1>Messages</h1>
+
+        <div class="messages-title-row">
+          <h1>Messages</h1>
+
+          <span class="total-unread-badge" *ngIf="totalUnreadCount > 0">
+            {{ getUnreadBadgeLabel(totalUnreadCount) }}
+          </span>
+        </div>
       </div>
 
       <button
@@ -209,10 +216,13 @@
         class="thread-item"
         *ngFor="let thread of filteredThreads; trackBy: trackThread"
         [class.active]="selectedThread?.id === thread.id"
+        [class.unread]="hasUnreadThread(thread)"
         (click)="selectThread(thread)"
       >
         <div class="avatar" [class.group]="thread.type === 'group'">
           <i [class]="thread.type === 'group' ? 'pi pi-users' : 'pi pi-user'"></i>
+
+          <span class="avatar-unread-dot" *ngIf="hasUnreadThread(thread)"></span>
         </div>
 
         <div class="thread-copy">
@@ -221,7 +231,13 @@
             <small>{{ formatTime(thread.lastMessageAt) }}</small>
           </div>
 
-          <p>{{ thread.lastMessage || thread.subtitle }}</p>
+          <div class="thread-preview-row">
+            <p>{{ getThreadPreview(thread) }}</p>
+
+            <span class="thread-unread-badge" *ngIf="getThreadUnreadCount(thread) > 0">
+              {{ getUnreadBadgeLabel(getThreadUnreadCount(thread)) }}
+            </span>
+          </div>
         </div>
       </button>
 

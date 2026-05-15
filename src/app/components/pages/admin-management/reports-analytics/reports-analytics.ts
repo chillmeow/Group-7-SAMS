@@ -12,6 +12,11 @@ import { TeacherService } from '../../../../services/teacher.service';
 import { ParentService } from '../../../../services/parent.service';
 import { SectionService } from '../../../../services/section.service';
 import { AlertService } from '../../../../services/alert.service';
+import { AuthService } from '../../../../services/auth.service';
+import {
+  NotificationService,
+  FirestoreNotificationPayload,
+} from '../../../../services/notification.service';
 
 import { AttendanceRecord, AttendanceStatus } from '../../../../models/attendance-record.model';
 import { AttendanceSession } from '../../../../models/attendance-session.model';
@@ -160,6 +165,8 @@ export class ReportsAnalytics implements OnInit {
   private readonly parentService = inject(ParentService);
   private readonly sectionService = inject(SectionService);
   private readonly alert = inject(AlertService);
+  private readonly authService = inject(AuthService);
+  private readonly notificationService = inject(NotificationService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   private readonly generatedReportsCollectionName = 'adminGeneratedReports';
@@ -811,7 +818,11 @@ export class ReportsAnalytics implements OnInit {
 
         try {
           const payload = this.buildGeneratedReportPayload();
-          await addDoc(collection(db, this.generatedReportsCollectionName), payload);
+          const reportRef = await addDoc(
+            collection(db, this.generatedReportsCollectionName),
+            payload,
+          );
+          await this.notifyAdminReportGeneratedSafely(payload, reportRef.id);
           this.alert.success(
             'Report generated',
             `${payload.title} was saved under Generated Report Records.`,
@@ -1144,6 +1155,117 @@ export class ReportsAnalytics implements OnInit {
   private async reloadGeneratedReportsOnly(): Promise<void> {
     this.generatedReports = await this.fetchGeneratedReports();
     this.cdr.detectChanges();
+  }
+
+  private async notifyAdminReportGeneratedSafely(
+    report: Omit<GeneratedAdminReport, 'id'>,
+    reportId: string,
+  ): Promise<void> {
+    try {
+      const adminTargets = await this.getAdminNotificationTargets();
+
+      if (!adminTargets.length) return;
+
+      const payloads: FirestoreNotificationPayload[] = adminTargets.map((admin) => ({
+        targetUserId: admin.id,
+        targetRole: 'admin',
+        title: 'Admin Report Generated',
+        message: `${report.title} was generated successfully for ${report.dateRangeLabel}.`,
+        type: 'report',
+        link: '/admin-management/reports-analytics',
+        entityType: 'admin_generated_report',
+        entityId: reportId,
+        actorUserId: this.getCurrentUserId(),
+        actorName: this.getCurrentUserName() || 'SAMS Admin',
+      }));
+
+      await this.notificationService.notifyUsers(payloads);
+    } catch (error) {
+      console.warn('ADMIN REPORT NOTIFICATION ERROR:', error);
+    }
+  }
+
+  private async getAdminNotificationTargets(): Promise<Array<{ id: string; name: string }>> {
+    const targets = new Map<string, { id: string; name: string }>();
+    const currentUserId = this.getCurrentUserId();
+    const currentUserName = this.getCurrentUserName();
+    const currentUserRole = String(this.authService.getCurrentUser()?.role || '').toLowerCase();
+
+    if (currentUserId && currentUserRole === 'admin') {
+      targets.set(currentUserId, {
+        id: currentUserId,
+        name: currentUserName || 'Admin',
+      });
+    }
+
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      usersSnapshot.docs.forEach((userDoc) => {
+        const data = userDoc.data() as {
+          id?: string;
+          uid?: string;
+          userId?: string;
+          firstName?: string;
+          lastName?: string;
+          fullName?: string;
+          name?: string;
+          role?: string;
+          status?: string;
+          isArchived?: boolean;
+        };
+
+        const role = String(data.role || '').toLowerCase();
+        const status = String(data.status || 'active').toLowerCase();
+
+        if (role !== 'admin') return;
+        if (status === 'inactive' || status === 'archived' || data.isArchived) return;
+
+        const targetId = String(data.id || data.uid || data.userId || userDoc.id || '').trim();
+
+        if (!targetId) return;
+
+        targets.set(targetId, {
+          id: targetId,
+          name:
+            String(
+              data.fullName || data.name || `${data.firstName || ''} ${data.lastName || ''}`,
+            ).trim() || 'Admin',
+        });
+      });
+    } catch (error) {
+      console.warn('LOAD ADMIN NOTIFICATION TARGETS ERROR:', error);
+    }
+
+    return Array.from(targets.values());
+  }
+
+  private getCurrentUserId(): string {
+    const currentUser = this.authService.getCurrentUser() as {
+      id?: string;
+      uid?: string;
+      userId?: string;
+    } | null;
+
+    return String(currentUser?.id || currentUser?.uid || currentUser?.userId || '').trim();
+  }
+
+  private getCurrentUserName(): string {
+    const currentUser = this.authService.getCurrentUser() as {
+      firstName?: string;
+      lastName?: string;
+      fullName?: string;
+      name?: string;
+      email?: string;
+    } | null;
+
+    return String(
+      currentUser?.fullName ||
+        currentUser?.name ||
+        `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}` ||
+        currentUser?.email ||
+        '',
+    ).trim();
   }
 
   private buildGeneratedReportPayload(): Omit<GeneratedAdminReport, 'id'> {

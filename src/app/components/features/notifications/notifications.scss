@@ -120,6 +120,13 @@
   font-weight: 900;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
 .hero-action {
   min-height: 42px;
   border: none;
@@ -137,6 +144,16 @@
   cursor: pointer;
   white-space: nowrap;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+}
+
+.hero-action.danger {
+  color: #b91c1c;
+}
+
+.hero-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .notifications-layout {
@@ -690,6 +707,12 @@
 
   .hero-icon i {
     font-size: 1.75rem;
+  }
+
+  .hero-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .hero-action {

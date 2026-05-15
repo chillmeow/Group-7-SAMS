@@ -13,12 +13,17 @@ import {
   tap,
   toArray,
 } from 'rxjs';
-import { deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 
 import { StudentService } from '../../../../services/student.service';
 import { TeacherService } from '../../../../services/teacher.service';
 import { ParentService } from '../../../../services/parent.service';
+import { AuthService } from '../../../../services/auth.service';
+import {
+  FirestoreNotificationPayload,
+  NotificationService,
+} from '../../../../services/notification.service';
 
 import { Student } from '../../../../models/student.model';
 import { Teacher } from '../../../../models/teacher.model';
@@ -81,6 +86,8 @@ export class ManageUsers implements OnInit {
   private readonly studentService = inject(StudentService);
   private readonly teacherService = inject(TeacherService);
   private readonly parentService = inject(ParentService);
+  private readonly authService = inject(AuthService);
+  private readonly notificationService = inject(NotificationService);
 
   loading = false;
   loadError = '';
@@ -666,6 +673,13 @@ export class ManageUsers implements OnInit {
               confirmButtonColor: '#2563eb',
             });
 
+            void this.notifyAdminManagementActionSafely({
+              title: `${record.roleLabel} Account Deactivated`,
+              message: `${record.fullName} was moved to Archive and the linked portal login was marked inactive.`,
+              entityType: `${record.role}_account`,
+              entityId: record.sourceId || record.id,
+            });
+
             this.loadRecords();
           },
           error: (error) => {
@@ -712,6 +726,13 @@ export class ManageUsers implements OnInit {
               confirmButtonColor: '#2563eb',
             });
 
+            void this.notifyAdminManagementActionSafely({
+              title: `${record.roleLabel} Account Restored`,
+              message: `${record.fullName} was restored to Active users and the linked portal login was reactivated.`,
+              entityType: `${record.role}_account`,
+              entityId: record.sourceId || record.id,
+            });
+
             this.loadRecords();
           },
           error: (error) => {
@@ -756,6 +777,13 @@ export class ManageUsers implements OnInit {
               title: 'Account Deleted',
               text: `${record.fullName} was permanently deleted.`,
               confirmButtonColor: '#2563eb',
+            });
+
+            void this.notifyAdminManagementActionSafely({
+              title: `${record.roleLabel} Account Deleted`,
+              message: `${record.fullName} was permanently deleted from Admin Management records.`,
+              entityType: `${record.role}_account`,
+              entityId: record.sourceId || record.id,
             });
 
             this.loadRecords();
@@ -1021,6 +1049,17 @@ export class ManageUsers implements OnInit {
             });
           }
 
+          if (successful.length > 0) {
+            void this.notifyAdminManagementActionSafely({
+              title: 'Bulk Account Generation Completed',
+              message: `${successful.length} ${this.activeTabLabel.toLowerCase()} account(s) were generated successfully${
+                failed.length > 0 ? `, with ${failed.length} failed item(s) for review` : ''
+              }.`,
+              entityType: 'bulk_account_generation',
+              entityId: `${this.activeTab}-${Date.now()}`,
+            });
+          }
+
           this.loadRecords();
         },
         error: (error) => {
@@ -1101,6 +1140,13 @@ export class ManageUsers implements OnInit {
               confirmButtonColor: '#2563eb',
             });
 
+            void this.notifyAdminManagementActionSafely({
+              title: 'Faculty Account Generated',
+              message: `A faculty portal account for ${record.fullName} was generated successfully.`,
+              entityType: 'faculty_account',
+              entityId: record.sourceId || record.id,
+            });
+
             this.loadRecords();
           },
           error: (error) => {
@@ -1157,6 +1203,13 @@ export class ManageUsers implements OnInit {
               confirmButtonColor: '#2563eb',
             });
 
+            void this.notifyAdminManagementActionSafely({
+              title: 'Student Account Generated',
+              message: `A student portal account for ${record.fullName} was generated successfully. If parent details are valid, the linked parent account was also handled.`,
+              entityType: 'student_account',
+              entityId: record.sourceId || record.id,
+            });
+
             this.loadRecords();
           },
           error: (error) => {
@@ -1173,6 +1226,123 @@ export class ManageUsers implements OnInit {
       text: 'Parent accounts are generated through the student account generation flow to prevent duplicate parent accounts.',
       confirmButtonColor: '#2563eb',
     });
+  }
+
+  private async notifyAdminManagementActionSafely(options: {
+    title: string;
+    message: string;
+    entityType: string;
+    entityId?: string;
+  }): Promise<void> {
+    try {
+      const adminTargets = await this.getAdminNotificationTargets();
+
+      if (!adminTargets.length) return;
+
+      const payloads: FirestoreNotificationPayload[] = adminTargets.map((admin) => ({
+        targetUserId: admin.id,
+        targetRole: 'admin',
+        title: options.title,
+        message: options.message,
+        type: 'account',
+        link: '/admin-management/manage-users',
+        entityType: options.entityType,
+        entityId: options.entityId || options.entityType,
+        actorUserId: this.getCurrentUserId(),
+        actorName: this.getCurrentUserName() || 'SAMS Admin',
+      }));
+
+      await this.notificationService.notifyUsers(payloads);
+    } catch (error) {
+      console.warn('ADMIN MANAGEMENT NOTIFICATION ERROR:', error);
+    }
+  }
+
+  private async getAdminNotificationTargets(): Promise<Array<{ id: string; name: string }>> {
+    const targets = new Map<string, { id: string; name: string }>();
+    const currentUserId = this.getCurrentUserId();
+    const currentUserName = this.getCurrentUserName();
+    const currentUserRole = String(this.authService.getCurrentUser()?.role || '').toLowerCase();
+
+    if (currentUserId && currentUserRole === 'admin') {
+      targets.set(currentUserId, {
+        id: currentUserId,
+        name: currentUserName || 'Admin',
+      });
+    }
+
+    try {
+      const usersSnapshot = await getDocs(collection(db, this.usersCollectionName));
+
+      usersSnapshot.docs.forEach((userDoc) => {
+        const data = userDoc.data() as {
+          id?: string;
+          uid?: string;
+          userId?: string;
+          firstName?: string;
+          lastName?: string;
+          fullName?: string;
+          name?: string;
+          role?: string;
+          status?: string;
+          isArchived?: boolean;
+        };
+
+        const role = String(data.role || '').toLowerCase();
+        const status = String(data.status || 'active').toLowerCase();
+
+        if (role !== 'admin') return;
+        if (status === 'inactive' || status === 'archived' || data.isArchived) return;
+
+        const targetId = String(data.id || data.uid || data.userId || userDoc.id || '').trim();
+
+        if (!targetId) return;
+
+        targets.set(targetId, {
+          id: targetId,
+          name:
+            String(
+              data.fullName || data.name || `${data.firstName || ''} ${data.lastName || ''}`,
+            ).trim() || 'Admin',
+        });
+      });
+    } catch (error) {
+      console.warn('LOAD ADMIN NOTIFICATION TARGETS ERROR:', error);
+    }
+
+    return Array.from(targets.values());
+  }
+
+  private getCurrentUserId(): string {
+    const user = this.authService.getCurrentUser() as unknown as
+      | (Record<string, unknown> & { id?: string; uid?: string; userId?: string })
+      | null;
+
+    return String(user?.id || user?.uid || user?.userId || '').trim();
+  }
+
+  private getCurrentUserName(): string {
+    const user = this.authService.getCurrentUser() as unknown as
+      | (Record<string, unknown> & {
+          firstName?: string;
+          lastName?: string;
+          fullName?: string;
+          name?: string;
+          username?: string;
+          email?: string;
+        })
+      | null;
+
+    return (
+      String(
+        user?.fullName ||
+          user?.name ||
+          `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
+          user?.username ||
+          user?.email ||
+          '',
+      ).trim() || 'SAMS Admin'
+    );
   }
 
   private showError(title: string, message: string): void {

@@ -18,6 +18,8 @@
   <div class="top-icons">
     <div class="search-shell" #searchRef [class.active]="isSearchOpen">
       <div class="search-box" *ngIf="isSearchOpen">
+        <i class="pi pi-search search-leading-icon" aria-hidden="true"></i>
+
         <input
           #searchInput
           type="text"
@@ -27,8 +29,23 @@
           (keydown.escape)="toggleSearch()"
         />
 
-        <button type="button" class="search-submit" (click)="toggleSearch()" aria-label="Search">
-          <i class="pi pi-search"></i>
+        <button
+          *ngIf="searchQuery"
+          type="button"
+          class="search-clear"
+          (click)="clearSearch($event)"
+          aria-label="Clear search"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+
+        <button
+          type="button"
+          class="search-submit"
+          (click)="toggleSearch()"
+          aria-label="Close search"
+        >
+          <i class="pi pi-check"></i>
         </button>
       </div>
 
@@ -47,7 +64,7 @@
       type="button"
       class="icon-btn theme-btn"
       (click)="toggleTheme()"
-      aria-label="Toggle theme"
+      [attr.aria-label]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
     >
       <i [class]="isDarkMode ? 'pi pi-sun' : 'pi pi-moon'"></i>
     </button>
@@ -57,17 +74,26 @@
         type="button"
         class="icon-btn notification-btn"
         (click)="toggleNotif($event)"
-        aria-label="Open notifications"
+        [attr.aria-label]="isNotifOpen ? 'Close notifications' : 'Open notifications'"
+        [attr.aria-expanded]="isNotifOpen"
       >
         <i class="pi pi-bell"></i>
-        <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+        <span class="badge" *ngIf="unreadCount > 0">
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </span>
       </button>
 
       <div class="notif-dropdown" *ngIf="isNotifOpen">
         <div class="notif-header">
           <div>
             <h3>Notifications</h3>
-            <p>{{ unreadCount }} unread</p>
+            <p>
+              <ng-container *ngIf="unreadCount > 0; else noUnreadTopbar">
+                {{ unreadCount }} unread update{{ unreadCount > 1 ? 's' : '' }}
+              </ng-container>
+
+              <ng-template #noUnreadTopbar> You are all caught up </ng-template>
+            </p>
           </div>
 
           <button
@@ -76,7 +102,7 @@
             (click)="markAllAsRead($event)"
             [disabled]="unreadCount === 0"
           >
-            Mark all as read
+            Mark all read
           </button>
         </div>
 
@@ -84,21 +110,43 @@
           <div class="notif-list" *ngIf="notifications.length > 0; else emptyNotif">
             <div
               class="notif-item"
-              *ngFor="let item of notifications"
+              *ngFor="let item of notifications; trackBy: trackByNotification"
               [class.unread]="!item.read"
-              (click)="markAsRead(item)"
+              (click)="openNotification(item, $event)"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="item.title"
             >
-              <div class="notif-icon">
-                <i [class]="getNotificationIcon(item.type)"></i>
+              <div class="notif-icon" [ngClass]="getNotificationToneClass(item.type)">
+                <i [class]="getNotificationIcon(item.type)" aria-hidden="true"></i>
               </div>
 
               <div class="notif-content">
                 <div class="notif-row">
-                  <h4>{{ item.title }}</h4>
-                  <span>{{ item.createdAt | date: 'short' }}</span>
+                  <div class="notif-title-group">
+                    <h4>{{ item.title }}</h4>
+
+                    <span class="notif-type-pill" [ngClass]="getNotificationToneClass(item.type)">
+                      {{ getNotificationTypeLabel(item.type) }}
+                    </span>
+                  </div>
+
+                  <span class="notif-time">{{ item.createdAt | date: 'short' }}</span>
                 </div>
 
                 <p>{{ item.message }}</p>
+
+                <div class="notif-footer" *ngIf="item.link || !item.read">
+                  <span *ngIf="!item.read" class="notif-status">
+                    <i class="pi pi-circle-fill"></i>
+                    New
+                  </span>
+
+                  <span *ngIf="item.link" class="notif-link-hint">
+                    <i class="pi pi-external-link"></i>
+                    Open
+                  </span>
+                </div>
               </div>
 
               <button
@@ -126,6 +174,13 @@
             <p>No notifications yet.</p>
           </div>
         </ng-template>
+
+        <div class="notif-dropdown-footer">
+          <button type="button" (click)="viewAllNotifications($event)">
+            <i class="pi pi-inbox"></i>
+            View all notifications
+          </button>
+        </div>
       </div>
     </div>
 
@@ -134,7 +189,8 @@
         type="button"
         class="profile-trigger"
         (click)="toggleProfile($event)"
-        aria-label="Open profile menu"
+        [attr.aria-label]="isProfileOpen ? 'Close profile menu' : 'Open profile menu'"
+        [attr.aria-expanded]="isProfileOpen"
       >
         <div class="avatar">{{ getUserInitial() }}</div>
 

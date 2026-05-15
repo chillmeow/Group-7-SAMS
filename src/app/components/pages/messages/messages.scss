@@ -48,10 +48,33 @@
   color: var(--muted-text, #64748b);
 }
 
+.messages-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .panel-header h1 {
   margin: 0;
   font-size: 1.45rem;
   color: var(--card-text, #0f172a);
+}
+
+.total-unread-badge,
+.thread-unread-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.24);
 }
 
 .new-chat-btn {
@@ -293,10 +316,37 @@
   padding: 0.85rem 0.7rem;
   border-radius: 18px;
   margin-bottom: 0.25rem;
+  position: relative;
 }
 
 .thread-item.active {
   background: rgba(37, 99, 235, 0.12);
+}
+
+.thread-item.unread {
+  background:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.1), transparent 62%), rgba(37, 99, 235, 0.035);
+}
+
+.thread-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.thread-item.unread .thread-top strong {
+  font-weight: 950;
+  color: #0f172a;
+}
+
+.thread-item.unread .thread-copy p {
+  color: #1e293b;
+  font-weight: 800;
 }
 
 .thread-copy {
@@ -323,13 +373,34 @@
   flex-shrink: 0;
 }
 
+.thread-preview-row {
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.thread-preview-row p,
 .thread-copy p {
-  margin: 0.25rem 0 0;
+  margin: 0;
   color: var(--muted-text, #64748b);
   font-size: 0.84rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.thread-preview-row p {
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-unread-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.64rem;
+  flex-shrink: 0;
 }
 
 .avatar {
@@ -343,6 +414,7 @@
   justify-content: center;
   flex-shrink: 0;
   font-weight: 800;
+  position: relative;
 }
 
 .avatar.group {
@@ -353,6 +425,18 @@
 .avatar.large {
   width: 52px;
   height: 52px;
+}
+
+.avatar-unread-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #ef4444;
+  border: 2px solid var(--card-bg, #ffffff);
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
 }
 
 .loading-state,
@@ -762,5 +846,23 @@
 
   .mode-tabs {
     grid-template-columns: 1fr;
+  }
+
+  .messages-title-row {
+    gap: 0.45rem;
+  }
+
+  .total-unread-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.62rem;
+  }
+
+  .thread-item {
+    padding: 0.78rem 0.65rem;
+  }
+
+  .thread-preview-row {
+    gap: 0.45rem;
   }
 }

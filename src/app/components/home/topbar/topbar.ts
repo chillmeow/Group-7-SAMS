@@ -5,6 +5,7 @@ import {
   EventEmitter,
   HostListener,
   Input,
+  OnDestroy,
   OnInit,
   Output,
   PLATFORM_ID,
@@ -13,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, Subscription } from 'rxjs';
 
 import { AuthService } from '../../../services/auth.service';
 import { AlertService } from '../../../services/alert.service';
@@ -27,13 +28,14 @@ import { User } from '../../../models/user.model';
   templateUrl: './topbar.html',
   styleUrl: './topbar.scss',
 })
-export class Topbar implements OnInit {
+export class Topbar implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly alertService = inject(AlertService);
   private readonly api = inject(ApiService);
   private readonly document = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
+  private notificationsSubscription: Subscription | null = null;
 
   @Input() isSidebarCollapsed = false;
   @Input() isMobile = false;
@@ -73,6 +75,11 @@ export class Topbar implements OnInit {
         this.currentUser = this.authService.getCurrentUser();
         this.loadNotifications();
       });
+  }
+
+  ngOnDestroy(): void {
+    this.notificationsSubscription?.unsubscribe();
+    this.notificationsSubscription = null;
   }
 
   private initializeTheme(): void {
@@ -133,6 +140,9 @@ export class Topbar implements OnInit {
   }
 
   loadNotifications(): void {
+    this.notificationsSubscription?.unsubscribe();
+    this.notificationsSubscription = null;
+
     if (!this.currentUser?.id) {
       this.notifications = [];
       this.unreadCount = 0;
@@ -141,18 +151,20 @@ export class Topbar implements OnInit {
 
     this.isLoadingNotifications = true;
 
-    this.api.getNotificationsByUser(this.currentUser.id).subscribe({
-      next: (data) => {
-        this.notifications = data ?? [];
-        this.unreadCount = this.notifications.filter((item) => !item.read).length;
-        this.isLoadingNotifications = false;
-      },
-      error: () => {
-        this.notifications = [];
-        this.unreadCount = 0;
-        this.isLoadingNotifications = false;
-      },
-    });
+    this.notificationsSubscription = this.api
+      .getNotificationsByUser(this.currentUser.id)
+      .subscribe({
+        next: (data) => {
+          this.notifications = data ?? [];
+          this.unreadCount = this.notifications.filter((item) => !item.read).length;
+          this.isLoadingNotifications = false;
+        },
+        error: () => {
+          this.notifications = [];
+          this.unreadCount = 0;
+          this.isLoadingNotifications = false;
+        },
+      });
   }
 
   toggleSearch(): void {
@@ -240,6 +252,7 @@ export class Topbar implements OnInit {
     this.api.markNotificationAsRead(notification.id).subscribe({
       next: (updated) => {
         notification.read = updated.read;
+        notification.isRead = updated.isRead;
         this.unreadCount = this.notifications.filter((item) => !item.read).length;
       },
       error: () => {
@@ -249,6 +262,29 @@ export class Topbar implements OnInit {
         );
       },
     });
+  }
+
+  openNotification(notification: Notification, event?: Event): void {
+    event?.stopPropagation();
+
+    if (!notification.read && notification.id) {
+      this.markAsRead(notification);
+    }
+
+    this.closeAllDropdowns();
+
+    if (notification.link) {
+      this.router.navigateByUrl(notification.link);
+      return;
+    }
+
+    this.router.navigateByUrl('/notifications');
+  }
+
+  viewAllNotifications(event: Event): void {
+    event.stopPropagation();
+    this.closeAllDropdowns();
+    this.router.navigateByUrl('/notifications');
   }
 
   markAllAsRead(event: Event): void {
@@ -280,17 +316,101 @@ export class Topbar implements OnInit {
     });
   }
 
-  getNotificationIcon(type: Notification['type']): string {
-    switch (type) {
+  getNotificationIcon(type: Notification['type'] | string | undefined): string {
+    const normalizedType = this.normalizeNotificationType(type);
+
+    switch (normalizedType) {
+      case 'attendance':
+        return 'pi pi-check-circle';
+      case 'request':
+        return 'pi pi-clock';
+      case 'report':
+        return 'pi pi-chart-bar';
+      case 'account':
+        return 'pi pi-user';
+      case 'system':
+        return 'pi pi-cog';
       case 'success':
         return 'pi pi-check-circle';
       case 'warning':
         return 'pi pi-exclamation-triangle';
       case 'error':
         return 'pi pi-times-circle';
+      case 'message':
+        return 'pi pi-comments';
+      case 'info':
+        return 'pi pi-info-circle';
       default:
         return 'pi pi-bell';
     }
+  }
+
+  getNotificationToneClass(type: Notification['type'] | string | undefined): string {
+    const normalizedType = this.normalizeNotificationType(type);
+
+    switch (normalizedType) {
+      case 'attendance':
+        return 'notif-icon-attendance';
+      case 'request':
+        return 'notif-icon-request';
+      case 'report':
+        return 'notif-icon-report';
+      case 'account':
+        return 'notif-icon-account';
+      case 'system':
+        return 'notif-icon-system';
+      case 'success':
+        return 'notif-icon-success';
+      case 'warning':
+        return 'notif-icon-warning';
+      case 'error':
+        return 'notif-icon-error';
+      case 'message':
+        return 'notif-icon-message';
+      case 'info':
+        return 'notif-icon-info';
+      default:
+        return 'notif-icon-default';
+    }
+  }
+
+  getNotificationTypeLabel(type: Notification['type'] | string | undefined): string {
+    const normalizedType = this.normalizeNotificationType(type);
+
+    switch (normalizedType) {
+      case 'attendance':
+        return 'Attendance';
+      case 'request':
+        return 'Request';
+      case 'report':
+        return 'Report';
+      case 'account':
+        return 'Account';
+      case 'system':
+        return 'System';
+      case 'success':
+        return 'Success';
+      case 'warning':
+        return 'Alert';
+      case 'error':
+        return 'Error';
+      case 'message':
+        return 'Message';
+      case 'info':
+        return 'Info';
+      default:
+        return 'Notification';
+    }
+  }
+
+  private normalizeNotificationType(type: Notification['type'] | string | undefined): string {
+    return String(type || 'info')
+      .trim()
+      .toLowerCase();
+  }
+
+  trackByNotification(_index: number, notification: Notification): string | number {
+    return notification.id;
   }
 
   getUserInitial(): string {

@@ -58,6 +58,9 @@ interface ChatThread {
   participantRoles: string[];
   lastMessage: string;
   lastMessageAt: string;
+  lastMessageSenderId?: string;
+  unreadCounts?: Record<string, number>;
+  lastReadAtBy?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -296,6 +299,10 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
     return this.selectedClassmateIds.size;
   }
 
+  get totalUnreadCount(): number {
+    return this.threads.reduce((total, thread) => total + this.getThreadUnreadCount(thread), 0);
+  }
+
   async initializeMessages(): Promise<void> {
     try {
       this.loading = true;
@@ -434,6 +441,11 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
         participantRoles: ['student'],
         lastMessage: '',
         lastMessageAt: now,
+        lastMessageSenderId: '',
+        unreadCounts: this.buildInitialUnreadCounts(participantIds),
+        lastReadAtBy: {
+          [this.currentProfileId]: now,
+        },
         createdAt: now,
         updatedAt: now,
       };
@@ -463,6 +475,7 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
     this.showEmojiPanel = false;
     this.cdr.detectChanges();
 
+    this.markThreadAsRead(thread);
     this.unsubscribeMessages?.();
 
     const messagesRef = collection(db, 'chatThreads', thread.id, 'messages');
@@ -480,6 +493,7 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
 
           this.loadingMessages = false;
           this.shouldScrollToBottom = true;
+          this.markVisibleMessagesAsSeen(thread.id, this.messages);
           this.cdr.detectChanges();
         });
       },
@@ -492,21 +506,6 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
         });
       },
     );
-
-    const unseenMessages = this.messages.filter(
-      (message) => message.senderId !== this.currentProfileId && !message.seen && !message.isUnsent,
-    );
-
-    unseenMessages.forEach(async (message) => {
-      try {
-        await updateDoc(doc(db, 'chatThreads', thread.id, 'messages', message.id), {
-          seen: true,
-          seenAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Seen update error:', error);
-      }
-    });
   }
 
   async sendMessage(): Promise<void> {
@@ -542,7 +541,6 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
       createdAt: now,
       replyTo: replyReference,
       isUnsent: false,
-
       delivered: true,
       seen: false,
       seenAt: '',
@@ -550,11 +548,31 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
 
     await addDoc(collection(db, 'chatThreads', thread.id, 'messages'), messagePayload);
 
+    const participantIds = this.getSafeParticipantIds(thread);
+    const unreadCounts = this.buildNextUnreadCounts(thread, participantIds);
+    const lastReadAtBy = {
+      ...(thread.lastReadAtBy || {}),
+      [this.currentProfileId]: now,
+    };
+
     await updateDoc(doc(db, 'chatThreads', thread.id), {
       lastMessage: text,
       lastMessageAt: now,
+      lastMessageSenderId: this.currentProfileId,
+      unreadCounts,
+      lastReadAtBy,
       updatedAt: now,
     });
+
+    this.selectedThread = {
+      ...thread,
+      lastMessage: text,
+      lastMessageAt: now,
+      lastMessageSenderId: this.currentProfileId,
+      unreadCounts,
+      lastReadAtBy,
+      updatedAt: now,
+    };
   }
 
   handleMessageKeydown(event: KeyboardEvent): void {
@@ -637,6 +655,39 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
     return message.text || 'Message';
   }
 
+  getThreadUnreadCount(thread: ChatThread): number {
+    const value = Number(thread.unreadCounts?.[this.currentProfileId] || 0);
+
+    if (!Number.isFinite(value) || value < 0) {
+      return 0;
+    }
+
+    return Math.floor(value);
+  }
+
+  hasUnreadThread(thread: ChatThread): boolean {
+    return this.getThreadUnreadCount(thread) > 0;
+  }
+
+  getUnreadBadgeLabel(count: number): string {
+    if (count > 99) return '99+';
+    return String(count);
+  }
+
+  getThreadPreview(thread: ChatThread): string {
+    const lastMessage = String(thread.lastMessage || '').trim();
+
+    if (!lastMessage) {
+      return thread.subtitle;
+    }
+
+    if (thread.lastMessageSenderId === this.currentProfileId) {
+      return `You: ${lastMessage}`;
+    }
+
+    return lastMessage;
+  }
+
   formatTime(value: string): string {
     if (!value) return '';
 
@@ -673,6 +724,10 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
 
             if (updatedSelected) {
               this.selectedThread = updatedSelected;
+
+              if (this.getThreadUnreadCount(updatedSelected) > 0) {
+                this.markThreadAsRead(updatedSelected);
+              }
             }
           }
 
@@ -687,6 +742,122 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
           this.cdr.detectChanges();
         });
       },
+    );
+  }
+
+  private async markThreadAsRead(thread: ChatThread): Promise<void> {
+    if (!thread?.id || !this.currentProfileId) {
+      return;
+    }
+
+    if (this.getThreadUnreadCount(thread) <= 0) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const unreadCounts = {
+      ...(thread.unreadCounts || {}),
+      [this.currentProfileId]: 0,
+    };
+
+    const lastReadAtBy = {
+      ...(thread.lastReadAtBy || {}),
+      [this.currentProfileId]: now,
+    };
+
+    try {
+      await updateDoc(doc(db, 'chatThreads', thread.id), {
+        unreadCounts,
+        lastReadAtBy,
+      });
+
+      this.threads = this.threads.map((item) =>
+        item.id === thread.id
+          ? {
+              ...item,
+              unreadCounts,
+              lastReadAtBy,
+            }
+          : item,
+      );
+
+      if (this.selectedThread?.id === thread.id) {
+        this.selectedThread = {
+          ...this.selectedThread,
+          unreadCounts,
+          lastReadAtBy,
+        };
+      }
+
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Mark thread read error:', error);
+    }
+  }
+
+  private markVisibleMessagesAsSeen(threadId: string, messages: ChatMessage[]): void {
+    const now = new Date().toISOString();
+
+    messages
+      .filter(
+        (message) =>
+          message.senderId !== this.currentProfileId && !message.seen && !message.isUnsent,
+      )
+      .forEach(async (message) => {
+        try {
+          await updateDoc(doc(db, 'chatThreads', threadId, 'messages', message.id), {
+            seen: true,
+            seenAt: now,
+          });
+        } catch (error) {
+          console.error('Seen update error:', error);
+        }
+      });
+  }
+
+  private buildInitialUnreadCounts(participantIds: string[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+
+    participantIds
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+      .forEach((id) => {
+        counts[id] = 0;
+      });
+
+    return counts;
+  }
+
+  private buildNextUnreadCounts(
+    thread: ChatThread,
+    participantIds: string[],
+  ): Record<string, number> {
+    const counts: Record<string, number> = {
+      ...(thread.unreadCounts || {}),
+    };
+
+    participantIds.forEach((participantId) => {
+      if (!participantId) return;
+
+      if (participantId === this.currentProfileId) {
+        counts[participantId] = 0;
+        return;
+      }
+
+      const currentCount = Number(counts[participantId] || 0);
+      counts[participantId] = Number.isFinite(currentCount) ? currentCount + 1 : 1;
+    });
+
+    return counts;
+  }
+
+  private getSafeParticipantIds(thread: ChatThread): string[] {
+    return Array.from(
+      new Set(
+        (thread.participantIds || [])
+          .map((participantId) => String(participantId || '').trim())
+          .filter(Boolean),
+      ),
     );
   }
 
@@ -820,6 +991,8 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
         chat.student.email,
       );
 
+      const participantIds = [this.currentProfileId, chat.student.id].filter(Boolean);
+
       return {
         type: 'private',
         title: classmateName,
@@ -828,11 +1001,16 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
         studentName: classmateName,
         sectionId: this.studentProfile?.sectionId || chat.student.sectionId || '',
         sectionName: this.studentProfile?.sectionName || chat.student.sectionName || '',
-        participantIds: [this.currentProfileId, chat.student.id],
+        participantIds,
         participantNames: [this.currentDisplayName, classmateName],
         participantRoles: ['student'],
         lastMessage: '',
         lastMessageAt: now,
+        lastMessageSenderId: '',
+        unreadCounts: this.buildInitialUnreadCounts(participantIds),
+        lastReadAtBy: {
+          [this.currentProfileId]: now,
+        },
         createdAt: now,
         updatedAt: now,
       };
@@ -863,6 +1041,11 @@ export class Messages implements OnInit, OnDestroy, AfterViewChecked {
       participantRoles: ['teacher', 'student'],
       lastMessage: '',
       lastMessageAt: now,
+      lastMessageSenderId: '',
+      unreadCounts: this.buildInitialUnreadCounts(participantIds),
+      lastReadAtBy: {
+        [this.currentProfileId]: now,
+      },
       createdAt: now,
       updatedAt: now,
     };

@@ -256,6 +256,15 @@
   color: var(--sidebar-text);
 }
 
+.nav-icon-wrap {
+  width: 18px;
+  min-width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
 .nav-link i,
 .admin-visual-link i {
   font-size: 16px;
@@ -269,6 +278,70 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.nav-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.nav-message-badge {
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.64rem;
+  line-height: 1;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.28);
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.nav-message-dot {
+  position: absolute;
+  top: -7px;
+  right: -8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ef4444;
+  border: 2px solid var(--sidebar-bg);
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.32);
+}
+
+.nav-link.has-message-badge {
+  font-weight: 700;
+}
+
+.nav-link.has-message-badge:not(.active) {
+  color: var(--sidebar-text);
+}
+
+.nav-link.active .nav-message-badge {
+  background: #ffffff;
+  color: #dc2626;
+  box-shadow: none;
+}
+
+.nav-link.active .nav-message-dot {
+  border-color: var(--sidebar-active);
+}
+
+.sidebar.collapsed .nav-icon-wrap {
+  width: 22px;
+  min-width: 22px;
+}
+
+.sidebar.collapsed .nav-message-dot {
+  top: -9px;
+  right: -10px;
 }
 
 .admin-management-section {
@@ -378,5 +451,11 @@
     padding: 11px 12px;
     border-radius: 13px;
     font-size: 14px;
+  }
+
+  .nav-message-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.6rem;
   }
 }

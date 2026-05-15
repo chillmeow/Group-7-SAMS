@@ -13,6 +13,7 @@ type AttendanceStatus = 'present' | 'late' | 'absent' | 'excused' | string;
 
 interface ParentAttendanceRow {
   id: string;
+  studentId: string;
   studentName: string;
   studentNumber: string;
   subjectLabel: string;
@@ -68,7 +69,7 @@ export class ParentAttendanceComponent implements OnInit {
   get filteredRows(): ParentAttendanceRow[] {
     if (!this.selectedStudentId) return this.attendanceRows;
 
-    return this.attendanceRows.filter((row) => row.id.includes(this.selectedStudentId));
+    return this.attendanceRows.filter((row) => row.studentId === this.selectedStudentId);
   }
 
   get presentCount(): number {
@@ -187,6 +188,7 @@ export class ParentAttendanceComponent implements OnInit {
 
               return {
                 id: `${record.studentId}-${record.id}`,
+                studentId: String(record.studentId || ''),
                 studentName: this.getStudentName(student),
                 studentNumber: student?.studentNumber || 'No student number',
                 subjectLabel:

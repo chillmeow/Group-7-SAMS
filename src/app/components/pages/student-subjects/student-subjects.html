@@ -4,7 +4,8 @@
       <p class="eyebrow">Student Portal</p>
       <h1>My Subjects</h1>
       <p class="subtitle">
-        View your enrolled subjects, assigned teachers, section, semester, and class schedules.
+        View your enrolled subjects, assigned teachers, section, semester, units, and class
+        schedules.
       </p>
     </div>
 
@@ -25,6 +26,10 @@
         <span>{{ studentNumber || 'No student number' }}</span>
         <span>•</span>
         <span>{{ studentYearLevel || 'No year level' }}</span>
+        <span *ngIf="studentSectionName || studentSectionId">•</span>
+        <span *ngIf="studentSectionName || studentSectionId">
+          {{ studentSectionName || studentSectionId }}
+        </span>
       </p>
     </div>
   </div>
@@ -77,7 +82,7 @@
       <input
         type="text"
         [(ngModel)]="searchTerm"
-        placeholder="Search subject, teacher, semester..."
+        placeholder="Search subject, teacher, semester, units..."
         aria-label="Search student subjects"
       />
     </div>
@@ -123,8 +128,8 @@
     <i class="pi pi-folder-open"></i>
     <h3>No subjects found</h3>
     <p>
-      No class offerings are currently assigned to your section, or your filters returned no
-      results.
+      No active class offerings are currently assigned to your section. Please ask the admin to
+      check your section assignment and the active class offerings.
     </p>
     <button type="button" (click)="resetFilters()">Reset Filters</button>
   </div>
@@ -154,8 +159,8 @@
           <div class="info-item">
             <i class="pi pi-user"></i>
             <div>
-              <span>Teacher</span>
-              <strong>{{ offering.teacherName || 'No teacher assigned' }}</strong>
+              <span>Instructor</span>
+              <strong>{{ offering.teacherName || 'No instructor assigned' }}</strong>
             </div>
           </div>
 
@@ -163,7 +168,7 @@
             <i class="pi pi-sitemap"></i>
             <div>
               <span>Section</span>
-              <strong>{{ offering.sectionName || 'No section' }}</strong>
+              <strong>{{ offering.sectionName || studentSectionName || 'No section' }}</strong>
             </div>
           </div>
 
@@ -182,11 +187,27 @@
               <strong>{{ offering.schoolYear || 'No school year' }}</strong>
             </div>
           </div>
+
+          <div class="info-item units-item">
+            <i class="pi pi-list-check"></i>
+            <div>
+              <span>Units</span>
+              <strong>{{ getOfferingUnits(offering) }}</strong>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <i class="pi pi-id-card"></i>
+            <div>
+              <span>Subject Code</span>
+              <strong>{{ offering.subjectCode || 'No code' }}</strong>
+            </div>
+          </div>
         </div>
 
         <div class="schedule-box">
           <i class="pi pi-map-marker"></i>
-          <span>{{ getSchedulePreview(offering.schedules) }}</span>
+          <span>{{ getSchedulePreview(offering.schedules || []) }}</span>
         </div>
       </div>
 
